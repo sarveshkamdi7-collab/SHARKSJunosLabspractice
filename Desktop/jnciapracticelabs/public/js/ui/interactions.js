@@ -68,6 +68,7 @@
       case 'open-project': $('#fileInput').click(); break;
       case 'save-project': APP.saveProject(); break;
       case 'save-as': if (APP.openSaveAs) APP.openSaveAs(); break;
+      case 'rename-project': beginRename(); break;
       case 'import-project': $('#fileInput').click(); break;
       case 'export-project': exportProject(); break;
       case 'snapshot-save': saveSnapshot(); break;
@@ -160,8 +161,54 @@
     if (layout) layout.addEventListener('click', autoLayout);
     if ($('#brandButton')) $('#brandButton').addEventListener('click', function () { if (APP.openAbout) APP.openAbout(); });
     if ($('#workspaceTabClose')) $('#workspaceTabClose').addEventListener('click', function () { dispatch('close-project'); });
+    var tabTitle = $('#workspaceTabTitle');
+    if (tabTitle) {
+      tabTitle.title = 'Double-click to rename';
+      tabTitle.addEventListener('dblclick', beginRename);
+    }
     var addWs = $('.workspace-add');
     if (addWs) addWs.addEventListener('click', function () { dispatch('new-project'); });
+  }
+
+  // ---------------------------------------------------------- rename project
+  function beginRename() {
+    var span = $('#workspaceTabTitle');
+    if (!span || span.dataset.editing === '1') return;
+    var st = APP.getState();
+    var current = st.title || 'Untitled Lab';
+    var input = document.createElement('input');
+    input.className = 'tab-rename';
+    input.type = 'text';
+    input.value = current;
+    input.maxLength = 60;
+    input.spellcheck = false;
+    input.setAttribute('aria-label', 'Project name');
+    span.dataset.editing = '1';
+    span.style.display = 'none';
+    span.parentNode.insertBefore(input, span);
+    input.focus();
+    input.select();
+
+    var finished = false;
+    function finish(commit) {
+      if (finished) return;
+      finished = true;
+      var next = String(input.value || '').trim().slice(0, 60);
+      if (input.parentNode) input.parentNode.removeChild(input);
+      span.style.display = '';
+      span.dataset.editing = '0';
+      if (!commit || !next || next === current) return;
+      st.title = next;
+      if (APP.updateProjectChrome) APP.updateProjectChrome();
+      APP.saveProject();
+      APP.toast('Project renamed to ' + next, 'success', 'tag');
+    }
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+      else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+      e.stopPropagation();
+    });
+    input.addEventListener('blur', function () { finish(true); });
   }
 
   // --------------------------------------------------------------- docking
@@ -677,6 +724,7 @@
         return;
       }
       if (e.key === 'F11') { e.preventDefault(); toggleFullscreen(); return; }
+      if (e.key === 'F2') { e.preventDefault(); beginRename(); return; }
       if (inField || document.activeElement.closest && document.activeElement.closest('#terminalDock')) return;
       var ctrl = e.ctrlKey || e.metaKey;
       if (ctrl && !e.shiftKey && e.key.toLowerCase() === 'n') { e.preventDefault(); dispatch('new-project'); }
