@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 210" width="900" height="210" role="img" aria-label="Engine flow: configuration tree, derived state, CLI output">
+  <rect width="900" height="210" rx="18" fill="#1a1a18"/>
+  <rect x="0.5" y="0.5" width="899" height="209" rx="18" fill="none" stroke="#2e2e2b"/>
+
+  
+  <g>
+    <rect x="30" y="46" width="230" height="118" rx="14" fill="#232321" stroke="#3a3a36"/>
+    <g transform="translate(52 68) scale(1.5)" fill="#cc785c"><path d="M8.186 1.113a.5.5 0 0 0-.372 0L1.846 3.5l2.404.961L10.404 2zm3.564 1.426L5.596 5 8 5.961 14.154 3.5zm3.25 1.7-6.5 2.6v7.922l6.5-2.6V4.24zM7.5 14.762V6.838L1 4.239v7.923zM7.443.184a1.5 1.5 0 0 1 1.114 0l7.129 2.852A.5.5 0 0 1 16 3.5v8.662a1 1 0 0 1-.629.928l-7.185 2.874a.5.5 0 0 1-.372 0L.63 13.09a1 1 0 0 1-.63-.928V3.5a.5.5 0 0 1 .314-.464z"/></g>
+    <text x="88" y="78" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="13" fill="#f4f4f1">Configuration tree</text>
+    <text x="88" y="95" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="11" fill="#a2a2a0">candidate and committed config</text>
+    <text x="52" y="126" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="10.5" fill="#8f8f8a">set / delete / annotate</text>
+  </g>
+  
+  <g>
+    <rect x="335" y="46" width="230" height="118" rx="14" fill="#232321" stroke="#3a3a36"/>
+    <g transform="translate(357 68) scale(1.5)" fill="#cc785c"><path d="M5 0a.5.5 0 0 1 .5.5V2h1V.5a.5.5 0 0 1 1 0V2h1V.5a.5.5 0 0 1 1 0V2h1V.5a.5.5 0 0 1 1 0V2A2.5 2.5 0 0 1 14 4.5h1.5a.5.5 0 0 1 0 1H14v1h1.5a.5.5 0 0 1 0 1H14v1h1.5a.5.5 0 0 1 0 1H14v1h1.5a.5.5 0 0 1 0 1H14a2.5 2.5 0 0 1-2.5 2.5v1.5a.5.5 0 0 1-1 0V14h-1v1.5a.5.5 0 0 1-1 0V14h-1v1.5a.5.5 0 0 1-1 0V14h-1v1.5a.5.5 0 0 1-1 0V14A2.5 2.5 0 0 1 2 11.5H.5a.5.5 0 0 1 0-1H2v-1H.5a.5.5 0 0 1 0-1H2v-1H.5a.5.5 0 0 1 0-1H2v-1H.5a.5.5 0 0 1 0-1H2A2.5 2.5 0 0 1 4.5 2V.5A.5.5 0 0 1 5 0m-.5 3A1.5 1.5 0 0 0 3 4.5v7A1.5 1.5 0 0 0 4.5 13h7a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 11.5 3zM5 6.5A1.5 1.5 0 0 1 6.5 5h3A1.5 1.5 0 0 1 11 6.5v3A1.5 1.5 0 0 1 9.5 11h-3A1.5 1.5 0 0 1 5 9.5zM6.5 6a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5z"/></g>
+    <text x="393" y="78" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="13" fill="#f4f4f1">Derived state</text>
+    <text x="393" y="95" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="11" fill="#a2a2a0">config plus topology, at runtime</text>
+    <text x="357" y="126" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="10.5" fill="#8f8f8a">interfaces, routes, adjacencies</text>
+  </g>
+  
+  <g>
+    <rect x="640" y="46" width="230" height="118" rx="14" fill="#232321" stroke="#3a3a36"/>
+    <g transform="translate(662 68) scale(1.5)" fill="#cc785c"><path d="M6 9a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3A.5.5 0 0 1 6 9M3.854 4.146a.5.5 0 1 0-.708.708L4.793 6.5 3.146 8.146a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708z"/><path d="M2 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2zm12 1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/></g>
+    <text x="698" y="78" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="13" fill="#f4f4f1">CLI output</text>
+    <text x="698" y="95" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="11" fill="#a2a2a0">tables, prompts, diffs</text>
+    <text x="662" y="126" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="10.5" fill="#8f8f8a">show, ping, traceroute, commit</text>
+  </g>
+
+  <g fill="none" stroke="#454540" stroke-width="1.6" stroke-linecap="round">
+    <path d="M262,105 H333"/>
+    <path d="M567,105 H638"/>
+  </g>
+  <g fill="none" stroke="#5db8a6" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 8">
+    <path d="M262,105 H333">
+      <animate attributeName="stroke-dashoffset" from="0" to="-20" dur="1s" repeatCount="indefinite"/>
+    </path>
+    <path d="M567,105 H638">
+      <animate attributeName="stroke-dashoffset" from="0" to="-20" dur="1s" repeatCount="indefinite"/>
+    </path>
+  </g>
+  <g fill="#5db8a6">
+    <path d="M333,105 l-8,-4 v8 z"/>
+    <path d="M638,105 l-8,-4 v8 z"/>
+  </g>
+
+  <text x="450" y="190" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" fill="#8f8f8a">same config in, same state out, on every commit</text>
+</svg>

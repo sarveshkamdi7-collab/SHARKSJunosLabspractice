@@ -1,11 +1,14 @@
 {
   "name": "jncia-junos-lab",
   "version": "1.0.0",
-  "description": "JNCIA-Junos CLI practice lab - simulated Junos devices in your browser, no Junos OS required",
+  "description": "SharkLab Studio - a JNCIA-Junos practice lab with simulated Junos devices in your browser, no Junos OS required",
   "private": true,
   "scripts": {
     "start": "node server/server.js",
-    "test": "node tests/run-tests.js"
+    "test": "node tests/run-tests.js",
+    "test:smoke": "node tests/smoke.js",
+    "test:coverage": "node tests/coverage-probe.js",
+    "test:bgp": "node tests/bgp-probe.js"
   },
   "engines": {
     "node": ">=14"
