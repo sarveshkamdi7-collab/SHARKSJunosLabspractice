@@ -93,7 +93,7 @@
       ],
       annotations: [{ id: 'note-1', type: 'text', text: 'JNCIA LAB 01\nOSPF area 0.0.0.0\nR1 ─ R2 ─ R3', x: 64, y: 335, w: 136, h: 68 }],
       view: { zoom: 1, panX: 24, panY: 16 },
-      settings: { grid: true, labels: true, leftDock: true, rightDock: true },
+      settings: { grid: true, labels: false, leftDock: true, rightDock: true },
       savedAt: null
     };
   }
@@ -107,7 +107,7 @@
       links: [],
       annotations: [],
       view: { zoom: 1, panX: 24, panY: 16 },
-      settings: { grid: true, labels: true, leftDock: true, rightDock: true },
+      settings: { grid: true, labels: false, leftDock: true, rightDock: true },
       savedAt: null
     };
   }
@@ -151,7 +151,10 @@
     s.view.zoom = clamp(Number(s.view.zoom) || 1, .28, 2.4);
     s.view.panX = Number(s.view.panX) || 0;
     s.view.panY = Number(s.view.panY) || 0;
-    s.settings = Object.assign({ grid: true, labels: true, leftDock: true, rightDock: true }, s.settings || {});
+    s.settings = Object.assign({ grid: true, labels: false, leftDock: true, rightDock: true }, s.settings || {});
+    // one-time migration: interface labels used to default on; retire the noise once
+    if (!s.meta) s.meta = {};
+    if (!s.meta.labelsMigrated) { s.settings.labels = false; s.meta.labelsMigrated = true; }
     return s;
   }
   APP.normalizeState = normalizeState;
@@ -196,7 +199,6 @@
     if ($('#statusNodes')) $('#statusNodes').textContent = n;
     if ($('#statusLinks')) $('#statusLinks').textContent = l;
     if ($('#topoCount')) $('#topoCount').textContent = n;
-    if ($('#canvasMeta')) $('#canvasMeta').textContent = state.nodes.map(function (x) { return x.name; }).join(', ');
     var running = state.nodes.filter(function (x) { return x.status === 'running'; }).length;
     if ($('#toolbarStatus')) $('#toolbarStatus').textContent = running + '/' + n + ' nodes running';
   }
@@ -399,6 +401,8 @@
     if (!cv) return;
     cv.classList.toggle('no-grid', !state.settings.grid);
     cv.classList.toggle('no-labels', !state.settings.labels);
+    // labels toggle must rebuild the link SVG: port labels are no longer drawn when hidden
+    APP.render.links();
     if ($('#gridButton')) $('#gridButton').classList.toggle('active', !!state.settings.grid);
     if ($('#labelsButton')) $('#labelsButton').classList.toggle('active', !!state.settings.labels);
     applyView();
@@ -433,6 +437,7 @@
     var layer = $('#linkLayer');
     if (!layer) return;
     var html = '';
+    var showLabels = !!(state.settings && state.settings.labels);
     state.links.forEach(function (l) {
       var a = nodeById(l.a), b = nodeById(l.b);
       if (!a || !b) return;
@@ -441,8 +446,8 @@
       var geo = linkGeometry(a, b, l);
       html += '<g class="link-group" data-link-id="' + esc(l.id) + '"><path class="link-hit" d="' + geo.d + '"></path><path class="link-under" d="' + geo.d + '"></path><path class="link-cable ' + (up ? 'up' : 'down') + (selectedLinkId === l.id ? ' selected' : '') + '" d="' + geo.d + '"></path>' +
         endpoint(geo.x1, geo.y1, up) + endpoint(geo.x2, geo.y2, up) +
-        portLabel(geo.x1, geo.y1, l.aPort, geo.px1, geo.py1) + portLabel(geo.x2, geo.y2, l.bPort, geo.px2, geo.py2) +
-        (l.label ? '<rect class="link-label-bg" x="' + (geo.cx - Math.max(36, String(l.label).length * 5.6 + 14) / 2) + '" y="' + (geo.cy + 10) + '" width="' + Math.max(36, String(l.label).length * 5.6 + 14) + '" height="14" rx="7"></rect><text class="link-label-text" x="' + geo.cx + '" y="' + (geo.cy + 20.4) + '" text-anchor="middle">' + esc(l.label) + '</text>' : '') + '</g>';
+        (showLabels ? portLabel(geo.x1, geo.y1, l.aPort, geo.px1, geo.py1) + portLabel(geo.x2, geo.y2, l.bPort, geo.px2, geo.py2) : '') +
+        (showLabels && l.label ? '<rect class="link-label-bg" x="' + (geo.cx - Math.max(36, String(l.label).length * 5.6 + 14) / 2) + '" y="' + (geo.cy + 10) + '" width="' + Math.max(36, String(l.label).length * 5.6 + 14) + '" height="14" rx="7"></rect><text class="link-label-text" x="' + geo.cx + '" y="' + (geo.cy + 20.4) + '" text-anchor="middle">' + esc(l.label) + '</text>' : '') + '</g>';
     });
     layer.innerHTML = html;
     $$('.link-hit', layer).forEach(function (el) {
@@ -519,7 +524,7 @@
     if (!state.nodes.length) { el.innerHTML = '<div class="topo-empty">No nodes in this project.</div>'; return; }
     var html = '';
     state.nodes.forEach(function (n) {
-      html += '<div class="topo-node ' + esc(n.status) + (selectedNodeId === n.id ? ' selected' : '') + '" data-tree-node="' + esc(n.id) + '"><span class="tree-line"></span><span class="topo-mini-icon">' + icon(nodeIconId(n)) + '</span><span class="topo-main"><span class="topo-name"><span class="status-dot"></span>' + esc(n.name) + '</span><span class="topo-sub">' + esc(n.status === 'running' ? 'Running' : n.status === 'paused' ? 'Paused' : 'Stopped') + ', <span class="topo-console">telnet localhost:' + n.consolePort + '</span></span></span><span class="topo-actions"><button class="topo-action" data-tree-action="console" title="Open console">' + icon('terminal') + '</button><button class="topo-action" data-tree-action="toggle" title="Start / pause">' + icon(n.status === 'running' ? 'pause' : 'play') + '</button></span></div>';
+      html += '<div class="topo-node ' + esc(n.status) + (selectedNodeId === n.id ? ' selected' : '') + '" data-tree-node="' + esc(n.id) + '" title="Console: telnet localhost:' + n.consolePort + '"><span class="tree-line"></span><span class="topo-mini-icon">' + icon(nodeIconId(n)) + '</span><span class="topo-main"><span class="topo-name"><span class="status-dot"></span>' + esc(n.name) + '</span><span class="topo-sub">' + esc(n.status === 'running' ? 'Running' : n.status === 'paused' ? 'Paused' : 'Stopped') + '</span></span><span class="topo-actions"><button class="topo-action" data-tree-action="console" title="Open console">' + icon('terminal') + '</button><button class="topo-action" data-tree-action="toggle" title="Start / pause">' + icon(n.status === 'running' ? 'pause' : 'play') + '</button></span></div>';
     });
     el.innerHTML = html;
     $$('.topo-node', el).forEach(function (row) {

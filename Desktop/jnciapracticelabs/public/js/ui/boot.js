@@ -47,7 +47,7 @@
     global.addEventListener('resize', function () {
       APP.applyView();
     });
-    APP.setStatus('Local server connected, double-click a device to open its console');
+    APP.setStatus('Local server connected');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

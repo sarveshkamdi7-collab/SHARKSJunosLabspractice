@@ -150,7 +150,7 @@
   }
 
   function bindToolbar() {
-    $$('.tool-btn[data-action], .canvas-tool[data-action], .ws-action[data-action], .icon-btn[data-action]').forEach(function (b) {
+    $$('.tool-btn[data-action], .canvas-tool[data-action], .ws-action[data-action], .icon-btn[data-action], .dock-restore[data-action]').forEach(function (b) {
       b.addEventListener('click', function (e) { e.stopPropagation(); dispatch(b.dataset.action); });
     });
     var layout = $('#wsLayoutButton');
