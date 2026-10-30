@@ -22,62 +22,10 @@
     return user + '@' + h + '> ';
   }
 
-  var OP_COMMANDS = ['clear', 'configure', 'edit', 'exit', 'help', 'monitor', 'ping', 'quit', 'request', 'show', 'ssh', 'start', 'telnet', 'traceroute'];
-  var SHOW_TREE = ['arp', 'bgp', 'chassis', 'configuration', 'ethernet-switching', 'interfaces', 'lldp', 'log', 'ospf', 'route', 'spanning-tree', 'system', 'version', 'vlans'];
-  var CFG_COMMANDS = ['commit', 'delete', 'edit', 'exit', 'help', 'insert', 'rename', 'rollback', 'run', 'set', 'show', 'top', 'up', 'wildcard'];
-  var SHELL_COMMANDS = ['cat', 'cli', 'date', 'df', 'exit', 'freebsd-version', 'hostname', 'ifconfig', 'ls', 'netstat', 'ping', 'pwd', 'route', 'show', 'ssh', 'top', 'traceroute', 'uname', 'uptime', 'whoami'];
+  var HOST_OPTIONS = ['ping', 'trace', 'show', 'ip', 'clear', 'help', 'quit'];
 
-  function words(cmd, prefix) {
-    var s = String(prefix || '').toLowerCase();
-    return cmd.filter(function (x) { return x.toLowerCase().indexOf(s) === 0; });
-  }
-
-  function completionFor(sess, line) {
-    var parts = String(line).split(/\s+/);
-    var trailing = /\s$/.test(line);
-    var idx = trailing ? parts.length : parts.length - 1;
-    var word = trailing ? '' : parts[idx];
-    var before = parts.slice(0, idx).filter(Boolean);
-    var mode = sess.mode;
-    var list = [];
-
-    if (mode === 'cli-cfg') {
-      if (idx === 0) list = words(CFG_COMMANDS, word);
-      else if (before[0] === 'edit' || before[0] === 'set' || before[0] === 'delete') list = ['system', 'interfaces', 'protocols', 'routing-options', 'security', 'vlans', 'policy-options'];
-      else if (before[0] === 'run') list = words(OP_COMMANDS, word);
-      else list = [];
-    } else if (mode === 'shell') {
-      if (idx === 0) list = words(SHELL_COMMANDS, word);
-      else list = [];
-    } else {
-      if (idx === 0) list = words(OP_COMMANDS, word);
-      else if (before[0] === 'show') {
-        if (idx === 1) list = words(SHOW_TREE, word);
-        else if (before[1] === 'interfaces') list = words(['terse', 'detail', 'extensive', 'diagnostics'], word);
-        else if (before[1] === 'ospf') list = words(['neighbor', 'database', 'interface', 'overview'], word);
-        else if (before[1] === 'route') list = words(['summary', 'detail', 'exact', 'protocol'], word);
-        else if (before[1] === 'system') list = words(['uptime', 'commit', 'processes', 'storage', 'users'], word);
-        else list = [];
-      } else if (before[0] === 'ping' || before[0] === 'traceroute') list = ['count', 'source', 'rapid', 'inet'];
-      else if (before[0] === 'monitor' && idx === 1) list = words(['traffic', 'interface', 'start'], word);
-      else list = [];
-    }
-
-    if (list.length === 1) {
-      list = [list[0] + (idx === 0 ? ' ' : ' ')];
-      var completed = parts.slice(0, idx).concat(list[0]).join(' ');
-      return { text: completed, lines: [] };
-    }
-    if (list.length > 1) {
-      var common = list[0];
-      list.forEach(function (v) { while (common && v.toLowerCase().indexOf(common.toLowerCase()) !== 0) common = common.slice(0, -1); });
-      if (common && common.length > word.length) {
-        var cparts = parts.slice(0, idx).concat([common]);
-        return { text: cparts.join(' ') + (list.length === 1 ? ' ' : ''), lines: [] };
-      }
-      return { text: line, lines: ['Possible completions:', '  ' + list.join('  ')] };
-    }
-    return { text: line, lines: [] };
+  function partsOf(line) {
+    return String(line).split(/\s+/).filter(function (x) { return /\S/.test(x); });
   }
 
   function createConsole(host, opts) {
@@ -155,46 +103,141 @@
     }
     function currentPrompt() {
       if (isHost) return hostPrompt();
-      if (!session) return (node.name || 'R1') + '>';
+      if (!session) return (node.name || 'R1') + '> ';
       return J.machine.promptFor(session);
     }
     function hostPrompt() { return (node.name || 'Host-A') + '> '; }
 
+    // ---------- output pager (set cli screen-length N) ----------
+
+    function morePrompt() {
+      var p = session.pager;
+      var pct = Math.min(99, Math.max(0, Math.round((p.pos / p.list.length) * 100)));
+      return '---(more ' + pct + '%)---';
+    }
+    function advancePager() {
+      var p = session.pager;
+      var end = Math.min(p.pos + p.page, p.list.length);
+      var chunk = p.list.slice(p.pos, end);
+      p.pos = end;
+      if (chunk.length) writeLines(chunk);
+      if (p.pos >= p.list.length) closePager();
+      else setPrompt(morePrompt());
+      renderInput();
+      focus();
+    }
+    function closePager() {
+      session.pager = null;
+      setPrompt(currentPrompt());
+      renderInput();
+      focus();
+    }
+    function writeAndPage(lines) {
+      var sl = session && session.screenLen ? session.screenLen : 0;
+      if (!sl || !lines || lines.length <= sl) { writeLines(lines); return; }
+      writeLines(lines.slice(0, sl));
+      session.pager = { open: true, list: lines, pos: sl, page: sl };
+      setPrompt(morePrompt());
+    }
+
+    // ---------- completions (delegated to the Junos engine) ----------
+
+    function candidatesFor() {
+      if (!session) return { rows: [] };
+      var trailing = /\s$/.test(input);
+      var parts = partsOf(input);
+      try { return J.machine.candidateWords(session, parts, trailing) || { rows: [] }; }
+      catch (err) { return { rows: [] }; }
+    }
+
+    function fillTo(word, baseParts) {
+      var head = baseParts.join(' ');
+      return (head ? head + ' ' : '') + word + ' ';
+    }
+
+    function tabComplete() {
+      var res = candidatesFor();
+      var rows = res.rows || [];
+      if (!rows.length) return;
+      var trailing = /\s$/.test(input);
+      var parts = partsOf(input);
+      var last = trailing ? '' : (parts.length ? parts[parts.length - 1] : '');
+      if (rows.length === 1) {
+        if (trailing) return; // token already complete
+        input = fillTo(rows[0][0], parts.slice(0, -1));
+        renderInput();
+        return;
+      }
+      var lcp = rows[0][0].toLowerCase();
+      for (var k = 1; k < rows.length; k++) {
+        var v = String(rows[k][0]).toLowerCase();
+        var n = Math.min(lcp.length, v.length), c2 = 0;
+        while (c2 < n && lcp.charAt(c2) === v.charAt(c2)) c2++;
+        lcp = lcp.slice(0, c2);
+      }
+      if (lcp.length > last.length) {
+        input = (trailing ? parts.join(' ') : parts.slice(0, -1).join(' '));
+        if (input) input += ' ';
+        input += lcp;
+        renderInput();
+        return;
+      }
+      writeLine(currentPrompt() + input);
+      var blk = J.machine.completionsBlock ? J.machine.completionsBlock(rows) : rows.map(function (r) { return '  ' + r[0]; });
+      writeLines(blk);
+      renderInput();
+    }
+
+    function queryCompletions() {
+      writeLine(currentPrompt() + input + '?');
+      var res = candidatesFor();
+      var rows = res.rows || [];
+      if (!rows.length) return;
+      var blk = J.machine.completionsBlock ? J.machine.completionsBlock(rows) : rows.map(function (r) { return '  ' + r[0]; });
+      writeLines(blk);
+    }
+
+    // ---------- boot banner from the node model ----------
+
     function boot(showBanner) {
       if (started) return;
       started = true;
-        if (isHost) {
-          if (showBanner !== false) {
-            writeLines([
-              'VPCS v0.8.3, Virtual PC Simulator',
-              node.name + ', eth0 ' + (node.ip || '10.0.3.20') + '/24, gateway ' + (node.gateway || '10.0.3.1'),
-              'Type "help" for available commands.',
-              ''
-            ]);
-          }
-          setPrompt(hostPrompt());
-          setTimeout(focus, 50);
-          return;
-        }
-        var rt = session && session.rt;
-        var ver = (rt && rt.spec && rt.spec.version) || '21.4R1';
+      if (isHost) {
         if (showBanner !== false) {
           writeLines([
-            'JUNOS ' + ver + ' - vSRX 3.0',
-            'Console connected to ' + (node ? node.name : 'R1') + ' - localhost:' + ((node && node.consolePort) || 5001),
-            'Type "cli" from the shell to enter operational mode.',
+            'VPCS v0.8.3, Virtual PC Simulator',
+            node.name + ', eth0 ' + (node.ip || '10.0.3.20') + '/24, gateway ' + (node.gateway || '10.0.3.2'),
+            'Type "help" for available commands.',
             ''
           ]);
         }
-        setPrompt(currentPrompt());
+        setPrompt(hostPrompt());
         setTimeout(focus, 50);
+        return;
+      }
+      var rt = session && session.rt;
+      var spec = (rt && rt.spec) || {};
+      var ver = spec.version || '20.4R2-S2.1';
+      var model = String(spec.model || (node && node.model) || 'mx240').toLowerCase();
+      if (showBanner !== false) {
+        writeLines([
+          'Console connected to ' + (node ? node.name : 'R1') + ((node && node.consolePort) ? ' (console port ' + node.consolePort + ')' : ''),
+          '',
+          'JUNOS ' + ver,
+          'Model: ' + model,
+          ''
+        ]);
+      }
+      if (session && session.screenLen == null) session.screenLen = 0;
+      setPrompt(currentPrompt());
+      setTimeout(focus, 50);
     }
 
     function hostCommand(line) {
       var toks = line.trim().split(/\s+/);
       var cmd = (toks[0] || '').toLowerCase();
       var ip = node.ip || '10.0.3.20';
-      var gw = node.gateway || '10.0.3.1';
+      var gw = node.gateway || '10.0.3.2';
       if (!cmd) return;
       if (cmd === 'help' || cmd === '?') {
         writeLines(['', '  ping <ip>          ping an address', '  trace <ip>         traceroute an address', '  show ip            show IPv4 address', '  show arp           show ARP table', '  ip <addr>/<len> <gw>  configure address', '  clear              clear the screen', '  quit               close this console', '']);
@@ -245,7 +288,7 @@
         }
         writeLines(['traceroute to ' + dst2 + ' (' + dst2 + '), 30 hops max, 40 byte packets']);
         if (tr && tr.ok && tr.hops && tr.hops.length) {
-          tr.hops.forEach(function (h, i) { writeLine(' ' + (i + 1) + '  ' + (h.ip || h.node || h) + '  ' + (0.9 + Math.random()).toFixed(3) + ' ms  ' + (0.8 + Math.random()).toFixed(3) + ' ms  ' + (0.7 + Math.random()).toFixed(3) + ' ms'); });
+          tr.hops.forEach(function (h, i) { var hip = (i === 0) ? (node.gateway || h.to || h.dev) : (h.to || h.via || h.dev); writeLine(' ' + (i + 1) + '  ' + hip + '  ' + (0.9 + Math.random()).toFixed(3) + ' ms  ' + (0.8 + Math.random()).toFixed(3) + ' ms  ' + (0.7 + Math.random()).toFixed(3) + ' ms'); });
         } else if (tr && tr.ok) {
           writeLine(' 1  ' + dst2 + '  1.126 ms  1.044 ms  0.982 ms');
         } else {
@@ -276,24 +319,29 @@
       }
       if (!session) { writeLine('% Console session unavailable', 'term-error'); return; }
       if (line.trim() === 'clear') { clear(); setPrompt(currentPrompt()); focus(); return; }
-      if (line.trim() === 'help') {
-        writeLines(['', 'Junos quick help:', '  show version | interfaces terse | route | ospf neighbor | configuration', '  configure / edit → set … / commit / rollback', '  ping <host>, traceroute <host>, monitor traffic interface ge-0/0/0', '  exit (config → operational → shell), cli (shell → operational)', '']);
-        setPrompt(currentPrompt());
-        focus();
-        return;
-      }
       try { session.world = APP.rebuildWorld ? APP.rebuildWorld() : session.world; } catch (e) {}
       var res;
       try { res = J.machine.feed(session, line); }
-      catch (e) { res = { lines: ['error: ' + e.message], prompt: currentPrompt() }; }
-      writeLines(res.lines || []);
-      setPrompt(res.prompt || currentPrompt());
+      catch (e) { res = { lines: ['error: ' + e.message] }; }
+      if (res.prompt) {
+        writeLines(res.lines || []);
+        setPrompt(res.prompt);
+      } else {
+        writeAndPage(res.lines || []);
+        if (!(session && session.pager)) setPrompt(currentPrompt());
+      }
       if (opts.onCommand) opts.onCommand(line, session);
       if (APP.scheduleSave) APP.scheduleSave();
       focus();
     }
 
     host.addEventListener('keydown', function (e) {
+      if (!isHost && session && session.pager && session.pager.open) {
+        e.preventDefault(); e.stopPropagation();
+        if (e.key === 'q' || e.key === 'Q') closePager();
+        else advancePager();
+        return;
+      }
       if (e.key === 'Enter') {
         e.preventDefault(); e.stopPropagation();
         submit(); focus(); return;
@@ -303,8 +351,7 @@
         if (isHost) {
           var toks = input.trim().split(/\s+/);
           var base = toks[0] || '';
-          var options = ['ping', 'trace', 'show', 'ip', 'clear', 'help', 'quit'];
-          var matches = options.filter(function (x) { return x.indexOf(base) === 0; });
+          var matches = HOST_OPTIONS.filter(function (x) { return x.indexOf(base) === 0; });
           if (matches.length === 1) input = matches[0] + (toks.length === 1 ? ' ' : '');
           else if (matches.length > 1) writeLines(['Possible completions:', '  ' + matches.join('  ')]);
           renderInput();
@@ -312,9 +359,14 @@
           return;
         }
         if (!session) return;
-        var c = completionFor(session, input);
-        if (c.lines && c.lines.length) writeLines(c.lines);
-        if (c.text != null) input = c.text;
+        tabComplete();
+        renderInput();
+        focus();
+        return;
+      }
+      if (!isHost && e.key === '?') {
+        e.preventDefault(); e.stopPropagation();
+        if (session) queryCompletions();
         renderInput();
         focus();
         return;
@@ -414,5 +466,5 @@
   }
 
   J.ui = J.ui || {};
-  J.ui.console = { createConsole: createConsole, completionFor: completionFor, shellPrompt: shellPrompt, opPrompt: opPrompt };
+  J.ui.console = { createConsole: createConsole, shellPrompt: shellPrompt, opPrompt: opPrompt };
 })(typeof window !== 'undefined' ? window : globalThis);

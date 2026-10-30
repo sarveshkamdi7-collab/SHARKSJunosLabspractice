@@ -61,8 +61,8 @@
     var n = selectionNode();
     switch (action) {
       case 'new-project':
-        confirmAction('Start a new project? Unsaved changes are saved to this browser first.', function () {
-          APP.saveProject(true); APP.resetProject('Untitled Lab'); APP.toast('New project created', 'success', 'new');
+        confirmAction('Start a new project? Your changes are saved in this browser.', function () {
+          APP.saveProject(true); APP.resetProject('Untitled lab', true); APP.toast('New project started, the canvas is empty', 'success', 'new');
         });
         break;
       case 'open-project': $('#fileInput').click(); break;
@@ -434,7 +434,7 @@
     if (d.tool === 'line') {
       el = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       el.setAttribute('x1', d.sx); el.setAttribute('y1', d.sy); el.setAttribute('x2', d.x); el.setAttribute('y2', d.y);
-      el.setAttribute('stroke', '#55a6d8'); el.setAttribute('stroke-width', '1.8'); el.setAttribute('stroke-dasharray', '5 4');
+      el.setAttribute('stroke', 'rgba(255,255,255,.5)'); el.setAttribute('stroke-width', '1.8'); el.setAttribute('stroke-dasharray', '5 4');
     } else {
       el = document.createElementNS('http://www.w3.org/2000/svg', d.tool === 'ellipse' ? 'ellipse' : 'rect');
       var x = Math.min(d.sx, d.x), y = Math.min(d.sy, d.y), w = Math.abs(d.x - d.sx), h = Math.abs(d.y - d.sy);
@@ -443,7 +443,7 @@
       } else {
         el.setAttribute('x', x); el.setAttribute('y', y); el.setAttribute('width', w); el.setAttribute('height', h); el.setAttribute('rx', 4);
       }
-      el.setAttribute('fill', 'rgba(52,168,255,.07)'); el.setAttribute('stroke', '#55a6d8'); el.setAttribute('stroke-width', '1.6'); el.setAttribute('stroke-dasharray', '5 4');
+      el.setAttribute('fill', 'rgba(255,255,255,.06)'); el.setAttribute('stroke', 'rgba(255,255,255,.5)'); el.setAttribute('stroke-width', '1.6'); el.setAttribute('stroke-dasharray', '5 4');
     }
     el.id = 'annotationPreview';
     layer.appendChild(el);
@@ -490,7 +490,9 @@
     var n = APP.nodeById(id);
     if (!n) return;
     var h = '<div class="ctx-head">' + icon(APP.nodeIconId(n)) + '<span><b>' + esc(n.name) + '</b><small>' + esc(n.model) + ', ' + esc(n.status) + '</small></span></div><div class="ctx-sep"></div>';
-    h += menuItem('start', 'Start', 'play') + menuItem('pause', 'Pause', 'pause') + menuItem('stop', 'Stop', 'stop') + menuItem('restart', 'Restart', 'reload');
+    var running = n.status === 'running';
+    if (running) h += menuItem('pause', 'Pause', 'pause') + menuItem('stop', 'Stop', 'stop') + menuItem('restart', 'Restart', 'reload');
+    else h += menuItem('start', 'Start', 'play');
     h += '<div class="ctx-sep"></div>' + menuItem('console', 'Open Console', 'terminal') + menuItem('interfaces', 'Configure Interfaces…', 'settings') + menuItem('capture', 'Packet Capture…', 'packet');
     h += '<div class="ctx-sep"></div>' + menuItem('rename', 'Rename Node…', 'note') + menuItem('delete', 'Delete Node', 'trash', true);
     showMenu(h, x, y);

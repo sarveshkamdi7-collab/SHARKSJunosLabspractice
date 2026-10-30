@@ -44,6 +44,19 @@
   var cconf = J.machine.feed(s2,'commit confirmed 5');
   ok('commit confirmed accepted', cconf && cconf.lines && cconf.lines.join('\n').indexOf('commit confirmed')>=0);
 
+  // host networking + canonical OSPF metric (needs the full device set incl hosts)
+  var w2 = J.machine.buildWorldFromDevs({R1:J.machine.createDeviceRuntime('R1'),R2:J.machine.createDeviceRuntime('R2'),R3:J.machine.createDeviceRuntime('R3'),SW1:J.machine.createDeviceRuntime('SW1')});
+  var r2lo = (w2.devices.R1.routes||[]).filter(function(r){ return r.dest==='2.2.2.2/32'; })[0];
+  ok('ospf loopback metric 2', !!r2lo && r2lo.metric===2, r2lo ? String(r2lo.metric) : 'missing');
+  var pR1H = J.net.pingDev(w2,'R1','10.0.3.20',null);
+  ok('R1 -> Host-A ping', !!pR1H.ok);
+  var pHA2 = J.net.pingDev(w2,'Host-A','2.2.2.2',null);
+  ok('Host-A -> R2 loopback ping', !!pHA2.ok);
+  var pHAB = J.net.pingDev(w2,'Host-A','10.1.1.20',null);
+  ok('Host-A -> Host-B ping', !!pHAB.ok);
+  var tHA = J.net.tracePath(w2,'Host-A','2.2.2.2');
+  ok('Host-A trace via SW1 then R1', !!tHA.ok && tHA.hops.length===2 && tHA.hops[0].dev==='SW1' && tHA.hops[1].dev==='R1');
+
   console.log('Summary: '+passed+'/'+(passed+failed)+' passed');
   process.exit(failed>0?1:0);
 })();

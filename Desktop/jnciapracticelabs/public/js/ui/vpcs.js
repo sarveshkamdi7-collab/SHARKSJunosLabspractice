@@ -13,7 +13,7 @@
         id: 'host-' + name, name: name, type: 'host', icon: 'pc', model: 'VPCS',
         vendor: 'Virtual PC', junos: false, platform: '', status: 'running',
         consolePort: 5005, ip: name === 'Host-B' ? '10.1.1.20' : '10.0.3.20',
-        gateway: name === 'Host-B' ? '10.1.1.2' : '10.0.3.1'
+        gateway: name === 'Host-B' ? '10.1.1.2' : '10.0.3.2'
       };
     } else {
       node = opts.node || (APP.nodeById && APP.nodeById(opts.nodeId)) || { name: 'Host', junos: false };

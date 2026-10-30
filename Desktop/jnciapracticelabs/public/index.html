@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0e1113">
+  <meta name="theme-color" content="#09090a">
   <title>JNCIA Junos Practice Lab</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/app.css">
@@ -11,11 +11,11 @@
 <body>
   <svg class="svg-sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
     <symbol id="i-logo" viewBox="0 0 32 32">
-      <rect x="2" y="2" width="28" height="28" rx="7" fill="currentColor" opacity=".16"/>
-      <circle cx="10" cy="11" r="3.2" fill="currentColor"/>
-      <circle cx="23" cy="10" r="3.2" fill="currentColor"/>
-      <circle cx="16" cy="23" r="3.2" fill="currentColor"/>
-      <path d="M12.5 12.3l7.9.1M11.4 14l3.5 6.5M21.7 12.7l-3.8 6.2" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <rect x="3" y="3" width="26" height="26" rx="6.5" fill="none" stroke="currentColor" stroke-width="2"/>
+      <circle cx="11.5" cy="11.5" r="2.6" fill="currentColor"/>
+      <circle cx="22" cy="10.5" r="2.6" fill="currentColor"/>
+      <circle cx="15.5" cy="22.5" r="2.6" fill="currentColor"/>
+      <path d="M14 12.3l6-.9M12.8 14.4l1.9 5.9M20.7 12.9l-3.4 7.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
     </symbol>
     <symbol id="i-new" viewBox="0 0 24 24"><path d="M6 3.5h7l5 5v12H6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M13 3.5v5h5M9 14h6M12 11v6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
     <symbol id="i-open" viewBox="0 0 24 24"><path d="M3.5 7.5h6l2-2h9v13h-17z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M3.5 9.5h17l-2 8.5h-15z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
@@ -36,39 +36,30 @@
     <symbol id="i-zoom-out" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 15l5 5M8 10.5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
     <symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16" fill="none" stroke="currentColor" stroke-width="1.3"/></symbol>
     <symbol id="i-router" viewBox="0 0 64 64">
-      <defs><linearGradient id="routerTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a8ac7"/><stop offset="1" stop-color="#2b649c"/></linearGradient></defs>
-      <ellipse cx="32" cy="47" rx="23" ry="8" fill="#1c2733" opacity=".22"/>
-      <path d="M9 20v22c0 6.1 10.3 11 23 11s23-4.9 23-11V20z" fill="url(#routerTop)" stroke="#1b4d7a" stroke-width="1.4"/>
-      <ellipse cx="32" cy="20" rx="23" ry="10" fill="#5a9bd3" stroke="#1b4d7a" stroke-width="1.4"/>
-      <ellipse cx="32" cy="20" rx="15.5" ry="6.4" fill="#223c57" opacity=".82"/>
-      <path d="M23 20h18M29 16.5l-4 3.5 4 3.5M35 16.5l4 3.5-4 3.5" stroke="#8ed4ff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="17" cy="34" r="2" fill="#7ef0a4"/><circle cx="24" cy="36" r="2" fill="#7ef0a4"/><circle cx="46" cy="34" r="2" fill="#263a4d"/><circle cx="39" cy="36" r="2" fill="#263a4d"/>
-      <path d="M17 44h30" stroke="#8ab8de" stroke-width="1.2" opacity=".65"/>
+      <rect x="9" y="20" width="46" height="24" rx="4" fill="none" stroke="currentColor" stroke-width="2.4"/>
+      <path d="M17 29h12M29 29l-3.6-2.6M29 29l-3.6 2.6M47 35H35M35 35l3.6-2.6M35 35l3.6 2.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity=".78"/>
+      <g fill="none" stroke="currentColor" stroke-width="1.3" opacity=".55">
+        <path d="M14 40h6M22 40h6M30 40h6M38 40h6M46 40h6"/>
+      </g>
     </symbol>
     <symbol id="i-switch" viewBox="0 0 64 64">
-      <defs><linearGradient id="swTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5e6e80"/><stop offset="1" stop-color="#303e4d"/></linearGradient></defs>
-      <ellipse cx="32" cy="51" rx="25" ry="6" fill="#1c2733" opacity=".2"/>
-      <path d="M7 29l4-14h42l4 14v18H7z" fill="url(#swTop)" stroke="#1d2a36" stroke-width="1.4"/>
-      <path d="M11 15h42l-2.5 9h-37z" fill="#8292a3" opacity=".55"/>
-      <rect x="12" y="33" width="40" height="9" rx="1.5" fill="#1b2733"/>
-      <g fill="#6ff0a0"><rect x="14" y="35.5" width="3" height="4" rx=".7"/><rect x="19" y="35.5" width="3" height="4" rx=".7"/><rect x="24" y="35.5" width="3" height="4" rx=".7"/><rect x="29" y="35.5" width="3" height="4" rx=".7"/><rect x="34" y="35.5" width="3" height="4" rx=".7"/><rect x="39" y="35.5" width="3" height="4" rx=".7"/><rect x="44" y="35.5" width="3" height="4" rx=".7" opacity=".45"/><rect x="49" y="35.5" width="3" height="4" rx=".7" opacity=".45"/></g>
-      <path d="M23 24h18M27 20l-4 4 4 4M37 20l4 4-4 4" fill="none" stroke="#cbe9ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="7" y="24" width="50" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2.4"/>
+      <g fill="none" stroke="currentColor" stroke-width="1.3" opacity=".6">
+        <rect x="12" y="28.5" width="5" height="5" rx="1"/><rect x="19.5" y="28.5" width="5" height="5" rx="1"/><rect x="27" y="28.5" width="5" height="5" rx="1"/><rect x="34.5" y="28.5" width="5" height="5" rx="1"/><rect x="42" y="28.5" width="5" height="5" rx="1"/><rect x="49.5" y="28.5" width="5" height="5" rx="1"/>
+      </g>
     </symbol>
     <symbol id="i-pc" viewBox="0 0 64 64">
-      <defs><linearGradient id="pcScreen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2f88b8"/><stop offset="1" stop-color="#194b70"/></linearGradient></defs>
-      <ellipse cx="32" cy="55" rx="20" ry="4" fill="#1c2733" opacity=".18"/>
-      <rect x="8" y="10" width="48" height="34" rx="3" fill="#263544" stroke="#16222d" stroke-width="1.5"/>
-      <rect x="12" y="14" width="40" height="25" rx="1.5" fill="url(#pcScreen)"/>
-      <path d="M18 20h28M18 25h21M18 30h24" stroke="#b9e9ff" stroke-width="1.2" opacity=".6" stroke-linecap="round"/>
-      <path d="M28 44h8l2 6H26zM21 50h22" fill="#3c4c5c" stroke="#16222d" stroke-width="1.2" stroke-linejoin="round"/>
-      <circle cx="47" cy="17.5" r="1.8" fill="#73f0a2"/>
+      <rect x="12" y="12" width="40" height="27" rx="3" fill="none" stroke="currentColor" stroke-width="2.4"/>
+      <path d="M18 19h28M18 24h16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".55"/>
+      <path d="M32 39v7M21 46h22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
     </symbol>
     <symbol id="i-firewall" viewBox="0 0 64 64">
-      <defs><linearGradient id="fwGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e27646"/><stop offset="1" stop-color="#a64227"/></linearGradient></defs>
-      <ellipse cx="32" cy="55" rx="20" ry="4" fill="#1c2733" opacity=".18"/>
-      <path d="M32 7l21 7v16c0 13.6-9.2 22.7-21 27-11.8-4.3-21-13.4-21-27V14z" fill="url(#fwGrad)" stroke="#7d2d1c" stroke-width="1.5"/>
-      <path d="M32 13l15 5v12c0 9.7-6.5 16.8-15 20.3C23.5 46.8 17 39.7 17 30V18z" fill="#742c20" opacity=".48"/>
-      <path d="M32 18l-7 11h6l-3 10 10-14h-6z" fill="#ffe0a7"/>
+      <rect x="10" y="14" width="44" height="36" rx="3" fill="none" stroke="currentColor" stroke-width="2.4"/>
+      <g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity=".55">
+        <path d="M10 26h44M10 38h44"/>
+        <path d="M18 20v8M28 20v8M44 20v8M22 26v8M38 26v8M46 26v8M18 38v8M30 38v8M44 38v8" />
+        <path d="M10 32h44"/>
+      </g>
     </symbol>
     <symbol id="i-cable" viewBox="0 0 24 24"><path d="M4 17.5h4.2l6.5-6.5H20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="2" y="14.8" width="4" height="5.4" rx="1" fill="currentColor"/><rect x="18" y="8.8" width="4" height="5.4" rx="1" fill="currentColor"/><path d="M10 14l4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 15l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>

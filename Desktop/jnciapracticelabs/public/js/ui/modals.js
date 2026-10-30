@@ -49,7 +49,7 @@
   function confirm(message, onYes, yesLabel) {
     openModal({
       title: 'Confirm Action', icon: 'warning', size: 'narrow',
-      body: '<p style="margin:0;color:#c8d8e5">' + esc(message) + '</p>',
+      body: '<p style="margin:0;color:#d8d9dc">' + esc(message) + '</p>',
       footer: '<button class="btn" data-modal-close>Cancel</button><button class="btn primary" id="confirmYes">' + esc(yesLabel || 'Continue') + '</button>',
       onMount: function (m) {
         $('#confirmYes', m).addEventListener('click', function () { closeModal(true); onYes(); });
@@ -73,7 +73,7 @@
         var input = $('#promptValue', m);
         function done() {
           var v = input.value;
-          if (opts.required && !String(v).trim()) { input.focus(); input.style.borderColor = '#a34950'; return; }
+          if (opts.required && !String(v).trim()) { input.focus(); input.style.borderColor = '#8a8b8f'; return; }
           closeModal(true); if (opts.onOk) opts.onOk(v);
         }
         $('#promptOk', m).addEventListener('click', done);
@@ -242,7 +242,7 @@
     openModal({
       title: 'Packet Capture', icon: 'packet', sub: node.name + ', console', size: 'wide',
       body: '<div class="capture-toolbar"><select class="select" id="capIface" style="max-width:180px">' + (opts || '<option>ge-0/0/0</option>') + '</select><input class="input" id="capFilter" placeholder="tcpdump filter (e.g. icmp or port 22)"><button class="btn primary" id="capStart">Start</button><button class="btn" id="capStop" disabled>Stop</button><span class="console-chip" id="capCount">0 packets</span></div>' +
-        '<div style="max-height:280px;overflow:auto;border:1px solid #2b3c49;border-radius:4px"><table class="data-table capture-table"><thead><tr><th>Time</th><th>Source</th><th>Destination</th><th>Proto</th><th>Len</th><th>Info</th></tr></thead><tbody id="capBody"></tbody></table></div><div class="capture-detail" id="capDetail">Select a packet to inspect its decoded headers.</div>',
+        '<div style="max-height:280px;overflow:auto;border:1px solid #232326;border-radius:4px"><table class="data-table capture-table"><thead><tr><th>Time</th><th>Source</th><th>Destination</th><th>Proto</th><th>Len</th><th>Info</th></tr></thead><tbody id="capBody"></tbody></table></div><div class="capture-detail" id="capDetail">Select a packet to inspect its decoded headers.</div>',
       footer: '<button class="btn" data-modal-close>Close</button>',
       onClose: function () { if (captureTimer) clearInterval(captureTimer); captureTimer = null; },
       onMount: function (m) {

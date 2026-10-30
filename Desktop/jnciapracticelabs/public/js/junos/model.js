@@ -116,8 +116,11 @@
             ['interfaces', 'irb', 'unit', '10', 'family', 'inet', 'address', '10.0.3.2/24'],
             ['interfaces', 'irb', 'unit', '20', 'family', 'inet', 'address', '10.1.1.2/24'],
             ['interfaces', 'me0', 'unit', '0', 'family', 'inet', 'address', '192.168.1.20/24'],
-            ['vlans', 'staff', 'vlan-id', '10', 'l3-interface', 'irb.10'],
-            ['vlans', 'guest', 'vlan-id', '20', 'l3-interface', 'irb.20'],
+            ['vlans', 'staff', 'vlan-id', '10'],
+            ['vlans', 'staff', 'l3-interface', 'irb.10'],
+            ['vlans', 'guest', 'vlan-id', '20'],
+            ['vlans', 'guest', 'l3-interface', 'irb.20'],
+            ['routing-options', 'static', 'route', '0.0.0.0/0', 'next-hop', '10.0.3.1'],
             ['protocols', 'rstp', 'interface', 'all']
           ]
         };
@@ -133,8 +136,8 @@
   ];
 
   var HOSTS = [
-    { name: 'Host-A', sw: 'SW1', port: 'ge-0/0/1', vlan: 'staff', ip: '10.0.3.20' },
-    { name: 'Host-B', sw: 'SW1', port: 'ge-0/0/2', vlan: 'guest', ip: '10.1.1.20' }
+    { name: 'Host-A', sw: 'SW1', port: 'ge-0/0/1', vlan: 'staff', ip: '10.0.3.20', gateway: '10.0.3.2' },
+    { name: 'Host-B', sw: 'SW1', port: 'ge-0/0/2', vlan: 'guest', ip: '10.1.1.20', gateway: '10.1.1.2' }
   ];
 
   var LAB = {

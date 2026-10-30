@@ -85,7 +85,7 @@
   function cmpIfname(a, b) {
     var na = ifKind(a), nb = ifKind(b);
     if (na !== nb) {
-      var order = { mgmt: 0, phys: 1, irb: 2, lo: 3 };
+      var order = { phys: 0, mgmt: 1, irb: 2, lo: 3 };
       return order[na] - order[nb];
     }
     if (na === 'irb') return a.length - b.length;
@@ -771,7 +771,7 @@
         if (e.u.key === cur) { otherKey = e.v.key; myIf = e.uIf; otherIf = e.vIf; }
         else if (e.v.key === cur) { otherKey = e.u.key; myIf = e.vIf; otherIf = e.uIf; }
         if (!otherKey) continue;
-        var nd = dist[cur] + 10;
+        var nd = dist[cur] + 1;
         if (dist[otherKey] === undefined || nd < dist[otherKey]) {
           dist[otherKey] = nd;
           if (cur === ds.key) {
@@ -803,7 +803,7 @@
           dest: dest,
           proto: 'OSPF',
           pref: 10,
-          metric: dist[k] * 10,
+          metric: dist[k] + 1,
           via: via[k],
           to: viaIp[k],
           created: ds.bootAt || ds.derivedAt
@@ -836,7 +836,7 @@
       // host endpoints on same l2 (bridged)
       for (var h = 0; h < world.hosts.length; h++) {
         var host = world.hosts[h];
-        if (!sameNet(sn.cidr, host.ip + '/32')) continue;
+        if (!J.inNet(host.ip, sn.cidr)) continue;
         if (hostOnSameL2(world, ds, host, sn)) {
           ds.arp.push({ ip: host.ip, mac: vpcsMacForHost(host), iface: sn.ukey, created: ds.derivedAt });
         }
@@ -1158,7 +1158,25 @@
     return { ok: true, ip: ipOf(ds.subnets[0].cidr) };
   }
 
+  function hostByName(world, name) {
+    for (var i = 0; i < world.hosts.length; i++) {
+      if (String(world.hosts[i].name).toLowerCase() === String(name).toLowerCase()) return world.hosts[i];
+    }
+    return null;
+  }
+
   function tracePath(world, devKey, dstIp) {
+    // host-origin traces start at the host's l3 gateway
+    var host = hostByName(world, devKey);
+    if (host) {
+      var gwDev = deviceWithIp(world, host.gateway);
+      if (!gwDev || gwDev.key === undefined) return { ok: false, hops: [], code: 'noroute' };
+      return traceFromDevice(world, gwDev.key, dstIp);
+    }
+    return traceFromDevice(world, devKey, dstIp);
+  }
+
+  function traceFromDevice(world, devKey, dstIp) {
     var hops = [];
     var ds = world.devices[devKey];
     var cur = ds;
@@ -1167,6 +1185,9 @@
     while (guard++ < 16) {
       var own = localSubnetFor(cur, dstIp);
       if (own) {
+        for (var oi = 0; oi < cur.subnets.length; oi++) {
+          if (cur.subnets[oi].ip === dstIp) return { ok: true, hops: hops, responderKey: curKey, responderHost: null };
+        }
         var found = arpEntryFor(cur, dstIp);
         if (found) return { ok: true, hops: hops, responderKey: curKey, responderHost: arpHostOf(world, dstIp) };
         return { ok: false, hops: hops, code: 'nohost' };
@@ -1209,12 +1230,21 @@
   }
 
   function pingDev(world, devKey, dstIp, explicitSrc) {
-    var ds = world.devices[devKey];
     var p = J.parseIp(dstIp);
     if (!p || p.prefix !== null) return { ok: false, code: 'baddest', src: null, hops: [] };
+    // host-origin pings emulate the host sending through its gateway
+    var host = hostByName(world, devKey);
+    if (host) {
+      var gwDev = deviceWithIp(world, host.gateway);
+      if (!gwDev) return { ok: false, code: 'noroute', src: host.ip, hops: [] };
+      var hres = traceFromDevice(world, gwDev.key, dstIp);
+      hres.src = host.ip;
+      return hres;
+    }
+    var ds = world.devices[devKey];
     var src = chooseSource(ds, dstIp, explicitSrc);
     if (!src.ok) return { ok: false, code: 'badsrc', requested: explicitSrc, hops: [] };
-    var res = tracePath(world, devKey, dstIp);
+    var res = traceFromDevice(world, devKey, dstIp);
     res.src = src.ip;
     return res;
   }

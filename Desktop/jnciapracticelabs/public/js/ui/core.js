@@ -77,7 +77,7 @@
       makeNode('n-host-a', 'Host-A', 'ubuntu', 262, 458, 'running', 5005),
       makeNode('n-host-b', 'Host-B', 'vpcs', 540, 458, 'running', 5006)
     ];
-    nodes[4].ip = '10.0.3.20'; nodes[4].gateway = '10.0.3.1';
+    nodes[4].ip = '10.0.3.20'; nodes[4].gateway = '10.0.3.2';
     nodes[5].ip = '10.1.1.20'; nodes[5].gateway = '10.1.1.2';
     return {
       version: STORAGE_VERSION,
@@ -92,6 +92,20 @@
         makeLink('l-5', 'n-sw1', 'ge-0/0/2', 'n-host-b', 'eth0', 'VLAN 20, guest')
       ],
       annotations: [{ id: 'note-1', type: 'text', text: 'JNCIA LAB 01\nOSPF area 0.0.0.0\nR1 ─ R2 ─ R3', x: 64, y: 335, w: 136, h: 68 }],
+      view: { zoom: 1, panX: 24, panY: 16 },
+      settings: { grid: true, labels: true, leftDock: true, rightDock: true },
+      savedAt: null
+    };
+  }
+
+  function blankState() {
+    return {
+      version: STORAGE_VERSION,
+      title: 'Untitled lab',
+      preset: null,
+      nodes: [],
+      links: [],
+      annotations: [],
       view: { zoom: 1, panX: 24, panY: 16 },
       settings: { grid: true, labels: true, leftDock: true, rightDock: true },
       savedAt: null
@@ -190,7 +204,7 @@
   function markDirty() {
     dirty = true;
     var el = $('#saveState');
-    if (el) { el.style.color = '#d6a55b'; el.innerHTML = icon('save') + '<span>Unsaved</span>'; }
+    if (el) { el.style.color = '#9a9b9f'; el.innerHTML = icon('save') + '<span>Unsaved</span>'; }
   }
   function setSaved() {
     dirty = false;
@@ -311,11 +325,11 @@
     if (message) toast(message, 'success', 'check');
   };
 
-  APP.resetProject = function (title) {
+  APP.resetProject = function (title, blank) {
     if (APP.closeAllTerminals) APP.closeAllTerminals(true);
     try { J._rts = {}; } catch (e) {}
     runtimes = {};
-    state = defaultState();
+    state = blank ? blankState() : defaultState();
     if (title) state.title = title;
     createAllRuntimes();
     rebuildWorld();
@@ -428,7 +442,7 @@
       html += '<g class="link-group" data-link-id="' + esc(l.id) + '"><path class="link-hit" d="' + geo.d + '"></path><path class="link-under" d="' + geo.d + '"></path><path class="link-cable ' + (up ? 'up' : 'down') + (selectedLinkId === l.id ? ' selected' : '') + '" d="' + geo.d + '"></path>' +
         endpoint(geo.x1, geo.y1, up) + endpoint(geo.x2, geo.y2, up) +
         portLabel(geo.x1, geo.y1, l.aPort, geo.px1, geo.py1) + portLabel(geo.x2, geo.y2, l.bPort, geo.px2, geo.py2) +
-        (l.label ? '<rect class="link-label-bg" x="' + (geo.cx - Math.max(30, l.label.length * 2.7)) + '" y="' + (geo.cy + 10) + '" width="' + Math.max(60, l.label.length * 5.4) + '" height="14" rx="7"></rect><text class="link-label-text" x="' + geo.cx + '" y="' + (geo.cy + 20.4) + '" text-anchor="middle">' + esc(l.label) + '</text>' : '') + '</g>';
+        (l.label ? '<rect class="link-label-bg" x="' + (geo.cx - Math.max(36, String(l.label).length * 5.6 + 14) / 2) + '" y="' + (geo.cy + 10) + '" width="' + Math.max(36, String(l.label).length * 5.6 + 14) + '" height="14" rx="7"></rect><text class="link-label-text" x="' + geo.cx + '" y="' + (geo.cy + 20.4) + '" text-anchor="middle">' + esc(l.label) + '</text>' : '') + '</g>';
     });
     layer.innerHTML = html;
     $$('.link-hit', layer).forEach(function (el) {
@@ -445,7 +459,7 @@
   }
 
   function portLabel(x, y, text, px, py) {
-    var w = Math.max(31, String(text).length * 5.1 + 8);
+    var w = Math.max(26, String(text).length * 6 + 10);
     return '<g class="link-port-label"><rect class="link-port-bg" x="' + (x + px * 14 - w / 2) + '" y="' + (y + py * 15 - 6.5) + '" width="' + w + '" height="13" rx="4"></rect><text x="' + (x + px * 14) + '" y="' + (y + py * 15 + 3.2) + '" text-anchor="middle">' + esc(text) + '</text></g>';
   }
 
@@ -472,19 +486,19 @@
     if (!layer) return;
     var html = '';
     state.annotations.forEach(function (a) {
-      var sel = selectedAnnotationId === a.id ? ' filter="url(#linkGlow)"' : '';
+      var sel = '';
       if (a.type === 'rectangle') {
-        html += '<g data-annotation-id="' + esc(a.id) + '" class="annotation"' + sel + '><rect x="' + a.x + '" y="' + a.y + '" width="' + a.w + '" height="' + a.h + '" rx="5" fill="rgba(52,168,255,.06)" stroke="#4b91ba" stroke-width="1.4" stroke-dasharray="6 4"></rect><text class="annotation-text" x="' + (a.x + 8) + '" y="' + (a.y + 17) + '">' + esc(a.text || '') + '</text></g>';
+        html += '<g data-annotation-id="' + esc(a.id) + '" class="annotation"' + sel + '><rect x="' + a.x + '" y="' + a.y + '" width="' + a.w + '" height="' + a.h + '" rx="5" fill="rgba(255,255,255,.045)" stroke="rgba(255,255,255,.4)" stroke-width="1.4" stroke-dasharray="6 4"></rect><text class="annotation-text" x="' + (a.x + 8) + '" y="' + (a.y + 17) + '">' + esc(a.text || '') + '</text></g>';
       } else if (a.type === 'ellipse') {
-        html += '<g data-annotation-id="' + esc(a.id) + '" class="annotation"' + sel + '><ellipse cx="' + (a.x + a.w / 2) + '" cy="' + (a.y + a.h / 2) + '" rx="' + Math.abs(a.w / 2) + '" ry="' + Math.abs(a.h / 2) + '" fill="rgba(69,212,131,.05)" stroke="#5a9d83" stroke-width="1.4" stroke-dasharray="6 4"></ellipse><text class="annotation-text" x="' + (a.x + 8) + '" y="' + (a.y + 17) + '">' + esc(a.text || '') + '</text></g>';
+        html += '<g data-annotation-id="' + esc(a.id) + '" class="annotation"' + sel + '><ellipse cx="' + (a.x + a.w / 2) + '" cy="' + (a.y + a.h / 2) + '" rx="' + Math.abs(a.w / 2) + '" ry="' + Math.abs(a.h / 2) + '" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.32)" stroke-width="1.4" stroke-dasharray="6 4"></ellipse><text class="annotation-text" x="' + (a.x + 8) + '" y="' + (a.y + 17) + '">' + esc(a.text || '') + '</text></g>';
       } else if (a.type === 'line') {
-        html += '<g data-annotation-id="' + esc(a.id) + '" class="annotation"' + sel + '><line x1="' + a.x + '" y1="' + a.y + '" x2="' + a.x2 + '" y2="' + a.y2 + '" stroke="#4b91ba" stroke-width="2" stroke-linecap="round"></line><circle cx="' + a.x + '" cy="' + a.y + '" r="2.5" fill="#4b91ba"></circle><circle cx="' + a.x2 + '" cy="' + a.y2 + '" r="2.5" fill="#4b91ba"></circle></g>';
+        html += '<g data-annotation-id="' + esc(a.id) + '" class="annotation"' + sel + '><line x1="' + a.x + '" y1="' + a.y + '" x2="' + a.x2 + '" y2="' + a.y2 + '" stroke="rgba(255,255,255,.55)" stroke-width="2" stroke-linecap="round"></line><circle cx="' + a.x + '" cy="' + a.y + '" r="2.5" fill="rgba(255,255,255,.55)"></circle><circle cx="' + a.x2 + '" cy="' + a.y2 + '" r="2.5" fill="rgba(255,255,255,.55)"></circle></g>';
       } else {
         var lines = String(a.text || '').split('\n');
         var w = a.w || 150, h = a.h || 58;
         var txt = '';
         for (var i = 0; i < Math.min(lines.length, 6); i++) txt += '<tspan x="' + (a.x + 10) + '" dy="' + (i === 0 ? 16 : 12) + '">' + esc(lines[i]) + '</tspan>';
-        html += '<g data-annotation-id="' + esc(a.id) + '" class="annotation" style="cursor:move"' + sel + '><rect class="annotation-note" x="' + a.x + '" y="' + a.y + '" width="' + w + '" height="' + h + '" rx="4"></rect><text class="annotation-note-text" x="' + (a.x + 10) + '" y="' + (a.y + 2) + '">' + txt + '</text></g>';
+        html += '<g data-annotation-id="' + esc(a.id) + '" class="annotation" style="cursor:move"' + sel + '><rect class="annotation-tape" x="' + (a.x + w / 2 - 11) + '" y="' + (a.y - 5) + '" width="22" height="9" rx="1" transform="rotate(-4 ' + (a.x + w / 2) + ' ' + (a.y - 0.5) + ')"></rect><rect class="annotation-note" x="' + a.x + '" y="' + a.y + '" width="' + w + '" height="' + h + '" rx="2"></rect><text class="annotation-note-text" x="' + (a.x + 10) + '" y="' + (a.y + 2) + '">' + txt + '</text></g>';
       }
     });
     layer.innerHTML = html;
