@@ -21,15 +21,35 @@
   APP.$ = $; APP.$$ = $$; APP.uid = uid; APP.esc = esc; APP.clone = clone;
   APP.clamp = clamp; APP.icon = icon;
 
+  // solid device glyphs (Bootstrap Icons) used in chrome: tree, palette, menus
+  var DEVICE_GLYPH = { router: 'b-router', switch: 'b-ethernet', pc: 'b-display', firewall: 'b-shield-lock', server: 'b-server' };
+
   var TEMPLATES = {
+    // routers
     vsrx: { type: 'router', icon: 'router', model: 'vSRX 3.0', vendor: 'Juniper', prefix: 'R', junos: true, platform: 'vsrx' },
     vmx: { type: 'router', icon: 'router', model: 'vMX 21.4', vendor: 'Juniper', prefix: 'R', junos: true, platform: 'vmx' },
+    vptx: { type: 'router', icon: 'router', model: 'vPTX 21.4', vendor: 'Juniper', prefix: 'R', junos: true, platform: 'vmx' },
+    mx: { type: 'router', icon: 'router', model: 'MX240', vendor: 'Juniper', prefix: 'R', junos: true, platform: 'mx' },
+    acx: { type: 'router', icon: 'router', model: 'ACX1100', vendor: 'Juniper', prefix: 'R', junos: true, platform: 'mx' },
     router: { type: 'router', icon: 'router', model: 'Junos Router', vendor: 'Juniper', prefix: 'R', junos: true, platform: 'junos' },
+    // switches
     switch: { type: 'switch', icon: 'switch', model: 'EX4300-24T', vendor: 'Juniper', prefix: 'SW', junos: true, platform: 'ex' },
     ex: { type: 'switch', icon: 'switch', model: 'EX4300-24T', vendor: 'Juniper', prefix: 'SW', junos: true, platform: 'ex' },
+    ex2300: { type: 'switch', icon: 'switch', model: 'EX2300-24T', vendor: 'Juniper', prefix: 'SW', junos: true, platform: 'ex' },
+    ex3400: { type: 'switch', icon: 'switch', model: 'EX3400-24P', vendor: 'Juniper', prefix: 'SW', junos: true, platform: 'ex' },
+    qfx: { type: 'switch', icon: 'switch', model: 'QFX5100-48S', vendor: 'Juniper', prefix: 'SW', junos: true, platform: 'ex' },
+    vc: { type: 'switch', icon: 'switch', model: 'EX Virtual Chassis', vendor: 'Juniper', prefix: 'SW', junos: true, platform: 'ex' },
+    // security
     srx: { type: 'firewall', icon: 'firewall', model: 'SRX300', vendor: 'Juniper', prefix: 'SRX', junos: true, platform: 'srx' },
+    srx340: { type: 'firewall', icon: 'firewall', model: 'SRX340', vendor: 'Juniper', prefix: 'SRX', junos: true, platform: 'srx' },
+    srxha: { type: 'firewall', icon: 'firewall', model: 'vSRX HA Cluster', vendor: 'Juniper', prefix: 'SRX', junos: true, platform: 'srx' },
+    // hosts
     vpcs: { type: 'host', icon: 'pc', model: 'VPCS', vendor: 'Virtual PC', prefix: 'Host', junos: false },
     ubuntu: { type: 'host', icon: 'pc', model: 'Ubuntu 22.04', vendor: 'Linux', prefix: 'Host', junos: false },
+    alpine: { type: 'host', icon: 'pc', model: 'Alpine 3.19', vendor: 'Linux', prefix: 'Host', junos: false },
+    win: { type: 'host', icon: 'pc', model: 'Windows 11', vendor: 'Microsoft', prefix: 'Win', junos: false },
+    srv: { type: 'host', icon: 'server', model: 'Ubuntu Server 22.04', vendor: 'Linux', prefix: 'Srv', junos: false },
+    docker: { type: 'host', icon: 'server', model: 'Docker Host', vendor: 'Linux', prefix: 'Host', junos: false },
     pc: { type: 'host', icon: 'pc', model: 'Generic Host', vendor: 'End Device', prefix: 'Host', junos: false }
   };
 
@@ -443,6 +463,9 @@
     if (!rt.spec) rt.spec = {};
     rt.spec.model = node.model || rt.spec.model;
     rt.spec.version = '21.4R1';
+    // a switch placed from the palette must really behave like a switch
+    if (node.platform === 'ex') rt.spec.platform = 'ex';
+    else if (!rt.spec.platform) rt.spec.platform = node.platform || 'mx';
     rt.key = node.name;
     rt.running = node.status !== 'stopped';
     runtimes[node.name] = rt;
@@ -520,11 +543,49 @@
   }
   APP.scheduleSave = scheduleSave;
 
+  // Everything on the canvas that the fixed lab definition does not already
+  // know about: extra devices, their cables, and host endpoints.
+  function worldInputs() {
+    var byId = {}, i;
+    for (i = 0; i < state.nodes.length; i++) byId[state.nodes[i].id] = state.nodes[i];
+    var keys = [], links = [], hosts = [];
+    for (i = 0; i < state.nodes.length; i++) {
+      var n = state.nodes[i];
+      if (n.junos) keys.push(n.name);
+      if (n.type !== 'host') continue;
+      var endpoint = null;
+      for (var j = 0; j < state.links.length; j++) {
+        var l = state.links[j];
+        var side = l.a === n.id ? 'a' : (l.b === n.id ? 'b' : null);
+        if (!side) continue;
+        var peer = byId[side === 'a' ? l.b : l.a];
+        if (!peer || peer.type !== 'switch') continue;
+        endpoint = { sw: peer.name, port: side === 'a' ? l.bPort : l.aPort };
+        break;
+      }
+      if (!endpoint) continue;
+      hosts.push({ name: n.name, sw: endpoint.sw, port: endpoint.port, ip: n.ip || '', gateway: n.gateway || '' });
+    }
+    for (i = 0; i < state.links.length; i++) {
+      var lk = state.links[i];
+      var a = byId[lk.a], b = byId[lk.b];
+      // host cabling is expressed through `hosts`, not as a device-to-device link
+      if (!a || !b || !a.junos || !b.junos) continue;
+      // a switch port facing a routed device is the L2 uplink the world knows
+      var l2 = (a.type === 'switch') !== (b.type === 'switch');
+      links.push({ a: a.name, aPort: lk.aPort, b: b.name, bPort: lk.bPort, l2: l2 });
+    }
+    return { deviceKeys: keys, links: links, hosts: hosts };
+  }
+  APP.worldInputs = worldInputs;
+
   function rebuildWorld() {
     try {
       var devs = {};
       for (var k in runtimes) if (runtimes[k]) devs[k] = runtimes[k];
-      world = J.machine.buildWorldFromDevs ? J.machine.buildWorldFromDevs(devs) : J.machine.getWorld();
+      var extra = null;
+      try { extra = worldInputs(); } catch (e) { extra = null; }
+      world = J.machine.buildWorldFromDevs ? J.machine.buildWorldFromDevs(devs, extra) : J.machine.getWorld();
     } catch (e) { world = { devices: {}, deviceKeys: [] }; }
     return world;
   }
@@ -667,9 +728,10 @@
     return node.icon || (node.type === 'host' ? 'pc' : node.type === 'switch' ? 'switch' : node.type === 'firewall' ? 'firewall' : 'router');
   }
   function nodeIconId(node) { return 'node-' + nodeIconBase(node); }
-  var TREE_ICON = { router: 'router', switch: 'switch', pc: 'pc', firewall: 'firewall', server: 'server' };
-  function treeIconId(node) { return TREE_ICON[nodeIconBase(node)] || 'router'; }
+  function deviceGlyph(node) { return DEVICE_GLYPH[nodeIconBase(node)] || 'b-router'; }
   APP.nodeIconId = nodeIconId;
+  APP.deviceGlyph = deviceGlyph;
+  APP.glyph = function (id) { return '<svg><use href="#' + id + '"></use></svg>'; };
 
   function renderNodes() {
     var layer = $('#nodeLayer');
@@ -781,7 +843,7 @@
     if (!state.nodes.length) { el.innerHTML = '<div class="topo-empty">No nodes in this project.</div>'; return; }
     var html = '';
     state.nodes.forEach(function (n) {
-      html += '<div class="topo-node ' + esc(n.status) + (selectedNodeId === n.id ? ' selected' : '') + '" data-tree-node="' + esc(n.id) + '" title="Console: telnet localhost:' + n.consolePort + '"><span class="topo-mini-icon">' + icon(treeIconId(n)) + '</span><span class="topo-name"><span class="status-dot"></span>' + esc(n.name) + '</span><span class="topo-sub">' + esc(n.status === 'running' ? 'Running' : n.status === 'paused' ? 'Paused' : 'Stopped') + '</span><span class="topo-actions"><button class="topo-action" data-tree-action="console" title="Open console">' + icon('terminal') + '</button><button class="topo-action" data-tree-action="toggle" title="Start / pause">' + icon(n.status === 'running' ? 'pause' : 'play') + '</button></span></div>';
+      html += '<div class="topo-node ' + esc(n.status) + (selectedNodeId === n.id ? ' selected' : '') + '" data-tree-node="' + esc(n.id) + '" title="Console: telnet localhost:' + n.consolePort + '"><span class="topo-mini-icon">' + APP.glyph(deviceGlyph(n)) + '</span><span class="topo-name"><span class="status-dot"></span>' + esc(n.name) + '</span><span class="topo-sub">' + esc(n.status === 'running' ? 'Running' : n.status === 'paused' ? 'Paused' : 'Stopped') + '</span><span class="topo-actions"><button class="topo-action" data-tree-action="console" title="Open console">' + icon('terminal') + '</button><button class="topo-action" data-tree-action="toggle" title="Start / pause">' + icon(n.status === 'running' ? 'pause' : 'play') + '</button></span></div>';
     });
     el.innerHTML = html;
     $$('.topo-node', el).forEach(function (row) {

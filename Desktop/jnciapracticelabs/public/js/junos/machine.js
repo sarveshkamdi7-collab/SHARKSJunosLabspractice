@@ -4176,8 +4176,8 @@
     createSession: makeSess,
     createDeviceRuntime: ensureRt,
     ensureRuntime: ensureRt,
-    buildWorldFromDevs: function (devs) {
-      if (net && net.buildWorld) return net.buildWorld(devs || {});
+    buildWorldFromDevs: function (devs, extra) {
+      if (net && net.buildWorld) return net.buildWorld(devs || {}, extra || null);
       return { devices: devs || {}, deviceKeys: Object.keys(devs || {}), adjacencies: [], hosts: [] };
     },
     getWorld: getWorld,

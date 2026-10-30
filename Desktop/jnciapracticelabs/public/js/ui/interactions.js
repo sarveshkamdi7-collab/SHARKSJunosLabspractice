@@ -527,7 +527,7 @@
   function showNodeMenu(id, x, y) {
     var n = APP.nodeById(id);
     if (!n) return;
-    var h = '<div class="ctx-head">' + icon(APP.nodeIconId(n)) + '<span><b>' + esc(n.name) + '</b><small>' + esc(n.model) + ', ' + esc(n.status) + '</small></span></div><div class="ctx-sep"></div>';
+    var h = '<div class="ctx-head">' + APP.glyph(APP.deviceGlyph(n)) + '<span><b>' + esc(n.name) + '</b><small>' + esc(n.model) + ', ' + esc(n.status) + '</small></span></div><div class="ctx-sep"></div>';
     var running = n.status === 'running';
     if (running) h += menuItem('pause', 'Pause', 'pause') + menuItem('stop', 'Stop', 'stop') + menuItem('restart', 'Restart', 'reload');
     else h += menuItem('start', 'Start', 'play');

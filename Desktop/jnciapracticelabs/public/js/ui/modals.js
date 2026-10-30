@@ -136,7 +136,7 @@
       if (!filter) return true;
       return (n.name + ' ' + n.model + ' ' + n.status).toLowerCase().indexOf(String(filter).toLowerCase()) >= 0;
     }).map(function (n) {
-      return '<div class="console-row" data-console-node="' + esc(n.id) + '"><span class="dev-ico">' + icon(APP.nodeIconId(n)) + '</span><div class="console-row-main"><b>' + esc(n.name) + ' <span class="status-pill ' + (n.status === 'running' ? 'up' : n.status === 'paused' ? 'warn' : 'down') + '">' + esc(n.status) + '</span></b><span>' + esc(n.model) + ', telnet localhost:' + n.consolePort + '</span></div><button class="btn primary" data-connect="' + esc(n.id) + '">Connect</button></div>';
+      return '<div class="console-row" data-console-node="' + esc(n.id) + '"><span class="dev-ico">' + APP.glyph(APP.deviceGlyph(n)) + '</span><div class="console-row-main"><b>' + esc(n.name) + ' <span class="status-pill ' + (n.status === 'running' ? 'up' : n.status === 'paused' ? 'warn' : 'down') + '">' + esc(n.status) + '</span></b><span>' + esc(n.model) + ', telnet localhost:' + n.consolePort + '</span></div><button class="btn primary" data-connect="' + esc(n.id) + '">Connect</button></div>';
     }).join('');
   }
 

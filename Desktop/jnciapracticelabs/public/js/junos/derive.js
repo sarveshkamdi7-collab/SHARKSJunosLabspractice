@@ -371,7 +371,14 @@
   function deriveDevice(ctx, dev) {
     var key = dev.key;
     var cfg = dev.config;
-    var spec = JJ.lab.deviceSpec(key);
+    var spec = dev.spec || (JJ.lab.deviceSpec ? JJ.lab.deviceSpec(key) : null) || {
+      key: key,
+      model: 'Junos Device',
+      serial: 'ABTR0000',
+      version: '21.4R1',
+      platform: 'mx',
+      baseline: []
+    };
     var now = ctx.now;
 
     var ds = {
@@ -591,14 +598,56 @@
 
   // ---------- world build ----------
 
-  function buildWorld(devs) {
+  // A link is the same link regardless of which end it is written from.
+  function linkSig(L) {
+    var x = String(L.a) + '|' + String(L.aPort), y = String(L.b) + '|' + String(L.bPort);
+    return x < y ? x + '>' + y : y + '>' + x;
+  }
+
+  function mergeLinks(base, extra) {
+    var out = (base || []).slice();
+    var seen = {};
+    for (var i = 0; i < out.length; i++) seen[linkSig(out[i])] = true;
+    for (var j = 0; extra && j < extra.length; j++) {
+      var L = extra[j];
+      if (!L || !L.a || !L.b) continue;
+      var sig = linkSig(L);
+      if (seen[sig]) continue;
+      seen[sig] = true;
+      out.push(L);
+    }
+    return out;
+  }
+
+  function mergeHosts(base, extra) {
+    var out = (base || []).slice();
+    var seen = {};
+    for (var i = 0; i < out.length; i++) seen[String(out[i].name).toLowerCase()] = true;
+    for (var j = 0; extra && j < extra.length; j++) {
+      var h = extra[j];
+      if (!h || !h.name) continue;
+      var k = String(h.name).toLowerCase();
+      if (seen[k]) continue;
+      seen[k] = true;
+      out.push(h);
+    }
+    return out;
+  }
+
+  // The lab defines a fixed set of devices; the canvas can add more. `extra`
+  // carries the devices, links and hosts that exist in the current project so
+  // anything you drop is really part of the topology.
+  function buildWorld(devs, extra) {
     var lab = JJ.lab;
     var now = Date.now();
+    var keys = lab.deviceKeys.slice();
+    var more = (extra && extra.deviceKeys) || [];
+    for (var e = 0; e < more.length; e++) if (keys.indexOf(more[e]) < 0) keys.push(more[e]);
     var world = {
-      deviceKeys: lab.deviceKeys.slice(),
+      deviceKeys: keys,
       devices: {},
-      links: lab.topology,
-      hosts: lab.hosts,
+      links: mergeLinks(lab.topology, extra && extra.links),
+      hosts: mergeHosts(lab.hosts, extra && extra.hosts),
       domains: [],
       adjacencies: [],
       derivedAt: now
@@ -918,8 +967,7 @@
       if (!swIf) continue;
       var swu = swIf.units[hostUnitNum(swIf)];
       if (!swu) continue;
-      var inVlan = false;
-      for (var lv = 0; lv < swu.vlanMembers.length; lv++) if (swu.vlanMembers[lv] === host.vlan) inVlan = true;
+      var inVlan = hostInVlan(swu, host);
       var upIfInVlan = uplinkInVlan(sd, host.vlan);
       if (inVlan && upIfInVlan) return true;
       break;
@@ -933,14 +981,26 @@
     return u;
   }
 
+  // Hosts that came from the canvas have no VLAN name of their own, so any
+  // configured VLAN on the port they sit on counts.
+  function hostInVlan(unit, host) {
+    var members = (unit && unit.vlanMembers) || [];
+    if (!host.vlan) return members.length > 0;
+    for (var i = 0; i < members.length; i++) if (members[i] === host.vlan) return true;
+    return false;
+  }
+
   function uplinkInVlan(sd, vlan) {
     // find sw port that is L2 uplink toward router and in same vlan
     for (var i = 0; i < sd.iflist.length; i++) {
       var ifc = sd.interfaces[sd.iflist[i]];
       if (ifc.kind !== 'phys') continue;
       for (var u = 0; u < ifc.unilist.length; u++) {
-        for (var m = 0; m < ifc.unilist[u].vlanMembers.length; m++) {
-          if (ifc.unilist[u].vlanMembers[m] === vlan) return true;
+        var members = ifc.unilist[u].vlanMembers || [];
+        if (!members.length) continue;
+        if (!vlan) return true;
+        for (var m = 0; m < members.length; m++) {
+          if (members[m] === vlan) return true;
         }
       }
     }
@@ -982,8 +1042,7 @@
       var hu = null;
       if (sif) for (var u = 0; u < sif.unilist.length; u++) hu = sif.unilist[u];
       if (!hu) continue;
-      var inVlan = false;
-      for (var lv = 0; lv < hu.vlanMembers.length; lv++) if (hu.vlanMembers[lv] === host.vlan) inVlan = true;
+      var inVlan = hostInVlan(hu, host);
       if (!inVlan) continue;
       var vid = 0;
       for (var b = 0; b < ds.vlans.length; b++) if (ds.vlans[b].name === host.vlan) vid = ds.vlans[b].id;
@@ -1247,6 +1306,7 @@
     }
     cands.sort(function (a, b) { return J.cmpIpCidr([a.ip], [b.ip]); });
     if (cands.length) return { ok: true, ip: ipOf(cands[0].cidr) };
+    if (!ds.subnets.length) return { ok: false };
     return { ok: true, ip: ipOf(ds.subnets[0].cidr) };
   }
 
@@ -1334,6 +1394,7 @@
       return hres;
     }
     var ds = world.devices[devKey];
+    if (!ds) return { ok: false, code: 'noroute', src: null, hops: [] };
     var src = chooseSource(ds, dstIp, explicitSrc);
     if (!src.ok) return { ok: false, code: 'badsrc', requested: explicitSrc, hops: [] };
     var res = traceFromDevice(world, devKey, dstIp);
