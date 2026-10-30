@@ -98,9 +98,9 @@
   }
 
   function prompt(sess){
-    if(!sess) return 'root@R1> ';
+    if(!sess) return 'user@R1> ';
     var rt=sess.rt||{}; var h=rt.key||'R1';
-    var u=sess.user||'root';
+    var u=sess.user||'user';
     if(sess.mode==='login') return 'login: ';
     if(sess.mode==='shell') return u+'@'+h+':~ % ';
     if(sess.mode==='cli-cfg'){
@@ -360,7 +360,7 @@
     var line=(lineStr===undefined||lineStr===null)?'':String(lineStr);
     if(sess.mode==='login'){
       var uname=line.trim();
-      if(uname==='root' || uname==='user'){ sess.mode='shell'; sess.user=uname; return {lines:[], prompt:prompt(sess)}; }
+      if(uname==='root' || uname==='user' || uname===''){ sess.mode='cli-op'; sess.user = uname || 'user'; return {lines:[], prompt:prompt(sess)}; }
       return {lines:['Login incorrect'], prompt:prompt(sess)};
     }
     if(sess.mode==='shell'){

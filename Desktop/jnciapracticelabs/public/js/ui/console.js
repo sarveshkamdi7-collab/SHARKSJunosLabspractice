@@ -13,12 +13,13 @@
 
   function shellPrompt(sess, host) {
     var user = sess && sess.user ? sess.user : 'root';
-    return user + '@' + host + ':~ %';
+    return user + '@' + host + ':~ % ';
   }
 
   function opPrompt(sess, host) {
-    var user = sess && sess.user ? sess.user : 'root';
-    return user + '@' + host + '>';
+    var user = sess && sess.user ? sess.user : 'user';
+    var h = host || 'R1';
+    return user + '@' + h + '> ';
   }
 
   var OP_COMMANDS = ['clear', 'configure', 'edit', 'exit', 'help', 'monitor', 'ping', 'quit', 'request', 'show', 'ssh', 'start', 'telnet', 'traceroute'];
@@ -86,7 +87,7 @@
     var isHost = node && node.junos === false;
     var input = '';
     var history = [];
-    var hidx = -1;
+    var hidx = history.length;
     var maxLines = opts.maxLines || 2200;
     var started = false;
 
@@ -104,7 +105,9 @@
     var promptEl = el('span', 'term-prompt');
     var textEl = el('span', 'term-text');
     var cursor = el('span', 'term-cursor', ' ');
-    var capture = el('textarea', 'term-capture');
+    var capture = el('input');
+    capture.type = 'text';
+    capture.className = 'term-capture';
     capture.setAttribute('autocapitalize', 'off');
     capture.setAttribute('autocomplete', 'off');
     capture.setAttribute('autocorrect', 'off');
@@ -116,7 +119,7 @@
 
     function renderInput() {
       textEl.textContent = input;
-      capture.value = input;
+      try { capture.value = input; } catch (e) {}
       cursor.style.display = 'inline-block';
       scroll.scrollTop = scroll.scrollHeight;
     }
@@ -147,8 +150,8 @@
     }
     function clear() { out.innerHTML = ''; }
     function focus() {
-      host.focus();
-      try { capture.focus({ preventScroll: true }); } catch (e) { capture.focus(); }
+      try { capture.focus({ preventScroll: true }); } catch (e) { try { capture.focus(); } catch (_) {} }
+      try { host.focus({ preventScroll: true }); } catch (e) { try { host.focus(); } catch (_) {} }
     }
     function currentPrompt() {
       if (isHost) return hostPrompt();
@@ -160,29 +163,31 @@
     function boot(showBanner) {
       if (started) return;
       started = true;
-      if (isHost) {
+        if (isHost) {
+          if (showBanner !== false) {
+            writeLines([
+              'VPCS v0.8.3 · Virtual PC Simulator',
+              node.name + ' · eth0 · ' + (node.ip || '10.0.3.20') + '/24 · gateway ' + (node.gateway || '10.0.3.1'),
+              'Type "help" for available commands.',
+              ''
+            ]);
+          }
+          setPrompt(hostPrompt());
+          setTimeout(focus, 50);
+          return;
+        }
+        var rt = session && session.rt;
+        var ver = (rt && rt.spec && rt.spec.version) || '21.4R1';
         if (showBanner !== false) {
           writeLines([
-            'VPCS v0.8.3 · Virtual PC Simulator',
-            node.name + ' · eth0 · ' + (node.ip || '10.0.3.20') + '/24 · gateway ' + (node.gateway || '10.0.3.1'),
-            'Type "help" for available commands.',
+            'JUNOS ' + ver + ' - vSRX 3.0',
+            'Console connected to ' + (node ? node.name : 'R1') + ' - localhost:' + ((node && node.consolePort) || 5001),
+            'Type "cli" from the shell to enter operational mode.',
             ''
           ]);
         }
-        setPrompt(hostPrompt());
-        return;
-      }
-      var rt = session && session.rt;
-      var ver = (rt && rt.spec && rt.spec.version) || '21.4R1';
-      if (showBanner !== false) {
-        writeLines([
-          'JUNOS ' + ver + ' · ' + ((node && node.model) || 'Junos Router'),
-          'Console connected to ' + (node ? node.name : 'R1') + ' · localhost:' + ((node && node.consolePort) || 5001),
-          'Type "cli" from the shell to enter operational mode.',
-          ''
-        ]);
-      }
-      setPrompt(currentPrompt());
+        setPrompt(currentPrompt());
+        setTimeout(focus, 50);
     }
 
     function hostCommand(line) {
@@ -259,6 +264,8 @@
       if (line.trim()) {
         if (history[history.length - 1] !== line) history.push(line);
         hidx = history.length;
+      } else {
+        hidx = history.length;
       }
       renderInput();
       if (isHost) {
@@ -268,10 +275,11 @@
         return;
       }
       if (!session) { writeLine('% Console session unavailable', 'term-error'); return; }
-      if (line.trim() === 'clear') { clear(); setPrompt(currentPrompt()); return; }
+      if (line.trim() === 'clear') { clear(); setPrompt(currentPrompt()); focus(); return; }
       if (line.trim() === 'help') {
         writeLines(['', 'Junos quick help:', '  show version | interfaces terse | route | ospf neighbor | configuration', '  configure / edit → set … / commit / rollback', '  ping <host> · traceroute <host> · monitor traffic interface ge-0/0/0', '  exit (config → operational → shell) · cli (shell → operational)', '']);
         setPrompt(currentPrompt());
+        focus();
         return;
       }
       try { session.world = APP.rebuildWorld ? APP.rebuildWorld() : session.world; } catch (e) {}
@@ -282,6 +290,7 @@
       setPrompt(res.prompt || currentPrompt());
       if (opts.onCommand) opts.onCommand(line, session);
       if (APP.scheduleSave) APP.scheduleSave();
+      focus();
     }
 
     host.addEventListener('keydown', function (e) {
@@ -299,6 +308,7 @@
           if (matches.length === 1) input = matches[0] + (toks.length === 1 ? ' ' : '');
           else if (matches.length > 1) writeLines(['Possible completions:', '  ' + matches.join('  ')]);
           renderInput();
+          focus();
           return;
         }
         if (!session) return;
@@ -306,45 +316,46 @@
         if (c.lines && c.lines.length) writeLines(c.lines);
         if (c.text != null) input = c.text;
         renderInput();
+        focus();
         return;
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault(); e.stopPropagation();
         if (!history.length) return;
-        if (hidx > 0) hidx--;
+        if (hidx > 0) hidx--; else if (hidx < 0) hidx = history.length - 1;
         input = history[hidx] || '';
-        renderInput(); return;
+        renderInput(); focus(); return;
       }
       if (e.key === 'ArrowDown') {
         e.preventDefault(); e.stopPropagation();
         if (!history.length) return;
         if (hidx < history.length - 1) hidx++; else hidx = history.length;
         input = hidx === history.length ? '' : (history[hidx] || '');
-        renderInput(); return;
+        renderInput(); focus(); return;
       }
       if (e.key === 'Backspace') {
         e.preventDefault(); e.stopPropagation();
-        input = input.slice(0, -1); renderInput(); return;
+        input = input.slice(0, -1); renderInput(); focus(); return;
       }
       if (e.key === 'Delete') {
         e.preventDefault(); e.stopPropagation(); return;
       }
       if (e.ctrlKey && e.key.toLowerCase() === 'c') {
         e.preventDefault(); e.stopPropagation();
-        writeLine(currentPrompt() + input + '^C'); input = ''; renderInput(); return;
+        writeLine(currentPrompt() + input + '^C'); input = ''; renderInput(); focus(); return;
       }
       if (e.ctrlKey && e.key.toLowerCase() === 'l') {
-        e.preventDefault(); e.stopPropagation(); clear(); renderInput(); return;
+        e.preventDefault(); e.stopPropagation(); clear(); renderInput(); focus(); return;
       }
       if (e.ctrlKey && e.key.toLowerCase() === 'u') {
-        e.preventDefault(); e.stopPropagation(); input = ''; renderInput(); return;
+        e.preventDefault(); e.stopPropagation(); input = ''; renderInput(); focus(); return;
       }
       if (e.ctrlKey && e.key.toLowerCase() === 'a') {
         e.preventDefault(); e.stopPropagation(); return;
       }
       if (e.key === 'Escape') { e.stopPropagation(); return; }
       if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault(); e.stopPropagation(); input += e.key; renderInput(); return;
+        e.preventDefault(); e.stopPropagation(); input += e.key; renderInput(); focus(); return;
       }
     });
 
@@ -361,12 +372,22 @@
       renderInput();
     });
 
-    host.addEventListener('mousedown', function (e) {
-      if (e.target.closest('.term-in')) { setTimeout(focus, 0); }
+    host.addEventListener('click', function (e) {
+      e.preventDefault();
+      focus();
     });
-    host.addEventListener('focus', function () { cursor.classList.add('focused'); });
+    scroll.addEventListener('click', function (e) {
+      e.preventDefault();
+      focus();
+    });
+    inputLine.addEventListener('click', function (e) {
+      e.preventDefault();
+      focus();
+    });
+    host.addEventListener('focus', function () { cursor.classList.add('focused'); focus(); });
     host.addEventListener('blur', function () { cursor.classList.remove('focused'); });
-    capture.addEventListener('focus', function () { setTimeout(function () { try { capture.blur(); } catch (e) {} }, 0); });
+    capture.addEventListener('focus', function () { cursor.classList.add('focused'); });
+    capture.addEventListener('blur', function () { cursor.classList.remove('focused'); });
 
     if (session) {
       if (!session.user) session.user = 'user';
