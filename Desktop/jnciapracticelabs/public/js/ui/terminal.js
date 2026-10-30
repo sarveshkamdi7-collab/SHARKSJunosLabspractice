@@ -71,7 +71,7 @@
     activate(node.name);
     showDock();
     renderTabs();
-    APP.setStatus('Console connected to ' + node.name + ' · localhost:' + node.consolePort);
+    APP.setStatus('Console connected to ' + node.name + ', localhost:' + node.consolePort);
     setTimeout(function () { term.focus(); }, 50);
     return tab;
   }
@@ -124,7 +124,7 @@
     var html = '';
     tabs.forEach(function (t) {
       var running = t.node && t.node.status === 'running';
-      html += '<div class="terminal-tab' + (active === t.name ? ' active' : '') + (running ? '' : ' offline') + '" data-tab="' + esc(t.name) + '" role="tab" tabindex="0" title="' + esc(t.name + ' · ' + (t.node ? t.node.model : 'console')) + '">' +
+      html += '<div class="terminal-tab' + (active === t.name ? ' active' : '') + (running ? '' : ' offline') + '" data-tab="' + esc(t.name) + '" role="tab" tabindex="0" title="' + esc(t.name + ', ' + (t.node ? t.node.model : 'console')) + '">' +
         '<span class="term-tab-dot"></span><span class="term-tab-name">' + esc(t.name) + '</span><button class="term-tab-close" data-close-tab="' + esc(t.name) + '" title="Close console">' + icon('close') + '</button></div>';
     });
     host.innerHTML = html;
@@ -145,7 +145,7 @@
     });
     var t = activeTab();
     if (t) {
-      if ($('#terminalWindowTitle')) $('#terminalWindowTitle').textContent = 'Console — ' + t.name;
+      if ($('#terminalWindowTitle')) $('#terminalWindowTitle').textContent = 'Console: ' + t.name;
       if ($('#terminalConnection')) $('#terminalConnection').textContent = 'telnet localhost:' + (t.node ? t.node.consolePort : '');
     }
     syncStatus();
@@ -156,7 +156,7 @@
     var t = activeTab();
     if (!t) return;
     var conn = $('#terminalConnection');
-    if (conn) conn.textContent = t.node && t.node.status === 'running' ? 'telnet localhost:' + t.node.consolePort : 'session paused · ' + t.name;
+    if (conn) conn.textContent = t.node && t.node.status === 'running' ? 'telnet localhost:' + t.node.consolePort : 'session paused, ' + t.name;
     $$('.terminal-tab').forEach(function (b) {
       var tb = tabFor(b.dataset.tab);
       b.classList.toggle('offline', !!(tb && tb.node && tb.node.status !== 'running'));
@@ -207,7 +207,7 @@
         dock.style.width = '740px';
         dock.style.height = '430px';
         customHeight = 430;
-        APP.setStatus('Console detached · drag the title bar to move');
+        APP.setStatus('Console detached, drag the title bar to move');
       } else {
         floating = false;
         dock.classList.remove('floating');

@@ -166,8 +166,8 @@
         if (isHost) {
           if (showBanner !== false) {
             writeLines([
-              'VPCS v0.8.3 · Virtual PC Simulator',
-              node.name + ' · eth0 · ' + (node.ip || '10.0.3.20') + '/24 · gateway ' + (node.gateway || '10.0.3.1'),
+              'VPCS v0.8.3, Virtual PC Simulator',
+              node.name + ', eth0 ' + (node.ip || '10.0.3.20') + '/24, gateway ' + (node.gateway || '10.0.3.1'),
               'Type "help" for available commands.',
               ''
             ]);
@@ -277,7 +277,7 @@
       if (!session) { writeLine('% Console session unavailable', 'term-error'); return; }
       if (line.trim() === 'clear') { clear(); setPrompt(currentPrompt()); focus(); return; }
       if (line.trim() === 'help') {
-        writeLines(['', 'Junos quick help:', '  show version | interfaces terse | route | ospf neighbor | configuration', '  configure / edit → set … / commit / rollback', '  ping <host> · traceroute <host> · monitor traffic interface ge-0/0/0', '  exit (config → operational → shell) · cli (shell → operational)', '']);
+        writeLines(['', 'Junos quick help:', '  show version | interfaces terse | route | ospf neighbor | configuration', '  configure / edit → set … / commit / rollback', '  ping <host>, traceroute <host>, monitor traffic interface ge-0/0/0', '  exit (config → operational → shell), cli (shell → operational)', '']);
         setPrompt(currentPrompt());
         focus();
         return;

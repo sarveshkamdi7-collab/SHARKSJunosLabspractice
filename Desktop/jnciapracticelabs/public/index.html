@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#151a21">
-  <title>GNS3 · JNCIA Junos Lab</title>
+  <meta name="theme-color" content="#0e1113">
+  <title>JNCIA Junos Practice Lab</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/app.css">
 </head>
@@ -96,8 +96,8 @@
   <div class="app-shell" id="appShell">
     <header class="menubar">
       <button class="brand" id="brandButton" title="mySHARKSlabspractice">
-        <span class="brand-mark" style="color:#34a8ff; filter: drop-shadow(0 0 6px rgba(52,168,255,.4));"><svg><use href="#i-logo"></use></svg></span>
-        <span class="brand-text" style="font-family: 'Cascadia Mono', Consolas, monospace; letter-spacing: .08em; color:#eaf4ff;">mySHARKSlabspractice</span>
+        <span class="brand-mark"><svg><use href="#i-logo"></use></svg></span>
+        <span class="brand-text">mySHARKSlabspractice</span>
       </button>
       <nav class="menu-roots" id="menuRoots" aria-label="Application menu">
         <div class="menu-root">
@@ -199,7 +199,7 @@
             <button data-action="lab-guide"><span>JNCIA Lab Guide</span><kbd></kbd></button>
             <button data-action="shortcuts"><span>Keyboard Shortcuts</span><kbd>?</kbd></button>
             <div class="menu-sep"></div>
-            <button data-action="about"><span>About GNS3 Junos Lab</span><kbd></kbd></button>
+            <button data-action="about"><span>About JNCIA Junos Lab</span><kbd></kbd></button>
           </div>
         </div>
       </nav>
@@ -209,7 +209,7 @@
         <span id="projectNameLabel">JNCIA Basic Routing</span>
       </div>
       <button class="server-pill" id="serverPill" title="Local server status">
-        <span class="pulse-dot"></span><span>Local · 127.0.0.1:3080</span>
+        <span class="pulse-dot"></span><span>Local, 127.0.0.1:3000</span>
       </button>
     </header>
 
@@ -341,7 +341,7 @@
           <div class="workspace-tab active"><span class="ws-dot"></span><span id="workspaceTabTitle">JNCIA Basic Routing</span><button class="icon-btn tiny" id="workspaceTabClose" title="Close project"><svg><use href="#i-close"></use></svg></button></div>
           <button class="icon-btn tiny workspace-add" title="New project"><svg><use href="#i-plus"></use></svg></button>
           <div class="ws-spacer"></div>
-          <div class="canvas-meta" id="canvasMeta">R1 · R2 · R3 · SW1 · 2 hosts</div>
+          <div class="canvas-meta" id="canvasMeta">R1, R2, R3, SW1, 2 hosts</div>
           <button class="ws-action" id="wsLayoutButton" title="Auto arrange topology">Layout</button>
         </div>
         <div class="canvas-wrap" id="canvasWrap">
@@ -385,7 +385,7 @@
           <div class="side-body">
             <div class="server-card">
               <div class="server-top"><span class="server-name"><span class="pulse-dot"></span>Local</span><span class="chip ok">Connected</span></div>
-              <div class="server-address">127.0.0.1:3080</div>
+              <div class="server-address">127.0.0.1:3000</div>
               <div class="gauge-row"><span><svg><use href="#i-cpu"></use></svg>CPU</span><div class="gauge"><i id="cpuGauge" style="width:18%"></i></div><b id="cpuValue">18%</b></div>
               <div class="gauge-row"><span><svg><use href="#i-server"></use></svg>RAM</span><div class="gauge ram"><i id="ramGauge" style="width:42%"></i></div><b id="ramValue">42%</b></div>
               <div class="server-stats"><span>vCPU <b>4</b></span><span>Projects <b>1</b></span><span>Uptime <b id="serverUptime">00:12</b></span></div>
@@ -400,12 +400,12 @@
           <div class="side-body preset-list">
             <button class="preset-card active" data-preset="jncia">
               <span class="preset-glyph"><svg><use href="#i-router"></use></svg></span>
-              <span class="preset-copy"><b>JNCIA Basic Routing</b><small>3 routers · OSPF · static</small></span>
+              <span class="preset-copy"><b>JNCIA Basic Routing</b><small>3 routers, OSPF, static routes</small></span>
               <span class="preset-open"><svg><use href="#i-chevron-right"></use></svg></span>
             </button>
             <button class="preset-card" data-preset="vlan">
               <span class="preset-glyph"><svg><use href="#i-switch"></use></svg></span>
-              <span class="preset-copy"><b>VLAN Trunking &amp; IRB</b><small>EX switch · staff &amp; guest</small></span>
+              <span class="preset-copy"><b>VLAN Trunking &amp; IRB</b><small>EX switch, staff and guest VLANs</small></span>
               <span class="preset-open"><svg><use href="#i-chevron-right"></use></svg></span>
             </button>
             <button class="preset-card" data-preset="ospf">
@@ -440,8 +440,8 @@
   <section class="terminal-dock hidden" id="terminalDock" aria-label="Console terminal">
     <div class="terminal-titlebar" id="terminalTitlebar">
       <div class="terminal-appicon"><svg><use href="#i-terminal"></use></svg></div>
-      <div class="terminal-title" id="terminalWindowTitle">Console — R1</div>
-      <div class="terminal-window-status"><span class="pulse-dot"></span><span id="terminalConnection">telnet localhost:5001</span></div>
+      <div class="terminal-title" id="terminalWindowTitle">Console</div>
+      <div class="terminal-window-status"><span class="pulse-dot"></span><span id="terminalConnection">telnet localhost</span></div>
       <div class="terminal-controls">
         <button class="icon-btn" id="terminalDetach" title="Detach floating window"><svg><use href="#i-detach"></use></svg></button>
         <button class="icon-btn" id="terminalDockBtn" title="Dock to bottom"><svg><use href="#i-dock"></use></svg></button>

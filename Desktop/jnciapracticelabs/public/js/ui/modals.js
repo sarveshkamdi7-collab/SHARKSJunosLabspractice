@@ -136,7 +136,7 @@
       if (!filter) return true;
       return (n.name + ' ' + n.model + ' ' + n.status).toLowerCase().indexOf(String(filter).toLowerCase()) >= 0;
     }).map(function (n) {
-      return '<div class="console-row" data-console-node="' + esc(n.id) + '"><span class="dev-ico">' + icon(APP.nodeIconId(n)) + '</span><div class="console-row-main"><b>' + esc(n.name) + ' <span class="status-pill ' + (n.status === 'running' ? 'up' : n.status === 'paused' ? 'warn' : 'down') + '">' + esc(n.status) + '</span></b><span>' + esc(n.model) + ' · telnet localhost:' + n.consolePort + '</span></div><button class="btn primary" data-connect="' + esc(n.id) + '">Connect</button></div>';
+      return '<div class="console-row" data-console-node="' + esc(n.id) + '"><span class="dev-ico">' + icon(APP.nodeIconId(n)) + '</span><div class="console-row-main"><b>' + esc(n.name) + ' <span class="status-pill ' + (n.status === 'running' ? 'up' : n.status === 'paused' ? 'warn' : 'down') + '">' + esc(n.status) + '</span></b><span>' + esc(n.model) + ', telnet localhost:' + n.consolePort + '</span></div><button class="btn primary" data-connect="' + esc(n.id) + '">Connect</button></div>';
     }).join('');
   }
 
@@ -149,7 +149,7 @@
   function openConsoleManager() {
     var s = APP.getState();
     openModal({
-      title: 'Console Manager', icon: 'terminal', sub: 'Local server · 127.0.0.1',
+      title: 'Console Manager', icon: 'terminal', sub: 'Local server on 127.0.0.1',
       body: '<p class="modal-note">Each device exposes a telnet console. Click a device to open a terminal tab.</p><div class="console-list">' + (consoleRows('') || '<p class="modal-note">No devices in this project.</p>') + '</div>',
       footer: '<button class="btn" data-modal-close>Close</button><button class="btn primary" id="cmAll">Connect to All Running</button>',
       onMount: function (m) {
@@ -175,7 +175,7 @@
     var node = APP.nodeById(id);
     if (!node) return;
     var rows = APP.getInterfaceRows(node);
-    var html = '<p class="modal-note">' + esc(node.name + ' · ' + node.model) + '. Interface IP changes are committed directly to the candidate configuration.</p>';
+    var html = '<p class="modal-note">' + esc(node.name + ', ' + node.model) + '. Interface IP changes are committed directly to the candidate configuration.</p>';
     if (!rows.length) {
       html += '<p>No interfaces are available for this device.</p>';
     } else {
@@ -240,7 +240,7 @@
     var ifs = APP.getInterfaceRows(node).filter(function (r) { return r.kind !== 'lo'; }).slice(0, 10);
     var opts = ifs.map(function (r) { return '<option>' + esc(r.name) + '</option>'; }).join('');
     openModal({
-      title: 'Packet Capture', icon: 'packet', sub: node.name + ' · live console', size: 'wide',
+      title: 'Packet Capture', icon: 'packet', sub: node.name + ', console', size: 'wide',
       body: '<div class="capture-toolbar"><select class="select" id="capIface" style="max-width:180px">' + (opts || '<option>ge-0/0/0</option>') + '</select><input class="input" id="capFilter" placeholder="tcpdump filter (e.g. icmp or port 22)"><button class="btn primary" id="capStart">Start</button><button class="btn" id="capStop" disabled>Stop</button><span class="console-chip" id="capCount">0 packets</span></div>' +
         '<div style="max-height:280px;overflow:auto;border:1px solid #2b3c49;border-radius:4px"><table class="data-table capture-table"><thead><tr><th>Time</th><th>Source</th><th>Destination</th><th>Proto</th><th>Len</th><th>Info</th></tr></thead><tbody id="capBody"></tbody></table></div><div class="capture-detail" id="capDetail">Select a packet to inspect its decoded headers.</div>',
       footer: '<button class="btn" data-modal-close>Close</button>',
@@ -263,7 +263,7 @@
           var t = new Date().toLocaleTimeString('en-GB', { hour12: false });
           tr.innerHTML = '<td>' + t + '.' + String(Math.floor(Math.random() * 999)).padStart(3, '0') + '</td><td>' + a + '</td><td>' + b + '</td><td class="proto-' + proto.toLowerCase() + '">' + proto + '</td><td>' + (proto === 'ARP' ? 42 : proto === 'ICMP' ? 74 : 90) + '</td><td>' + esc(info) + '</td>';
           tr.addEventListener('click', function () {
-            detail.innerHTML = '<b>Frame ' + seq + ' · ' + proto + '</b><br>Source: ' + a + '<br>Destination: ' + b + '<br>' + (proto === 'OSPF' ? 'IP 224.0.0.5 > 224.0.0.5: OSPFv2, Hello, length 44' : proto === 'ICMP' ? 'IP ' + a + ' > ' + b + ': ICMP echo request, id ' + (300 + seq) + ', seq ' + seq : proto === 'ARP' ? 'ARP, Request who-has ' + b + ' tell ' + a + ', length 28' : 'IP ' + a + ' > ' + b + ': tcp, length 52');
+            detail.innerHTML = '<b>Frame ' + seq + ', ' + proto + '</b><br>Source: ' + a + '<br>Destination: ' + b + '<br>' + (proto === 'OSPF' ? 'IP 224.0.0.5 > 224.0.0.5: OSPFv2, Hello, length 44' : proto === 'ICMP' ? 'IP ' + a + ' > ' + b + ': ICMP echo request, id ' + (300 + seq) + ', seq ' + seq : proto === 'ARP' ? 'ARP, Request who-has ' + b + ' tell ' + a + ', length 28' : 'IP ' + a + ' > ' + b + ': tcp, length 52');
           });
           body.insertBefore(tr, body.firstChild);
           while (body.children.length > 80) body.removeChild(body.lastChild);
@@ -281,7 +281,7 @@
           if (timer) clearInterval(timer);
           timer = null; captureTimer = null;
           start.disabled = false; stop.disabled = true;
-          APP.setStatus('Packet capture stopped · ' + count + ' packets');
+          APP.setStatus('Packet capture stopped, ' + count + ' packets');
         });
         $('#capFilter', m).addEventListener('keydown', function (e) {
           if (e.key === 'Enter') APP.toast('Filter accepted: ' + (this.value || 'none'), 'info', 'packet');
@@ -342,7 +342,7 @@
     if (!l) return;
     promptModal({
       title: 'Edit Link Label', icon: 'tag', label: 'Label', value: l.label || '',
-      placeholder: 'e.g. 10.0.12.0/30 · OSPF area 0',
+      placeholder: 'e.g. 10.0.12.0/30, OSPF area 0',
       onOk: function (v) {
         APP.captureHistory(); l.label = String(v).trim(); APP.renderLinks(); APP.scheduleSave();
         APP.toast('Link label updated', 'success', 'tag');
@@ -381,7 +381,7 @@
 
   function openCommandRef() {
     openModal({
-      title: 'Junos Command Reference', icon: 'terminal', sub: 'JNCIA quick reference · run commands on the selected device', size: 'wide',
+      title: 'Junos Command Reference', icon: 'terminal', sub: 'JNCIA quick reference, runs on the selected device', size: 'wide',
       body: '<div class="form-row"><label>Search</label><input class="input" id="cmdSearch" placeholder="Filter commands, e.g. ospf, commit, interface" autofocus></div><div id="cmdList"></div>',
       footer: '<button class="btn" data-modal-close>Close</button>',
       onMount: function (m) {
@@ -434,7 +434,7 @@
       title: 'JNCIA Lab Guide', icon: 'help', sub: 'Basic routing, OSPF, VLANs, and Junos CLI workflow', size: 'wide',
       body: '<p class="modal-note">This simulated lab mirrors the Juniper vLabs workflow. Configurations persist in this browser and can be exported as JSON.</p><div class="guide-steps">' +
         steps.map(function (s) { return '<div class="guide-step"><div><b>' + esc(s[0]) + '</b><p>' + s[1] + '</p></div></div>'; }).join('') +
-        '</div><h3 style="margin-top:16px">Useful starting commands</h3><p><code>show ospf neighbor</code> · <code>show route</code> · <code>show interfaces terse</code> · <code>show configuration</code></p>',
+        '</div><h3 style="margin-top:16px">Useful starting commands</h3><p><code>show ospf neighbor</code>, <code>show route</code>, <code>show interfaces terse</code>, <code>show configuration</code></p>',
       footer: '<button class="btn" data-modal-close>Close</button><button class="btn primary" id="guideRun">Open R1 Console</button>',
       onMount: function (m) {
         $('#guideRun', m).addEventListener('click', function () {
@@ -465,9 +465,9 @@
   function openAbout() {
     var s = APP.getState();
     openModal({
-      title: 'About GNS3 Junos Lab', icon: 'logo', sub: 'JNCIA network simulator · standalone SPA',
-      body: '<div style="display:flex;gap:16px;align-items:center;margin-bottom:14px"><div style="width:64px;height:64px;color:#66c5f1">' + icon('logo') + '</div><div><h3 style="margin:0 0 3px;font-size:15px">GNS3 · Junos Lab</h3><p style="margin:0;color:#7390a3">A browser-based GNS3-style topology workspace with an interactive Junos CLI for JNCIA practice.</p></div></div>' +
-        '<table class="data-table"><tbody><tr><td>Project</td><td>' + esc(s.title) + '</td></tr><tr><td>Devices</td><td>' + s.nodes.length + ' nodes · ' + s.links.length + ' links</td></tr><tr><td>Junos emulation</td><td>21.4R1 simulation engine</td></tr><tr><td>Local storage</td><td><code>' + esc(APP.STORAGE_KEY) + '</code></td></tr><tr><td>Server</td><td>127.0.0.1 · Node.js static server</td></tr></tbody></table>' +
+      title: 'About JNCIA Junos Lab', icon: 'logo', sub: 'JNCIA network simulator, standalone',
+      body: '<div style="display:flex;gap:16px;align-items:center;margin-bottom:14px"><div style="width:64px;height:64px;color:var(--accent-dim)">' + icon('logo') + '</div><div><h3 style="margin:0 0 3px;font-size:15px">JNCIA Junos Lab</h3><p style="margin:0;color:var(--text-muted)">A browser-based topology workspace with an interactive Junos CLI for JNCIA practice.</p></div></div>' +
+        '<table class="data-table"><tbody><tr><td>Project</td><td>' + esc(s.title) + '</td></tr><tr><td>Devices</td><td>' + s.nodes.length + ' nodes, ' + s.links.length + ' links</td></tr><tr><td>Junos emulation</td><td>21.4R1 simulation engine</td></tr><tr><td>Local storage</td><td><code>' + esc(APP.STORAGE_KEY) + '</code></td></tr><tr><td>Server</td><td>127.0.0.1, Node.js static server</td></tr></tbody></table>' +
         '<p class="modal-note" style="margin-top:12px">No external CDN assets are used. All icons and visuals are embedded or rendered locally.</p>',
       footer: '<button class="btn" data-modal-close>Close</button><button class="btn primary" id="aboutGuide">Open Lab Guide</button>',
       onMount: function (m) { $('#aboutGuide', m).addEventListener('click', function () { closeModal(true); openGuide(); }); }
@@ -483,7 +483,7 @@
       body: '<div class="form-row"><label>Server host</label><code>' + esc(host) + '</code></div>' +
         '<div class="form-row"><label>Console proxy port</label><code>' + esc(port) + '</code></div>' +
         '<div class="form-row"><label>Console summary</label><span>' + APP.getState().nodes.filter(function (n) { return n.status === 'running'; }).length + ' running / ' + APP.getState().nodes.length + ' total</span></div>' +
-        '<div class="form-row"><label>Project autosave</label><span>Enabled · localStorage</span></div>' +
+        '<div class="form-row"><label>Project autosave</label><span>Enabled, localStorage</span></div>' +
         '<p class="modal-note">The static Node.js server hosts this application. No remote compute or VMware backend is required for the simulation.</p>',
       footer: '<button class="btn" data-modal-close>Close</button>',
       onMount: function () {}
