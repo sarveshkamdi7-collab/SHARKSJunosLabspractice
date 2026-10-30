@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#151a21">
+  <title>GNS3 · JNCIA Junos Lab</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <svg class="svg-sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-logo" viewBox="0 0 32 32">
+      <rect x="2" y="2" width="28" height="28" rx="7" fill="currentColor" opacity=".16"/>
+      <circle cx="10" cy="11" r="3.2" fill="currentColor"/>
+      <circle cx="23" cy="10" r="3.2" fill="currentColor"/>
+      <circle cx="16" cy="23" r="3.2" fill="currentColor"/>
+      <path d="M12.5 12.3l7.9.1M11.4 14l3.5 6.5M21.7 12.7l-3.8 6.2" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-new" viewBox="0 0 24 24"><path d="M6 3.5h7l5 5v12H6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M13 3.5v5h5M9 14h6M12 11v6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="i-open" viewBox="0 0 24 24"><path d="M3.5 7.5h6l2-2h9v13h-17z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M3.5 9.5h17l-2 8.5h-15z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24"><path d="M4 4h13l3 3v13H4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8 4v6h8V4M8 20v-6h8v6" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-snapshot" viewBox="0 0 24 24"><path d="M4 8h4l1.5-2h5L16 8h4v11H4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13.5" r="3.2" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.2l11 6.8-11 6.8z" fill="currentColor"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM14 5h4v14h-4z" fill="currentColor"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-reload" viewBox="0 0 24 24"><path d="M19 8.5A7.5 7.5 0 1 0 19.4 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M19 4.5v4.7h-4.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M7 9l3.2 3L7 15M12.5 15H17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 3.5h10l4 4v13H5z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M15 3.5v4h4M8 12h8M8 16h6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-rect" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="1" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-ellipse" viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8" ry="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-line" viewBox="0 0 24 24"><path d="M4 19L20 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="4" cy="19" r="1.7" fill="currentColor"/><circle cx="20" cy="5" r="1.7" fill="currentColor"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M4 5h8l7 7-7 7H4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="8" cy="10" r="1.4" fill="currentColor"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 24 24"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="8" y="8" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/></symbol>
+    <symbol id="i-zoom-in" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 15l5 5M8 10.5h5M10.5 8v5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-zoom-out" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 15l5 5M8 10.5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16" fill="none" stroke="currentColor" stroke-width="1.3"/></symbol>
+    <symbol id="i-router" viewBox="0 0 64 64">
+      <defs><linearGradient id="routerTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a8ac7"/><stop offset="1" stop-color="#2b649c"/></linearGradient></defs>
+      <ellipse cx="32" cy="47" rx="23" ry="8" fill="#1c2733" opacity=".22"/>
+      <path d="M9 20v22c0 6.1 10.3 11 23 11s23-4.9 23-11V20z" fill="url(#routerTop)" stroke="#1b4d7a" stroke-width="1.4"/>
+      <ellipse cx="32" cy="20" rx="23" ry="10" fill="#5a9bd3" stroke="#1b4d7a" stroke-width="1.4"/>
+      <ellipse cx="32" cy="20" rx="15.5" ry="6.4" fill="#223c57" opacity=".82"/>
+      <path d="M23 20h18M29 16.5l-4 3.5 4 3.5M35 16.5l4 3.5-4 3.5" stroke="#8ed4ff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="17" cy="34" r="2" fill="#7ef0a4"/><circle cx="24" cy="36" r="2" fill="#7ef0a4"/><circle cx="46" cy="34" r="2" fill="#263a4d"/><circle cx="39" cy="36" r="2" fill="#263a4d"/>
+      <path d="M17 44h30" stroke="#8ab8de" stroke-width="1.2" opacity=".65"/>
+    </symbol>
+    <symbol id="i-switch" viewBox="0 0 64 64">
+      <defs><linearGradient id="swTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5e6e80"/><stop offset="1" stop-color="#303e4d"/></linearGradient></defs>
+      <ellipse cx="32" cy="51" rx="25" ry="6" fill="#1c2733" opacity=".2"/>
+      <path d="M7 29l4-14h42l4 14v18H7z" fill="url(#swTop)" stroke="#1d2a36" stroke-width="1.4"/>
+      <path d="M11 15h42l-2.5 9h-37z" fill="#8292a3" opacity=".55"/>
+      <rect x="12" y="33" width="40" height="9" rx="1.5" fill="#1b2733"/>
+      <g fill="#6ff0a0"><rect x="14" y="35.5" width="3" height="4" rx=".7"/><rect x="19" y="35.5" width="3" height="4" rx=".7"/><rect x="24" y="35.5" width="3" height="4" rx=".7"/><rect x="29" y="35.5" width="3" height="4" rx=".7"/><rect x="34" y="35.5" width="3" height="4" rx=".7"/><rect x="39" y="35.5" width="3" height="4" rx=".7"/><rect x="44" y="35.5" width="3" height="4" rx=".7" opacity=".45"/><rect x="49" y="35.5" width="3" height="4" rx=".7" opacity=".45"/></g>
+      <path d="M23 24h18M27 20l-4 4 4 4M37 20l4 4-4 4" fill="none" stroke="#cbe9ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-pc" viewBox="0 0 64 64">
+      <defs><linearGradient id="pcScreen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2f88b8"/><stop offset="1" stop-color="#194b70"/></linearGradient></defs>
+      <ellipse cx="32" cy="55" rx="20" ry="4" fill="#1c2733" opacity=".18"/>
+      <rect x="8" y="10" width="48" height="34" rx="3" fill="#263544" stroke="#16222d" stroke-width="1.5"/>
+      <rect x="12" y="14" width="40" height="25" rx="1.5" fill="url(#pcScreen)"/>
+      <path d="M18 20h28M18 25h21M18 30h24" stroke="#b9e9ff" stroke-width="1.2" opacity=".6" stroke-linecap="round"/>
+      <path d="M28 44h8l2 6H26zM21 50h22" fill="#3c4c5c" stroke="#16222d" stroke-width="1.2" stroke-linejoin="round"/>
+      <circle cx="47" cy="17.5" r="1.8" fill="#73f0a2"/>
+    </symbol>
+    <symbol id="i-firewall" viewBox="0 0 64 64">
+      <defs><linearGradient id="fwGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e27646"/><stop offset="1" stop-color="#a64227"/></linearGradient></defs>
+      <ellipse cx="32" cy="55" rx="20" ry="4" fill="#1c2733" opacity=".18"/>
+      <path d="M32 7l21 7v16c0 13.6-9.2 22.7-21 27-11.8-4.3-21-13.4-21-27V14z" fill="url(#fwGrad)" stroke="#7d2d1c" stroke-width="1.5"/>
+      <path d="M32 13l15 5v12c0 9.7-6.5 16.8-15 20.3C23.5 46.8 17 39.7 17 30V18z" fill="#742c20" opacity=".48"/>
+      <path d="M32 18l-7 11h6l-3 10 10-14h-6z" fill="#ffe0a7"/>
+    </symbol>
+    <symbol id="i-cable" viewBox="0 0 24 24"><path d="M4 17.5h4.2l6.5-6.5H20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="2" y="14.8" width="4" height="5.4" rx="1" fill="currentColor"/><rect x="18" y="8.8" width="4" height="5.4" rx="1" fill="currentColor"/><path d="M10 14l4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 15l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chevron-up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-square" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-detach" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8 8M9 7H5v12h12v-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-dock" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 10h16M9 10v9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="3" y="13" width="18" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="7" cy="7.5" r="1" fill="currentColor"/><circle cx="7" cy="16.5" r="1" fill="currentColor"/><path d="M11 7.5h6M11 16.5h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" opacity=".65"/><path d="M9 3v3M12 3v3M15 3v3M9 18v3M12 18v3M15 18v3M3 9h3M3 12h3M3 15h3M18 9h3M18 12h3M18 15h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.5l1.5 2.1 2.5-.6.6 2.5 2.1 1.5-1.2 2.2 1.2 2.2-2.1 1.5-.6 2.5-2.5-.6L12 20.5l-1.5-2.1-2.5.6-.6-2.5-2.1-1.5 1.2-2.2-1.2-2.2 2.1-1.5.6-2.5 2.5.6z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9.6 9a2.5 2.5 0 1 1 4.2 1.8c-.9.8-1.8 1.4-1.8 2.7M12 17.2v.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14M9 7V4.5h6V7M7 7l1 13h8l1-13M10 11v5M14 11v5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-packet" viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.8 12S6 6.5 12 6.5 21.2 12 21.2 12 18 17.5 12 17.5 2.8 12 2.8 12z" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  </svg>
+
+  <div class="app-shell" id="appShell">
+    <header class="menubar">
+      <button class="brand" id="brandButton" title="GNS3 network simulator">
+        <span class="brand-mark"><svg><use href="#i-logo"></use></svg></span>
+        <span class="brand-text">GNS3</span>
+      </button>
+      <nav class="menu-roots" id="menuRoots" aria-label="Application menu">
+        <div class="menu-root">
+          <button class="menu-trigger" data-menu="file">File</button>
+          <div class="menu-pop" data-pop="file">
+            <button data-action="new-project"><span>New Project</span><kbd>Ctrl+N</kbd></button>
+            <button data-action="open-project"><span>Open Project…</span><kbd>Ctrl+O</kbd></button>
+            <button data-action="save-project"><span>Save Project</span><kbd>Ctrl+S</kbd></button>
+            <button data-action="save-as"><span>Save Project As…</span><kbd>Ctrl+Shift+S</kbd></button>
+            <div class="menu-sep"></div>
+            <button data-action="import-project"><span>Import Project…</span><kbd></kbd></button>
+            <button data-action="export-project"><span>Export Project…</span><kbd></kbd></button>
+            <div class="menu-sep"></div>
+            <button data-action="snapshot-save"><span>Save Snapshot</span><kbd></kbd></button>
+            <button data-action="snapshot-restore"><span>Restore Snapshot</span><kbd></kbd></button>
+            <div class="menu-sep"></div>
+            <button data-action="close-project"><span>Close Project</span><kbd></kbd></button>
+          </div>
+        </div>
+        <div class="menu-root">
+          <button class="menu-trigger" data-menu="edit">Edit</button>
+          <div class="menu-pop" data-pop="edit">
+            <button data-action="undo"><span>Undo</span><kbd>Ctrl+Z</kbd></button>
+            <button data-action="redo"><span>Redo</span><kbd>Ctrl+Y</kbd></button>
+            <div class="menu-sep"></div>
+            <button data-action="select-all"><span>Select All</span><kbd>Ctrl+A</kbd></button>
+            <button data-action="delete-selection"><span>Delete Selection</span><kbd>Delete</kbd></button>
+            <div class="menu-sep"></div>
+            <button data-action="preferences"><span>Preferences…</span><kbd></kbd></button>
+          </div>
+        </div>
+        <div class="menu-root">
+          <button class="menu-trigger" data-menu="view">View</button>
+          <div class="menu-pop" data-pop="view">
+            <button data-action="zoom-in"><span>Zoom In</span><kbd>Ctrl++</kbd></button>
+            <button data-action="zoom-out"><span>Zoom Out</span><kbd>Ctrl+-</kbd></button>
+            <button data-action="fit-view"><span>Fit to Screen</span><kbd>Ctrl+0</kbd></button>
+            <div class="menu-sep"></div>
+            <button data-action="toggle-grid"><span>Show Grid</span><kbd></kbd></button>
+            <button data-action="toggle-labels"><span>Show Interface Labels</span><kbd></kbd></button>
+            <div class="menu-sep"></div>
+            <button data-action="toggle-left"><span>Toggle Device Dock</span><kbd></kbd></button>
+            <button data-action="toggle-right"><span>Toggle Panels</span><kbd></kbd></button>
+            <button data-action="fullscreen"><span>Full Screen</span><kbd>F11</kbd></button>
+          </div>
+        </div>
+        <div class="menu-root">
+          <button class="menu-trigger" data-menu="control">Control</button>
+          <div class="menu-pop" data-pop="control">
+            <button data-action="start-all"><span>Start / Resume All Nodes</span><kbd>Ctrl+Shift+U</kbd></button>
+            <button data-action="pause-all"><span>Pause All Nodes</span><kbd></kbd></button>
+            <button data-action="stop-all"><span>Stop All Nodes</span><kbd>Ctrl+Shift+W</kbd></button>
+            <button data-action="reload-all"><span>Reload All Nodes</span><kbd>Ctrl+Shift+R</kbd></button>
+            <div class="menu-sep"></div>
+            <button data-action="console-all"><span>Console Connect to All</span><kbd>Ctrl+Shift+C</kbd></button>
+            <button data-action="console-manager"><span>Console Manager…</span><kbd></kbd></button>
+          </div>
+        </div>
+        <div class="menu-root">
+          <button class="menu-trigger" data-menu="node">Node</button>
+          <div class="menu-pop" data-pop="node">
+            <button data-action="node-start"><span>Start</span><kbd></kbd></button>
+            <button data-action="node-pause"><span>Pause</span><kbd></kbd></button>
+            <button data-action="node-stop"><span>Stop</span><kbd></kbd></button>
+            <button data-action="node-restart"><span>Restart</span><kbd></kbd></button>
+            <div class="menu-sep"></div>
+            <button data-action="node-console"><span>Web Console / Terminal</span><kbd>Ctrl+Enter</kbd></button>
+            <button data-action="node-interfaces"><span>Configure Interfaces…</span><kbd></kbd></button>
+            <button data-action="node-capture"><span>Packet Capture…</span><kbd></kbd></button>
+            <div class="menu-sep"></div>
+            <button class="danger" data-action="node-delete"><span>Delete Node</span><kbd>Del</kbd></button>
+          </div>
+        </div>
+        <div class="menu-root">
+          <button class="menu-trigger" data-menu="annotate">Annotate</button>
+          <div class="menu-pop" data-pop="annotate">
+            <button data-action="add-note"><span>Add Text Note…</span><kbd></kbd></button>
+            <button data-action="tool-rect"><span>Draw Rectangle</span><kbd></kbd></button>
+            <button data-action="tool-ellipse"><span>Draw Ellipse</span><kbd></kbd></button>
+            <button data-action="tool-line"><span>Draw Line</span><kbd></kbd></button>
+            <div class="menu-sep"></div>
+            <button data-action="clear-annotations"><span>Clear All Annotations</span><kbd></kbd></button>
+          </div>
+        </div>
+        <div class="menu-root">
+          <button class="menu-trigger" data-menu="tools">Tools</button>
+          <div class="menu-pop" data-pop="tools">
+            <button data-action="console-manager"><span>Console Manager</span><kbd></kbd></button>
+            <button data-action="node-capture"><span>Packet Capture</span><kbd></kbd></button>
+            <button data-action="command-reference"><span>Junos Command Reference</span><kbd></kbd></button>
+            <div class="menu-sep"></div>
+            <button data-action="server-prefs"><span>Server Preferences…</span><kbd></kbd></button>
+            <button data-action="reset-lab"><span>Reset Lab to Baseline</span><kbd></kbd></button>
+          </div>
+        </div>
+        <div class="menu-root">
+          <button class="menu-trigger" data-menu="help">Help</button>
+          <div class="menu-pop" data-pop="help">
+            <button data-action="lab-guide"><span>JNCIA Lab Guide</span><kbd></kbd></button>
+            <button data-action="shortcuts"><span>Keyboard Shortcuts</span><kbd>?</kbd></button>
+            <div class="menu-sep"></div>
+            <button data-action="about"><span>About GNS3 Junos Lab</span><kbd></kbd></button>
+          </div>
+        </div>
+      </nav>
+      <div class="menubar-spacer"></div>
+      <div class="project-pill" id="projectPill" title="Current project">
+        <span class="project-dot"></span>
+        <span id="projectNameLabel">JNCIA Basic Routing</span>
+      </div>
+      <button class="server-pill" id="serverPill" title="Local server status">
+        <span class="pulse-dot"></span><span>Local · 127.0.0.1:3080</span>
+      </button>
+    </header>
+
+    <div class="toolbar" id="toolbar" aria-label="Main toolbar">
+      <div class="tool-group">
+        <button class="tool-btn" data-action="new-project" data-tip="New Project (Ctrl+N)"><svg><use href="#i-new"></use></svg></button>
+        <button class="tool-btn" data-action="open-project" data-tip="Open Project (Ctrl+O)"><svg><use href="#i-open"></use></svg></button>
+        <button class="tool-btn" data-action="save-project" data-tip="Save Project (Ctrl+S)"><svg><use href="#i-save"></use></svg></button>
+        <button class="tool-btn" data-action="snapshot-save" data-tip="Snapshot / Backup"><svg><use href="#i-snapshot"></use></svg></button>
+      </div>
+      <div class="tool-sep"></div>
+      <div class="tool-group">
+        <button class="tool-btn start" data-action="start-all" data-tip="Start / Resume All Nodes"><svg><use href="#i-play"></use></svg></button>
+        <button class="tool-btn pause" data-action="pause-all" data-tip="Pause All Nodes"><svg><use href="#i-pause"></use></svg></button>
+        <button class="tool-btn stop" data-action="stop-all" data-tip="Stop All Nodes"><svg><use href="#i-stop"></use></svg></button>
+        <button class="tool-btn" data-action="reload-all" data-tip="Reload All Nodes"><svg><use href="#i-reload"></use></svg></button>
+        <button class="tool-btn console" data-action="console-all" data-tip="Console Connect to All"><svg><use href="#i-terminal"></use></svg></button>
+      </div>
+      <div class="tool-sep"></div>
+      <div class="tool-group">
+        <button class="tool-btn" data-action="add-note" data-tip="Add Note / Text Annotation"><svg><use href="#i-note"></use></svg></button>
+        <button class="tool-btn draw-tool" data-action="tool-rect" data-tool="rect" data-tip="Draw Rectangle"><svg><use href="#i-rect"></use></svg></button>
+        <button class="tool-btn draw-tool" data-action="tool-ellipse" data-tool="ellipse" data-tip="Draw Ellipse"><svg><use href="#i-ellipse"></use></svg></button>
+        <button class="tool-btn draw-tool" data-action="tool-line" data-tool="line" data-tip="Draw Line"><svg><use href="#i-line"></use></svg></button>
+      </div>
+      <div class="tool-sep"></div>
+      <div class="tool-group">
+        <button class="tool-btn toggle active" id="labelsButton" data-action="toggle-labels" data-tip="Show / Hide Interface Labels"><svg><use href="#i-tag"></use></svg></button>
+        <button class="tool-btn" data-action="fit-view" data-tip="Fit to Screen / Center Canvas"><svg><use href="#i-fit"></use></svg></button>
+        <button class="tool-btn" data-action="zoom-out" data-tip="Zoom Out"><svg><use href="#i-zoom-out"></use></svg></button>
+        <span class="zoom-readout" id="zoomReadout">100%</span>
+        <button class="tool-btn" data-action="zoom-in" data-tip="Zoom In"><svg><use href="#i-zoom-in"></use></svg></button>
+        <button class="tool-btn toggle active" id="gridButton" data-action="toggle-grid" data-tip="Show / Hide Grid"><svg><use href="#i-grid"></use></svg></button>
+      </div>
+      <div class="toolbar-spacer"></div>
+      <div class="toolbar-status">
+        <span class="status-led"></span><span id="toolbarStatus">Lab ready</span>
+      </div>
+    </div>
+
+    <div class="main-shell" id="mainShell">
+      <aside class="left-dock" id="leftDock">
+        <div class="dock-titlebar">
+          <div class="dock-title"><svg><use href="#i-menu"></use></svg><span>Device Palette</span></div>
+          <button class="icon-btn" data-action="toggle-left" title="Collapse device dock"><svg><use href="#i-chevron-left"></use></svg></button>
+        </div>
+        <div class="palette-body">
+          <div class="palette-rail" id="paletteRail">
+            <button class="rail-btn active" data-category="all" data-tip="All Devices"><svg><use href="#i-menu"></use></svg><span>All</span></button>
+            <button class="rail-btn" data-category="routers" data-tip="Routers"><svg><use href="#i-router"></use></svg><span>Routers</span></button>
+            <button class="rail-btn" data-category="switches" data-tip="Switches"><svg><use href="#i-switch"></use></svg><span>Switches</span></button>
+            <button class="rail-btn" data-category="endpoints" data-tip="End Devices / Hosts"><svg><use href="#i-pc"></use></svg><span>Hosts</span></button>
+            <button class="rail-btn" data-category="security" data-tip="Security Devices"><svg><use href="#i-firewall"></use></svg><span>Security</span></button>
+            <button class="rail-btn" data-category="links" data-tip="All Devices &amp; Cables"><svg><use href="#i-cable"></use></svg><span>Links</span></button>
+          </div>
+          <div class="palette-content">
+            <label class="palette-search">
+              <svg><use href="#i-search"></use></svg>
+              <input id="paletteSearch" type="search" placeholder="Search devices…" autocomplete="off">
+            </label>
+            <div class="palette-scroll" id="paletteScroll">
+              <section class="palette-section" data-section="routers">
+                <button class="section-head"><span>Routers</span><span class="count">3</span><svg><use href="#i-chevron-down"></use></svg></button>
+                <div class="palette-grid">
+                  <button class="palette-item" draggable="true" data-device="vsrx" data-category="routers" title="Juniper vSRX virtual router">
+                    <span class="dev-art router"><svg><use href="#i-router"></use></svg></span><span class="dev-name">vSRX</span><span class="dev-sub">Juniper</span>
+                  </button>
+                  <button class="palette-item" draggable="true" data-device="vmx" data-category="routers" title="Juniper vMX virtual router">
+                    <span class="dev-art router alt"><svg><use href="#i-router"></use></svg></span><span class="dev-name">vMX</span><span class="dev-sub">Junos 21.4</span>
+                  </button>
+                  <button class="palette-item" draggable="true" data-device="router" data-category="routers" title="Generic Junos router">
+                    <span class="dev-art router"><svg><use href="#i-router"></use></svg></span><span class="dev-name">Junos R</span><span class="dev-sub">Router</span>
+                  </button>
+                </div>
+              </section>
+              <section class="palette-section" data-section="switches">
+                <button class="section-head"><span>Switches</span><span class="count">2</span><svg><use href="#i-chevron-down"></use></svg></button>
+                <div class="palette-grid">
+                  <button class="palette-item" draggable="true" data-device="switch" data-category="switches" title="Juniper EX-series Ethernet switch">
+                    <span class="dev-art switch"><svg><use href="#i-switch"></use></svg></span><span class="dev-name">EX Switch</span><span class="dev-sub">Ethernet</span>
+                  </button>
+                  <button class="palette-item" draggable="true" data-device="ex" data-category="switches" title="EX4300-24T switch">
+                    <span class="dev-art switch"><svg><use href="#i-switch"></use></svg></span><span class="dev-name">EX4300</span><span class="dev-sub">24-port</span>
+                  </button>
+                </div>
+              </section>
+              <section class="palette-section" data-section="endpoints">
+                <button class="section-head"><span>End Devices / Hosts</span><span class="count">3</span><svg><use href="#i-chevron-down"></use></svg></button>
+                <div class="palette-grid">
+                  <button class="palette-item" draggable="true" data-device="vpcs" data-category="endpoints" title="Virtual PC Simulator host">
+                    <span class="dev-art pc"><svg><use href="#i-pc"></use></svg></span><span class="dev-name">VPCS</span><span class="dev-sub">Host</span>
+                  </button>
+                  <button class="palette-item" draggable="true" data-device="ubuntu" data-category="endpoints" title="Ubuntu host">
+                    <span class="dev-art pc"><svg><use href="#i-pc"></use></svg></span><span class="dev-name">Ubuntu</span><span class="dev-sub">Host-A</span>
+                  </button>
+                  <button class="palette-item" draggable="true" data-device="pc" data-category="endpoints" title="Generic host">
+                    <span class="dev-art pc"><svg><use href="#i-pc"></use></svg></span><span class="dev-name">Host</span><span class="dev-sub">End device</span>
+                  </button>
+                </div>
+              </section>
+              <section class="palette-section" data-section="security">
+                <button class="section-head"><span>Security Devices</span><span class="count">1</span><svg><use href="#i-chevron-down"></use></svg></button>
+                <div class="palette-grid">
+                  <button class="palette-item" draggable="true" data-device="srx" data-category="security" title="Juniper SRX firewall">
+                    <span class="dev-art firewall"><svg><use href="#i-firewall"></use></svg></span><span class="dev-name">SRX</span><span class="dev-sub">Firewall</span>
+                  </button>
+                </div>
+              </section>
+              <section class="palette-section" data-section="links">
+                <button class="section-head"><span>All Devices &amp; Cables</span><span class="count">2</span><svg><use href="#i-chevron-down"></use></svg></button>
+                <div class="palette-grid">
+                  <button class="palette-item" data-device="link" data-category="links" title="Ethernet link tool">
+                    <span class="dev-art cable"><svg><use href="#i-cable"></use></svg></span><span class="dev-name">Ethernet</span><span class="dev-sub">Link tool</span>
+                  </button>
+                  <button class="palette-item" data-device="console-cable" data-category="links" title="Console cable tool">
+                    <span class="dev-art cable"><svg><use href="#i-terminal"></use></svg></span><span class="dev-name">Console</span><span class="dev-sub">Serial cable</span>
+                  </button>
+                </div>
+              </section>
+              <div class="palette-empty" id="paletteEmpty">No devices match your search.</div>
+            </div>
+            <div class="palette-hint"><kbd>Drag</kbd> to canvas or click to place</div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <div class="workspace-tabs">
+          <div class="workspace-tab active"><span class="ws-dot"></span><span id="workspaceTabTitle">JNCIA Basic Routing</span><button class="icon-btn tiny" id="workspaceTabClose" title="Close project"><svg><use href="#i-close"></use></svg></button></div>
+          <button class="icon-btn tiny workspace-add" title="New project"><svg><use href="#i-plus"></use></svg></button>
+          <div class="ws-spacer"></div>
+          <div class="canvas-meta" id="canvasMeta">R1 · R2 · R3 · SW1 · 2 hosts</div>
+          <button class="ws-action" id="wsLayoutButton" title="Auto arrange topology">Layout</button>
+        </div>
+        <div class="canvas-wrap" id="canvasWrap">
+          <div class="canvas" id="canvas" tabindex="0">
+            <div class="grid-layer" id="gridLayer"></div>
+            <div class="canvas-watermark"><span>JNCIA</span><small>JUNOS PRACTICE LAB</small></div>
+            <div class="viewport" id="viewport">
+              <svg class="world-svg" id="worldSvg" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <filter id="linkGlow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                </defs>
+                <g id="linkLayer"></g>
+                <g id="annotationLayer"></g>
+              </svg>
+              <div class="node-layer" id="nodeLayer"></div>
+            </div>
+            <div class="canvas-tools">
+              <button class="canvas-tool" data-action="zoom-in" title="Zoom in"><svg><use href="#i-zoom-in"></use></svg></button>
+              <button class="canvas-tool" data-action="fit-view" title="Fit to screen"><svg><use href="#i-fit"></use></svg></button>
+              <button class="canvas-tool" data-action="zoom-out" title="Zoom out"><svg><use href="#i-zoom-out"></use></svg></button>
+            </div>
+            <div class="canvas-hint" id="canvasHint">Double-click a device to open its console · Right-click for node actions</div>
+            <div class="placement-banner hidden" id="placementBanner"><span id="placementText">Click on the canvas to place vSRX</span><button id="placementCancel">Cancel</button></div>
+          </div>
+        </div>
+      </main>
+
+      <aside class="right-dock" id="rightDock">
+        <section class="side-panel" data-panel="topology">
+          <button class="side-head">
+            <span class="side-head-title"><svg><use href="#i-logo"></use></svg>Topology Summary</span>
+            <span class="side-head-right"><span class="mini-badge" id="topoCount">6</span><svg class="chev"><use href="#i-chevron-down"></use></svg></span>
+          </button>
+          <div class="side-body topology-tree" id="topologyTree"></div>
+        </section>
+        <section class="side-panel" data-panel="servers">
+          <button class="side-head">
+            <span class="side-head-title"><svg><use href="#i-server"></use></svg>Servers Summary</span>
+            <span class="side-head-right"><svg class="chev"><use href="#i-chevron-down"></use></svg></span>
+          </button>
+          <div class="side-body">
+            <div class="server-card">
+              <div class="server-top"><span class="server-name"><span class="pulse-dot"></span>Local</span><span class="chip ok">Connected</span></div>
+              <div class="server-address">127.0.0.1:3080</div>
+              <div class="gauge-row"><span><svg><use href="#i-cpu"></use></svg>CPU</span><div class="gauge"><i id="cpuGauge" style="width:18%"></i></div><b id="cpuValue">18%</b></div>
+              <div class="gauge-row"><span><svg><use href="#i-server"></use></svg>RAM</span><div class="gauge ram"><i id="ramGauge" style="width:42%"></i></div><b id="ramValue">42%</b></div>
+              <div class="server-stats"><span>vCPU <b>4</b></span><span>Projects <b>1</b></span><span>Uptime <b id="serverUptime">00:12</b></span></div>
+            </div>
+          </div>
+        </section>
+        <section class="side-panel" data-panel="presets">
+          <button class="side-head">
+            <span class="side-head-title"><svg><use href="#i-snapshot"></use></svg>Quick Lab Presets</span>
+            <span class="side-head-right"><svg class="chev"><use href="#i-chevron-down"></use></svg></span>
+          </button>
+          <div class="side-body preset-list">
+            <button class="preset-card active" data-preset="jncia">
+              <span class="preset-glyph"><svg><use href="#i-router"></use></svg></span>
+              <span class="preset-copy"><b>JNCIA Basic Routing</b><small>3 routers · OSPF · static</small></span>
+              <span class="preset-open"><svg><use href="#i-chevron-right"></use></svg></span>
+            </button>
+            <button class="preset-card" data-preset="vlan">
+              <span class="preset-glyph"><svg><use href="#i-switch"></use></svg></span>
+              <span class="preset-copy"><b>VLAN Trunking &amp; IRB</b><small>EX switch · staff &amp; guest</small></span>
+              <span class="preset-open"><svg><use href="#i-chevron-right"></use></svg></span>
+            </button>
+            <button class="preset-card" data-preset="ospf">
+              <span class="preset-glyph"><svg><use href="#i-router"></use></svg></span>
+              <span class="preset-copy"><b>Static Routes &amp; RIP/OSPF</b><small>Route preference practice</small></span>
+              <span class="preset-open"><svg><use href="#i-chevron-right"></use></svg></span>
+            </button>
+            <button class="preset-card" data-preset="vlabs">
+              <span class="preset-glyph"><svg><use href="#i-logo"></use></svg></span>
+              <span class="preset-copy"><b>Juniper vLabs Hub</b><small>Standard 3-router hub</small></span>
+              <span class="preset-open"><svg><use href="#i-chevron-right"></use></svg></span>
+            </button>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <footer class="statusbar">
+      <div class="status-item"><span class="status-led"></span><span id="statusMessage">Local server connected</span></div>
+      <div class="status-sep"></div>
+      <div class="status-item"><svg><use href="#i-logo"></use></svg><span id="statusSelection">No device selected</span></div>
+      <div class="status-spacer"></div>
+      <div class="status-item"><span>Nodes</span><b id="statusNodes">6</b></div>
+      <div class="status-item"><span>Links</span><b id="statusLinks">5</b></div>
+      <div class="status-sep"></div>
+      <div class="status-item"><span>Zoom</span><b id="statusZoom">100%</b></div>
+      <div class="status-item"><span>X</span><b id="statusPosX">0</b><span>Y</span><b id="statusPosY">0</b></div>
+      <div class="status-item save-state" id="saveState"><svg><use href="#i-check"></use></svg><span>Saved</span></div>
+    </footer>
+  </div>
+
+  <section class="terminal-dock hidden" id="terminalDock" aria-label="Console terminal">
+    <div class="terminal-titlebar" id="terminalTitlebar">
+      <div class="terminal-appicon"><svg><use href="#i-terminal"></use></svg></div>
+      <div class="terminal-title" id="terminalWindowTitle">Console — R1</div>
+      <div class="terminal-window-status"><span class="pulse-dot"></span><span id="terminalConnection">telnet localhost:5001</span></div>
+      <div class="terminal-controls">
+        <button class="icon-btn" id="terminalDetach" title="Detach floating window"><svg><use href="#i-detach"></use></svg></button>
+        <button class="icon-btn" id="terminalDockBtn" title="Dock to bottom"><svg><use href="#i-dock"></use></svg></button>
+        <button class="icon-btn" id="terminalMinimize" title="Minimize"><svg><use href="#i-minus"></use></svg></button>
+        <button class="icon-btn" id="terminalMaximize" title="Maximize"><svg><use href="#i-square"></use></svg></button>
+        <button class="icon-btn close" id="terminalClose" title="Close console"><svg><use href="#i-close"></use></svg></button>
+      </div>
+    </div>
+    <div class="terminal-tabbar">
+      <div class="terminal-tabs" id="terminalTabs"></div>
+      <button class="terminal-new-tab" id="terminalNewTab" title="Open console…"><svg><use href="#i-plus"></use></svg></button>
+      <div class="terminal-tab-spacer"></div>
+      <span class="terminal-tab-hint">Ctrl+Shift+C to connect all</span>
+    </div>
+    <div class="terminal-body" id="terminalBody"></div>
+    <div class="terminal-resize-handle" id="terminalResizeHandle"></div>
+  </section>
+
+  <div class="context-menu" id="contextMenu" role="menu"></div>
+  <div class="modal-backdrop hidden" id="modalBackdrop">
+    <div class="modal" id="modal" role="dialog" aria-modal="true"></div>
+  </div>
+  <div class="toast-host" id="toastHost"></div>
+  <input type="file" id="fileInput" accept=".json,application/json" hidden>
+
+  <script src="js/junos/util.js"></script>
+  <script src="js/junos/db.js"></script>
+  <script src="js/junos/model.js"></script>
+  <script src="js/junos/derive.js"></script>
+  <script src="js/junos/schema.js"></script>
+  <script src="js/junos/machine.js"></script>
+  <script src="js/ui/core.js"></script>
+  <script src="js/ui/interactions.js"></script>
+  <script src="js/ui/console.js"></script>
+  <script src="js/ui/vpcs.js"></script>
+  <script src="js/ui/terminal.js"></script>
+  <script src="js/ui/modals.js"></script>
+  <script src="js/ui/boot.js"></script>
+</body>
+</html>

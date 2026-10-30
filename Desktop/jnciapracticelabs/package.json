@@ -1,0 +1,13 @@
+{
+  "name": "jncia-junos-lab",
+  "version": "1.0.0",
+  "description": "JNCIA-Junos CLI practice lab - simulated Junos devices in your browser, no Junos OS required",
+  "private": true,
+  "scripts": {
+    "start": "node server/server.js",
+    "test": "node tests/run-tests.js"
+  },
+  "engines": {
+    "node": ">=14"
+  }
+}

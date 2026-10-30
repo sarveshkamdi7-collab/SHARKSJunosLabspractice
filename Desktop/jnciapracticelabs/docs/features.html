@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>JNCIA-Junos Practice Lab — Features Implemented</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 18mm 15mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; font-size: 10.5pt; color: #17202a; margin: 0; line-height: 1.45; }
+  .cover { text-align: center; padding-top: 60mm; }
+  .cover h1 { font-size: 22pt; color: #0b4a8f; margin: 0 0 6mm 0; }
+  .cover h2 { font-size: 14pt; color: #444; font-weight: 600; margin: 0 0 14mm 0; }
+  .cover .meta { color: #666; font-size: 10pt; }
+  h1 { font-size: 16pt; color: #0b4a8f; border-bottom: 2px solid #0b4a8f; padding-bottom: 3px; page-break-before: always; }
+  h1.first { page-break-before: auto; }
+  h2 { font-size: 12pt; color: #0b4a8f; margin: 14px 0 6px 0; }
+  h3 { font-size: 10.5pt; color: #333; margin: 10px 0 4px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 9pt; margin: 6px 0 10px 0; }
+  th { background: #0b4a8f; color: #fff; text-align: left; padding: 4px 6px; font-weight: 600; }
+  td { border: 1px solid #c9d3dd; padding: 4px 6px; vertical-align: top; }
+  tr:nth-child(even) td { background: #f4f7fa; }
+  pre { font-family: Consolas, "Courier New", monospace; font-size: 8.5pt; background: #f5f6f7; border: 1px solid #d5dbe1; border-left: 3px solid #0b4a8f; padding: 7px 9px; overflow: hidden; page-break-inside: avoid; white-space: pre; color: #111; }
+  code { font-family: Consolas, "Courier New", monospace; font-size: 9pt; background: #eef1f4; padding: 0 3px; }
+  .tag { display: inline-block; font-size: 8.5pt; font-weight: 700; padding: 1px 7px; border-radius: 3px; }
+  .done { background: #dff0d8; color: #2b6b1f; border: 1px solid #9dc98c; }
+  .wip { background: #fdf2d0; color: #8a6100; border: 1px solid #e3c46e; }
+  .plan { background: #e8e8e8; color: #555; border: 1px solid #bbb; }
+  ul, ol { margin: 4px 0 8px 0; padding-left: 20px; }
+  li { margin: 2px 0; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>JNCIA-Junos Practice Lab<br>Features Implemented</h1>
+  <h2>Progress & Feature Inventory vs. Requirements &ndash; Revision 1</h2>
+  <div class="meta">
+    Project location: <code>C:\Users\HP\jnciapracticelabs</code><br>
+    Date: October 28, 2026<br>
+    Companion document: <i>Project Needs & Requirements</i>
+  </div>
+</div>
+
+<h1 class="first">1. Status at a glance</h1>
+<table>
+<tr><th style="width:70px">Status</th><th>Meaning</th></tr>
+<tr><td><span class="tag done">IMPLEMENTED</span></td><td>Feature code exists in the project today and is exercised by the running server / engine modules.</td></tr>
+<tr><td><span class="tag wip">IN&nbsp;PROGRESS</span></td><td>Actively being built next; design is pinned by the Requirements document.</td></tr>
+<tr><td><span class="tag plan">PLANNED</span></td><td>Required by R-register but construction not started yet.</td></tr>
+</table>
+
+<h1>2. Implemented features (by module)</h1>
+
+<h2>2.1 Lab delivery &ndash; zero-dependency runtime <span class="tag done">IMPLEMENTED</span></h2>
+<ul>
+  <li><b><code>server/server.js</code></b> &mdash; plain Node.js static server (no npm dependencies):
+      MIME map (html/css/js/json/svg/png/ico/md/txt), URL decoding, query-string stripping,
+      <code>/index.html</code> default route, <b>path-traversal protection</b> (all files served strictly
+      from <code>public/</code>), 404/403 responses, configurable port (<code>PORT</code> env, default 3000),
+      clean startup banner with the lab URL and Ctrl+C instructions.</li>
+  <li><b><code>package.json</code></b> &mdash; project identity (<code>jncia-junos-lab</code> v1.0.0), engines
+      <code>node >= 14</code>, scripts <code>npm start</code> (server) and <code>npm test</code> (test runner).</li>
+  <li><b><code>START-WINDOWS.bat</code></b> / <b><code>START-MAC-LINUX.sh</code></b> &mdash; one-click launchers
+      so the lab runs without any package installation (R-14).</li>
+  <li><b>Offline-first:</b> the entire lab is served from local files; browser UI needs no internet access.</li>
+</ul>
+
+<h2>2.2 Junos configuration database (config tree engine) <span class="tag done">IMPLEMENTED</span></h2>
+<p><code>public/js/junos/db.js</code> implements the heart of real Junos configuration handling:</p>
+<ul>
+  <li>In-memory <b>hierarchical configuration tree</b> exactly shaped like Junos config
+      (statement names, value lists, ordered children) with identity containers
+      (<code>unit</code>, <code>address</code>, <code>interface</code>, <code>route</code>, <code>area</code>,
+      <code>neighbor</code>, <code>term</code>, <code>filter</code>, ...) and leaves that carry values
+      (<code>host-name</code>, <code>description</code>, <code>next-hop</code>, <code>peer-as</code>, ...).</li>
+  <li>Core mutation primitives: <code>set</code> (incl. bracketed multi-values like <code>members [ a b ]</code>),
+      <code>delete</code> (statement or single value, auto-cleanup of empty leaves),
+      <code>deactivate / activate</code> (typical Junos <code>inactive:</code> marker behavior),
+      <code>annotate</code> (stores <code>/* comment */</code> annotations).</li>
+  <li><b>Brace-notation rendering</b> faithful to real Junos: correct 4-space indentation chains,
+      <code>inactive: ge-0/0/2 { ... }</code> headings, embedded comments
+      (<code>/* SPARE */ ge-0/0/2 { ... }</code>), quoted values when needed, semicolons and nested braces
+      exactly as Junos prints them in <code>show</code>/<code>show configuration</code>.</li>
+  <li><b>Set-notation rendering</b> (candidate & committed, active-only option) for
+      <code>| display set</code> output; proper quoting (<code>set system description "LINK TO R2"</code>).</li>
+  <li><b><code>show | compare</code> diff engine</b> (<code>compareTrees</code>): real Junos-style output with
+      <code>[edit ...]</code> headers and <code>+ / - / !</code> line markers, subtree additions/deletions,
+      value-level additions/deletions, and deactivation shown as <code>!</code> lines.
+      Includes tree-equality checks (with and without the inactive marker) as used by the engine.</li>
+  <li>Data utilities used across the lab: tree cloning, subtree lookup by path.</li>
+</ul>
+
+<h2>2.3 Lab inventory & baseline configurations <span class="tag done">IMPLEMENTED</span></h2>
+<p><code>public/js/junos/model.js</code> defines the complete practice topology and every device's
+<b>factory baseline Junos configuration</b> as Junos <code>set</code> statements:</p>
+<ul>
+  <li><b>R1 / R2 / R3</b> &mdash; MX240 routers, Junos <code>20.4R2-S2.1</code>, deterministic serials,
+      configured with <code>system</code> (host-name, time-zone UTC, ssh v2/root-login deny/limit), interface
+      addressing (transit 10.0.12.0/30, 10.0.23.0/30; lo0 1.1.1.1&ndash;3.3.3.3/32; fxp0 mgmt 192.168.1.x),
+      disabled spare ports with <code>SPARE</code> descriptions, <code>routing-options</code> (router-id, static
+      default on R1, static discard on R3), <b>OSPF area 0.0.0.0</b> with passive lo0,
+      and <b>internal BGP group PEERS</b> (65000, loopback-based peers).</li>
+  <li><b>SW1</b> &mdash; authentic EX-series shape: <code>EX4300-24T</code>, 24 ports,
+      <code>family ethernet-switching</code> access/uplink ports with <code>vlan members</code>,
+      <b>irb.10 / irb.20 SVIs</b>, <code>vlans staff(10) / guest(20)</code> with <code>l3-interface</code>,
+      <code>me0</code> management port, and <code>protocols rstp interface all</code>.</li>
+  <li><b>Topology array</b> (R1&ndash;R2, R2&ndash;R3 routed; R1&ndash;SW1 L2) and <b>Host-A/Host-B</b>
+      VPCS endpoints (switch port + VLAN + IP) used by every downstream simulation.</li>
+</ul>
+
+<h2>2.4 Runtime state derivation (the "network" inside the lab) <span class="tag done">IMPLEMENTED</span></h2>
+<p><code>public/js/junos/derive.js</code> turns committed configs + the topology into consistent,
+Junos-like device state used by every console command &mdash; the same way real routers derive
+operational state from configuration:</p>
+<ul>
+  <li><b>Interfaces inventory</b>: configured and unconfigured ports (spare <code>ge-0/0/x</code> ports
+      generated for realism), deterministic <code>Interface index / SNMP ifIndex / Generation</code>,
+      MACs built from a stable hash (<code>02:xx:xx:xx:xx:xx</code>), admin/link flags from
+      <code>disable</code> statements and peer port state, <code>last-flapped</code> from boot times.</li>
+  <li><b>Subnets / units</b>: parsed       <code>family inet / inet6 / ethernet-switching</code> addresses,
+      VLAN membership lists, interface-mode (trunk/access), per-unit MTUs.</li>
+  <li><b>Route table model</b> with real Junos protocol tags and preferences:
+      <code>Direct/0</code>, <code>Local/8</code>, <code>Static/5</code>, <code>OSPF/10</code>, including
+      <code>next-hop</code>/<code>discard</code>/<code>reject</code> static modes, correct active/non-active
+      (<code>*</code> best-path) selection, and route age provenance.</li>
+  <li><b>Layer-2:</b> VLAN bridging domains from switch config + L2 links; IRB link state tied to
+      <code>l3-interface</code> references; host ports derived from VLAN membership; realistic
+      <b>(EX) MAC address table</b> and <b>STP</b> (RSTP) bridge/role model.</li>
+  <li><b>OSPF:</b> adjacency detection restricted to real same-subnet, non-passive, up interfaces;
+      neighbor tables (<code>Full</code> state, dead time, priority 128, neighbor addresses),
+      <b>Router LSAs</b> (seq/age/cksum/len with per-router values) and per-multiaccess-net LSAs,
+      plus <b>Dijkstra SPF</b> over the actual adjacencies to build OSPF routes with hop costs
+      and validated next-hops.</li>
+  <li><b>ARP & LLDP:</b> routers learn neighbors' MACs on shared subnets (including SVI/uplink bridging
+      through the switch), and LLDP neighbor lists are derived from physical links with real
+      chassis IDs and port info.</li>
+  <li><b>BGP:</b> session state machine derived both ways (peer must be reciprocally configured):
+      <code>Establ</code> with packet counters/uptime, <code>Active</code>, or <code>Idle</code> when
+      prerequisites (peer config, AS, route, local-address) are missing &mdash; exactly the states
+      <code>show bgp summary</code> would display.</li>
+  <li><b>Ping/traceroute resolution engine:</b> source-address selection (explicit <code>source</code>
+      check, egress-interface choice), longest-prefix route matching, hop-by-hop path walk including
+      no-route / discard / no-host / loop outcomes &mdash; this drives authentic
+      <code>ping</code>/<code>traceroute</code> results.</li>
+</ul>
+
+<h2>2.5 Shared engine utilities <span class="tag done">IMPLEMENTED</span></h2>
+<p><code>public/js/junos/util.js</code> (namespace <code>JJ</code>): IPv4 integer math
+(<code>ipToInt/intToIp</code>), network math (<code>netOf</code>, <code>inNet</code>,
+<code>cidrHost/cidrBroadcast</code>, subnet membership), deterministic MAC generator, time
+rendering in Junos formats (UTC stamps, <code>Oct 28 06:03:12</code> style, uptime strings like
+<code>5 days, 03:47</code>, ages like <code>00:12:43</code>), port-number-safe token
+comparators for interface name/number ordering, and column padding used by every table
+builder (perfect column alignment like Junos output).</p>
+
+<h1>3. Preserved exactness guarantees (already enforced by the engine)</h1>
+<ul>
+  <li>Protocol tags and preferences appear exactly as Junos prints them:
+      <code>[Static/5]</code>, <code>[Local/8]</code>, <code>[OSPF/10]</code>, <code>[Direct/0]</code>.</li>
+  <li>Active-route marking, <code>+ = Active Route, - = Last Active, * = Both</code> legend support,
+      and OSPF event ages/seq numbers derive from stable device state (uptime, commit count).</li>
+  <li>Peer states render with the exact Junos spelling: <code>Establ</code>, <code>Active</code>,
+      <code>Idle</code>; OSPF neighbor <code>Dead time</code> in <code>00:00:35</code> form; priorities <code>128</code>.</li>
+  <li>Loopback routes show as <code>/32</code> per-interface <code>Local via <ip></code> style entries.</li>
+  <li><code>show | compare</code> headers use <code>[edit ...]</code> scopes and per-line
+      <code>+/-/!</code> markers exactly like Junos diffs.</li>
+</ul>
+
+<h1>4. Work in progress &mdash; next delivery items</h1>
+<table>
+<tr><th style="width:105px">Status</th><th>Item</th><th>Fulfills</th></tr>
+<tr><td><span class="tag wip">IN&nbsp;PROGRESS</span></td><td><b>Junos CLI machine</b> (<code>public/js/junos/machine.js</code>): per-device runtime (committed config + candidate + revisions + commit log), session lifecycle (boot messages, <code>login:</code>, root shell <code>root@R1:~ #</code>, <code>cli</code>), operational-mode grammar with exact Junos <code>show/ping/traceroute/monitor/request/.../</code> outputs from Section 4 of the Requirements doc, config-mode grammar (<code>set/delete/.../commit/rollback</code>) with schema validation, completions (<code>?</code>/Tab), pipes, error strings and <code>---(more)&#8203;---</code> pagination semantics.</td><td>R-01&ndash;R-07, R-15, R-16</td></tr>
+<tr><td><span class="tag wip">IN&nbsp;PROGRESS</span></td><td><b>Terminal widget</b> (<code>public/js/ui/console.js</code>): black-on-white GNS3 telnet-style rendering, char-level editing (arrows, backspace, insertion), history, <code>?</code>/Tab behavior identical to Junos, pager interaction (space / b / q / ?), Ctrl+C abort.</td><td>R-04, R-10</td></tr>
+<tr><td><span class="tag wip">IN&nbsp;PROGRESS</span></td><td><b>GNS3-like shell</b> (<code>public/js/ui/app.js</code> + <code>public/css/app.css</code> + <code>public/index.html</code>): menu bar, GNS3 toolbar, dark topology canvas with draggable router/switch/PC icons, link lines + optional subnet labels, node context menus (Start/Stop/Reload/Console), console windows titled like <code>R1 - telnet://127.0.0.1:5000</code>, Console Manager, right dock Topology Summary & Servers Summary, status bar, zoom/pan/grid/view toggles, GNS3-like project save/open (localStorage persistence), Admin dialogs (About).</td><td>R-09&ndash;R-13</td></tr>
+<tr><td><span class="tag plan">PLANNED</span></td><td><b>VPCS host console</b> (<code>public/js/ui/vpcs.js</code>): <code>Host-A></code> prompt and VPCS-style <code>ping/trace/show/show ip/show arp/clear/help/quit</code> output for devices other than Junos.</td><td>R-08</td></tr>
+<tr><td><span class="tag plan">PLANNED</span></td><td><b>Test suite</b> (<code>tests/run-tests.js</code>): engine + CLI-machine checks (config render, commit/rollback, OSPF/ARP/route outputs, ping scenarios, exact error strings).</td><td>R-14 (A10)</td></tr>
+</table>
+
+<h1>5. How to run what exists today</h1>
+<pre>cd C:\Users\HP\jnciapracticelabs
+START-WINDOWS.bat         (or:  npm start  /  node server\server.js)
+# then open http://localhost:3000</pre>
+<p>The server and engine modules run today; the browser console experience arrives with the
+CLI machine + UI items listed in Section 4, built strictly to the exact-output references
+pinned in the Requirements document.</p>
+
+<h1>6. Requirement traceability snapshot</h1>
+<table>
+<tr><th>ID (Needs doc)</th><th>State today</th></tr>
+<tr><td>R-01 / R-02 / R-03 (Junos-exact behavior and output)</td><td>Engine substrate complete (models, config DB, exact rendering primitives, runtime state); full CLI surface being built now in <code>machine.js</code>.</td></tr>
+<tr><td>R-04..R-07 (CLI behavior, config workflow, EX output, console flow)</td><td>Rendering/diff/compare layers ready; grammar + session machine in progress; SW1 EX-family tables derive already (VLANs, MAC table, STP).</td></tr>
+<tr><td>R-08 (VPCS hosts)</td><td>Planned (the general machine infrastructure is needed first).</td></tr>
+<tr><td>R-09..R-11 (GNS3 UI + lifecycle)</td><td>UI shell in progress; lifecycle actions will operate on the runtime registry.</td></tr>
+<tr><td>R-12 (topology inventory)</td><td><span class="tag done">IMPLEMENTED</span> in <code>model.js</code>; canvas depiction follows with the UI.</td></tr>
+<tr><td>R-13 (persistence)</td><td>Design ready (runtime serialization format in engine); persistence wiring ships with <code>machine.js</code> project layer + UI project save.</td></tr>
+<tr><td>R-14 (offline, zero deps)</td><td><span class="tag done">IMPLEMENTED</span>.</td></tr>
+<tr><td>R-15 / R-16 (interpretability, administration commands)</td><td>Resolution engine ready (ping/traceroute); admin commands arrive with the CLI grammar.</td></tr>
+</table>
+
+</body>
+</html>

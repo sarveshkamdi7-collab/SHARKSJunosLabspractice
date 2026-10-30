@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>JNCIA-Junos Practice Lab — Project Needs & Requirements</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 18mm 15mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; font-size: 10.5pt; color: #17202a; margin: 0; line-height: 1.45; }
+  .cover { text-align: center; padding-top: 60mm; }
+  .cover h1 { font-size: 22pt; color: #0b4a8f; margin: 0 0 6mm 0; }
+  .cover h2 { font-size: 14pt; color: #444; font-weight: 600; margin: 0 0 14mm 0; }
+  .cover .meta { color: #666; font-size: 10pt; }
+  h1 { font-size: 16pt; color: #0b4a8f; border-bottom: 2px solid #0b4a8f; padding-bottom: 3px; page-break-before: always; }
+  h1.first { page-break-before: auto; }
+  h2 { font-size: 12pt; color: #0b4a8f; margin: 14px 0 6px 0; }
+  h3 { font-size: 10.5pt; color: #333; margin: 10px 0 4px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 9pt; margin: 6px 0 10px 0; }
+  th { background: #0b4a8f; color: #fff; text-align: left; padding: 4px 6px; font-weight: 600; }
+  td { border: 1px solid #c9d3dd; padding: 4px 6px; vertical-align: top; }
+  tr:nth-child(even) td { background: #f4f7fa; }
+  pre { font-family: Consolas, "Courier New", monospace; font-size: 8.5pt; background: #f5f6f7; border: 1px solid #d5dbe1; border-left: 3px solid #0b4a8f; padding: 7px 9px; overflow: hidden; page-break-inside: avoid; white-space: pre; color: #111; }
+  code { font-family: Consolas, "Courier New", monospace; font-size: 9pt; background: #eef1f4; padding: 0 3px; }
+  .req { border: 1px solid #c9d3dd; border-left: 4px solid #0b4a8f; padding: 6px 10px; margin: 6px 0; background: #fbfcfd; }
+  .req b.id { color: #0b4a8f; }
+  .note { background: #fff8e1; border: 1px solid #e6c95c; padding: 5px 9px; font-size: 9.5pt; }
+  .must { color: #b30000; font-weight: 700; }
+  ul, ol { margin: 4px 0 8px 0; padding-left: 20px; }
+  li { margin: 2px 0; }
+  .pagebreak { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>JNCIA-Junos Practice Lab<br>Project Needs & Requirements</h1>
+  <h2>Requirements Reference Document &ndash; Revision 1</h2>
+  <div class="meta">
+    Project location: <code>C:\Users\HP\jnciapracticelabs</code><br>
+    Date: October 28, 2026<br>
+    Prepared from project owner's directives for the JNCIA-Junos CLI practice lab
+  </div>
+</div>
+
+<h1 class="first">1. Purpose of this document</h1>
+<p>This document stores <b>all the needs stated by the project owner</b> for completing the
+JNCIA-Junos Practice Lab project, together with the concrete acceptance details that
+those needs imply. It also pins down the <b>exact Junos OS look</b> of prompts, commands
+and command output that every simulated device must reproduce. A companion document
+(<i>Features Implemented</i>) tracks progress against these requirements.</p>
+
+<div class="note"><b>Owner's directives (verbatim intent):</b><br>
+1. Project is developed at <code>C:\Users\HP\jnciapracticelabs</code>.<br>
+2. "Ensure that all commands of Junos OS and devices other look like Junos OS original."<br>
+3. "Do make ensure that similar interface like GNS3."<br>
+4. "Make sure that all routers in Junos OS, commands should exactly look as Junos OS and
+output of all commands must also look exact as Junos OS."
+</div>
+
+<h1>2. Product vision</h1>
+<p>A browser-based <b>practice lab for JNCIA-Junos</b> certification study: a small multi-router
+and switch topology with fully simulated <b>Junos OS CLI devices</b> plus end hosts. The lab
+runs on the local machine with a simple Node.js server; <b>no real Junos OS images, VMs,
+licenses or GNS3 installation</b> are required. Candidates practice the JNCIA-Junos syllabus
+operations on an interface that looks and behaves like GNS3 with Juniper routers.</p>
+
+<h1>3. Master requirement register</h1>
+<table>
+<tr><th style="width:60px">ID</th><th>Need / requirement as stated or implied by the owner</th><th style="width:105px">Priority</th></tr>
+<tr><td><b>R-01</b></td><td>All routers must behave like Junos OS routers; the user must be able to operate them as if the real Junos OS were running: full CLI with operational mode, configuration mode, and console login.</td><td><span class="must">MUST</span></td></tr>
+<tr><td><b>R-02</b></td><td>Every command that is accepted must be a real Junos OS command with real syntax.</td><td><span class="must">MUST</span></td></tr>
+<tr><td><b>R-03</b></td><td>The <b>output of every command must look exact as Junos OS</b> &mdash; exact prompt strings, column headers, column alignment, legends, state names, timestamps, counters and result lines.</td><td><span class="must">MUST</span></td></tr>
+<tr><td><b>R-04</b></td><td>CLI behavior must match Junos: Tab completion, <code>?</code> "Possible match completions" help with descriptions, exact error strings with <code>^</code> caret under the offending token, <code>---(more x%)---</code> pagination (space / b / q), pipe filters (match, except, count, last, first, no-more, display set, display xml, display json).</td><td><span class="must">MUST</span></td></tr>
+<tr><td><b>R-05</b></td><td>Configuration mode must reproduce real Junos workflow: candidate config model, <code>set/delete/deactivate/activate/rename/copy/edit/top/up/exit</code>, <code>show | compare</code> with <code>[edit]</code> and <code>+/-/!</code> markers, <code>commit</code>, <code>commit check</code>, <code>commit confirmed<n></code> with automatic rollback, <code>rollback 0..N</code>, <code>show system commit</code>, <code>run <op-cmd></code>, uncommitted-changes warning on <code>exit</code>.</td><td><span class="must">MUST</span></td></tr>
+<tr><td><b>R-06</b></td><td>Console session flow must be authentic: device boot messages, <code><host>  (ttyd0)</code> banner, <code>login:</code>, root access to the shell (<code>root@R1:~ #</code>), and <code>cli</code> to enter the CLI.</td><td>MUST</td></tr>
+<tr><td><b>R-07</b></td><td>The switching device (SW1) must present authentic Junos EX-series output (VLANs, Ethernet-switching table, RSTP bridge/interface views).</td><td><span class="must">MUST</span></td></tr>
+<tr><td><b>R-08</b></td><td>"Devices other" (end hosts / VPCS-class nodes) must have their own realistic console, clearly different from Junos (VPCS-style prompt <code>Host-A></code>, VPCS-style ping/trace/show output).</td><td>MUST</td></tr>
+<tr><td><b>R-09</b></td><td>The GUI must look and behave similar to GNS3: menu bar, icon toolbar, topology canvas with draggable nodes, link lines, console windows, topology summary, log, status bar, zoom and view options.</td><td><span class="must">MUST</span></td></tr>
+<tr><td><b>R-10</b></td><td>Consoles must open like GNS3 telnet consoles (double-click node; window titled like <code>R1 - telnet://127.0.0.1:5000</code>) and an active GNS3-like Console Manager must be available.</td><td>MUST</td></tr>
+<tr><td><b>R-11</b></td><td>Node lifecycle actions like GNS3: per-node <b>Start / Stop / Reload</b> and global start-all / stop-all / reload-all; stopped nodes refuse console connections like a real telnet target.</td><td>MUST</td></tr>
+<tr><td><b>R-12</b></td><td>Auto-generated per-lab topology (R1&ndash;R2&ndash;R3 routers + SW1 switch + Host-A/Host-B) must be the provided lab inventory; topology drawn on canvas with optional link labels (subnets).</td><td>MUST</td></tr>
+<tr><td><b>R-13</b></td><td>Device configuration and lab layout must persist locally (config changes survive project reload; GNS3-like project save/open).</td><td>MUST</td></tr>
+<tr><td><b>R-14</b></td><td>Everything must run fully offline with zero extra dependencies (Node.js only, no npm packages), startable with <code>START-WINDOWS.bat</code> / <code>START-MAC-LINUX.sh</code> / <code>npm start</code>, and remain testable with <code>npm test</code>.</td><td>MUST</td></tr>
+<tr><td><b>R-15</b></td><td>Commands must produce interpretable routing effects: ping, traceroute and route tables must behave consistently with the topology, OSPF/BGP adjacency state and interface state (up/down, disabled).</td><td>MUST</td></tr>
+<tr><td><b>R-16</b></td><td>Support commands like <code>request support information</code>, <code>request system reboot</code>, <code>start shell</code>, <code>file list/show</code>, cross-device <code>ssh/telnet</code> between simulated routers must exist where they exist in Junos.</td><td>SHOULD</td></tr>
+</table>
+
+<h1>4. Hard requirement: exact Junos OS output (R-01..R-07)</h1>
+<p>The following reference excerpts define the target strings all simulated devices must emit.
+These are the <b>canonical output formats</b> for the lab; spacing and legends follow real Junos OS.</p>
+
+<h2>4.1 Console, prompts and shell</h2>
+<pre>Consoles: serial console. Type ^S to interrupt boot...
+
+[Junos boot messages...]
+
+R1  (ttyd0)
+
+login: root
+root@R1:~ # cli
+root@R1> </pre>
+<pre>[edit]
+root@R1# show system host-name
+host-name R1;
+
+[edit]
+root@R1# commit
+commit complete
+
+[edit]
+root@R1#</pre>
+
+<h2>4.2 Operational mode help, errors, pagination</h2>
+<pre>root@R1> show i
+Possible match completions:
+  igmp-snooping       Display IGMP snooping
+  ...
+  interfaces          Display interface information
+  ...
+
+root@R1> show interfaces fxp
+                   ^ unknown command: 'fxp'
+
+root@R1> show interfaces fxp0 terse | match inet | count
+188
+
+---(more 47%)---</pre>
+<pre>root@R1# delete system bogus
+warning: statement not found</pre>
+
+<h2>4.3 show interfaces terse (canonical layout)</h2>
+<pre>Interface               Admin Link Proto    Local                 Remote
+ge-0/0/0                up    up
+ge-0/0/0.0              --    --   inet     10.0.12.1/30
+ge-0/0/1                up    up
+ge-0/0/1.0              --    --   inet     10.0.3.1/24
+ge-0/0/2                down  down
+fxp0                    up    up
+fxp0.0                  --    --   inet     192.168.1.10/24
+lo0                     up    up
+lo0.0                   --    --   inet     1.1.1.1/32</pre>
+
+<h2>4.4 show route (canonical layout)</h2>
+<pre>root@R1> show route
+
+inet.0: 10 destinations, 13 routes (10 active, 0 holddown, 0 hidden)
++ = Active Route, - = Last Active, * = Both
+
+0.0.0.0/0          *[Static/5] 00:23:34
+                    > to 10.0.12.2 via ge-0/0/0.0
+1.1.1.1/32         *[Local/8] 00:23:34, metric 0
+                      Local via 1.1.1.1
+2.2.2.2/32         *[OSPF/10] 00:03:12, metric 2
+                    > to 10.0.12.2 via ge-0/0/0.0
+10.0.12.0/30       *[Direct/0] 00:23:34, metric 0, tag 0
+                    > via ge-0/0/0.0
+10.0.12.1/32       *[Local/8] 00:23:34
+                     Local via 10.0.12.1
+...
+172.16.9.0/24      *[Static/5] 00:23:34
+                      Discard</pre>
+
+<h2>4.5 OSPF / BGP canonical views</h2>
+<pre>root@R1> show ospf neighbor
+Address          State              Interface     Dead time  ID               Pri Retx
+10.0.12.2        Full               ge-0/0/0.0    00:00:35   2.2.2.2            128</pre>
+<pre>root@R1> show ospf interface
+Interface           State     ID            Cost    DR         BDR        Type    MTU
+ge-0/0/0.0          BDR       10.0.12.1     10      10.0.12.2  10.0.12.1  P2P     1500</pre>
+<pre>root@R1> show bgp summary
+Groups: 1 Peers: 1 Down peers: 0
+Unconfigured peers: 0
+Table          Tot Paths  Act Paths Suppressed  History Damp State    Pending
+inet.0                    0           0          0        0          0        0
+Peer                     AS      InPkt     OutPkt    OutQ   Flaps Last Up/Dwn
+State|#Active/Received/Accepted/Damped
+2.2.2.2               65000       68        68        0      0       53 Establ</pre>
+
+<h2>4.6 ARP / LLDP / chassis / version canonical views</h2>
+<pre>root@R1> show arp
+MAC Address       Address         Name                      Interface     Flags
+02:1c:99:xx:xx:xx 10.0.12.2       10.0.12.2                 ge-0/0/0.0    none</pre>
+<pre>root@R1> show version
+Hostname: R1
+Model: mx240
+Junos: 20.4R2-S2.1
+JUNOS OS Kernel 64-bit  [20.4R2-S2.1]
+JUNOS OS Crypto 60-bit  [20.4R2-S2.1]
+JUNOS base OS boot [20.4R2-S2.1]
+JUNOS Routing Software [20.4R2-S2.1]...</pre>
+<pre>root@R1> show system uptime
+Current time:      2026-10-28 06:03:12 UTC
+System booted:     2026-10-28 05:10:00 UTC (00:53:12 ago)
+Protocols started: 2026-10-28 05:10:55 UTC (00:52:17 ago)
+Last configured:   2026-10-28 05:58:40 UTC (00:04:32 ago) by root
+ 5:03am  up 53 mins, 1 user, load averages: 0.07, 0.02, 0.01</pre>
+
+<h2>4.7 Configuration rendering (braces / set / compare)</h2>
+<pre>root@R1# show
+version 20.4R2-S2.1;
+system {
+    host-name R1;
+    time-zone UTC;
+}
+interfaces {
+    ge-0/0/0 {
+        description "LINK TO R2";
+        unit 0 {
+            family inet {
+                address 10.0.12.1/30;
+            }
+        }
+    }
+}...</pre>
+<pre>root@R1# show interfaces ge-0/0/0 | compare
+[edit]
+-   description "LINK TO R2";
++   description "LINK TO R2-NEW";</pre>
+
+<h2>4.8 ping / traceroute canonical output</h2>
+<pre>root@R1> ping 10.0.12.2 count 3
+PING 10.0.12.2 (10.0.12.2): 56 data bytes
+64 bytes from 10.0.12.2: icmp_seq=0 ttl=63 time=2.224 ms
+64 bytes from 10.0.12.2: icmp_seq=1 ttl=63 time=1.987 ms
+64 bytes from 10.0.12.2: icmp_seq=2 ttl=63 time=2.056 ms
+
+--- 10.0.12.2 ping statistics ---
+3 packets transmitted, 3 packets received, 0% packet loss
+round-trip min/avg/max/stddev = 1.987/2.089/2.224/0.098 ms</pre>
+<pre>root@R1> traceroute 3.3.3.3
+traceroute to 3.3.3.3 (3.3.3.3), 30 hops max, 40 byte packets
+ 1  10.0.12.2 (10.0.12.2)  3.234 ms  2.567 ms  2.987 ms
+ 2  3.3.3.3 (3.3.3.3)  5.432 ms  5.123 ms  6.012 ms</pre>
+
+<h1>5. GNS3-like interface requirements (R-09..R-12)</h1>
+<h2>5.1 Shell (window chrome)</h2>
+<ul>
+  <li><b>Menu bar:</b> File, Edit, View, Simulation, Tools, Help.<br>
+      File = New project / Save / Reset lab; View = zoom helpers, show grid, show link labels,
+      topology summary; Simulation = Start/Stop/Reload all nodes; Help = About / shortcuts.</li>
+  <li><b>Toolbar</b> in GNS3 style: new/open/save project, snapshot, drawing tools (rectangle,
+      ellipse, line, text note), fit view, zoom in/out/reset, grid toggle, link labels toggle,
+      console connector, quit + start-all / stop-all / reload-all node buttons.</li>
+  <li><b>Status bar</b>: "Ready", zoom percent, node count, project name.</li>
+</ul>
+<h2>5.2 Topology canvas</h2>
+<ul>
+  <li>Dark GNS3-like canvas; draggable <b>router</b> icons (R1, R2, R3), <b>switch</b> icon (SW1)
+      and <b>VPCS PC</b> icons (Host-A, Host-B), each with a device label beneath, and a colored
+      status dot (running / stopped) derived from node state.</li>
+  <li>Straight link lines between node icons; optional reversible <b>link/subnet labels</b>
+      (10.0.12.0/30, 10.0.23.0/30, VLAN 10 trunk link).</li>
+  <li>Zoom & pan; grid overlay toggle; fit-to-view button.</li>
+  <li>Node <b>context menu</b> (GNS3-like items): Start, Stop, Reload, Console (opens a console
+      window tied to the node).</li>
+  <li><b>Double-click node opens its console</b> (authentic GNS3 behavior).</li>
+</ul>
+<h2>5.3 Console windows / console manager</h2>
+<ul>
+  <li>Floating, draggable, resizable black terminal windows titled like
+      <code>R1 - telnet://127.0.0.1:5000</code>; window title includes device name and telnet-style port.</li>
+  <li><b>Console Manager</b> panel tracks all open consoles with ports, and can open the consoles
+      for devices not yet connected.</li>
+  <li>Console of a <b>stopped</b> node shows telnet refusal (<i>can't open a connection...</i>).</li>
+  <li>Terminal behavior: typed echo on the prompt line, <b>tab completion</b>,
+      <code>?</code> completions listing, command history (up/down), key paging via
+      space / b / q on <code>---(more)&#8203;---</code>, Ctrl+C to abort, config-mode prompt includes the
+      <code>[edit ...]</code> block header.</li>
+</ul>
+<h2>5.4 Right dock: Topology Summary + Servers Summary</h2>
+<ul>
+  <li>Topology summary lists each node with expandable link entries like
+      <code>Link 1: ge-0/0/0 (R2 ge-0/0/0)</code>.</li>
+  <li>Servers summary lists the lab server (<code>local: http://localhost:3000</code>) and its running state.</li>
+</ul>
+
+<h1>6. CLI command scope (JNCIA-Junos syllabus surface)</h1>
+<h2>6.1 Operational mode</h2>
+<p>Required command families (all output exact per Section 4):</p>
+<ul>
+  <li><b>Diagnostics:</b> <code>ping</code>, <code>traceroute</code>, <code>monitor interface</code>;</li>
+  <li><b>Inventory/state:</b> <code>show interfaces</code> (terse / brief / media / detail / statistics),
+      <code>show lldp neighbors</code>, <code>show arp</code>, <code>show vlans</code>,
+      <code>show ethernet-switching table</code>, <code>show spanning-tree bridge/interface</code>;</li>
+  <li><b>Routing:</b> <code>show route</code> (+ exact / detail / extensive / protocol <p>), <code>show route summary</code>, <code>show route forwarding-table</code>;</li>
+  <li><b>Protocols:</b> <code>show ospf neighbor/interface/database/route/overview/statistics</code>,
+      <code>show bgp summary/neighbor</code>;</li>
+  <li><b>System:</b> <code>show version</code>, <code>show system uptime/commit</code>,
+      <code>show chassis hardware/routing-engine/fpc pic-status/alarms/environment</code>,
+      <code>show log messages</code>, <code>show configuration</code>;</li>
+  <li><b>Administration:</b> <code>configure</code>, <code>request support information</code>,
+      <code>request system reboot</code>, <code>start shell</code>, <code>file list|show</code>,
+      cross-device <code>ssh</code>/<code>telnet</code>, <code>clear</code> subcommands,
+      <code>set cli screen-length</code>, <code>exit|quit</code>.</li>
+</ul>
+<h2>6.2 Configuration mode</h2>
+<p>Candidate model with <code><Edit></code>/<code><Committed></code> semantics, levels via
+<code>edit/top/up/exit</code>, statements <code>set / delete / deactivate / activate / rename / copy /
+annotate</code>, displays <code>show</code>, <code>show | compare [rollback n]</code>,
+<code>show | display set|xml|json</code>, commits <code>commit / commit check / commit confirmed <n> /
+commit and-quit / commit comment "..."</code>, <code>rollback [n]</code>,
+<code>show system commit</code>, <code>run <op></code>, <code>status</code>.</p>
+
+<h1>7. Lab inventory that must exist (R-12)</h1>
+<table>
+<tr><th>Device</th><th>Type / model</th><th>Junos version</th><th>Key interfaces / addressing</th></tr>
+<tr><td><b>R1</b></td><td>MX240 router</td><td>20.4R2-S2.1</td><td>ge-0/0/0 10.0.12.1/30 (R2), ge-0/0/1 10.0.3.1/24 (SW1), lo0 1.1.1.1/32, fxp0 192.168.1.10/24, OSPF area 0, static default, BGP to 2.2.2.2</td></tr>
+<tr><td><b>R2</b></td><td>MX240 router</td><td>20.4R2-S2.1</td><td>ge-0/0/0 10.0.12.2/30 (R1), ge-0/0/1 10.0.23.1/30 (R3), lo0 2.2.2.2/32, OSPF area 0, BGP to 1.1.1.1</td></tr>
+<tr><td><b>R3</b></td><td>MX240 router</td><td>20.4R2-S2.1</td><td>ge-0/0/0 10.0.23.2/30 (R2), lo0 3.3.3.3/32, OSPF area 0, static discard 172.16.9.0/24</td></tr>
+<tr><td><b>SW1</b></td><td>EX4300-24T switch</td><td>20.4R2-S2.1</td><td>ge-0/0/0 uplink to R1 (VLAN staff trunk), ge-0/0/1 Host-A, ge-0/0/2 Host-B, irb.10 10.0.3.2/24, irb.20 10.1.1.2/24, VLANs staff(10)/guest(20), RSTP</td></tr>
+<tr><td><b>Host-A</b></td><td>VPCS-style PC</td><td>&ndash;</td><td>10.0.3.20 on VLAN staff via SW1 ge-0/0/1</td></tr>
+<tr><td><b>Host-B</b></td><td>VPCS-style PC</td><td>&ndash;</td><td>10.1.1.20 on VLAN guest via SW1 ge-0/0/2</td></tr>
+</table>
+
+<h1>8. Devices other than Junos (R-08)</h1>
+<p>End hosts must behave like <b>VPCS consoles</b>, not like Junos: prompt <code>Host-A></code>,
+VPCS-style <code>ping</code> / <code>trace</code> output, <code>show</code> / <code>show ip</code> /
+<code>show arp</code>, <code>clear</code>, gateway behavior, and <code>quit</code>. The lab engine must still
+carry their traffic consistently with the Junos side (ping Host-A from R1 works over the
+bridged VLAN; ping across VLANs is routed by SW1's irb interfaces).</p>
+
+<h1>9. Delivery, quality and acceptance</h1>
+<ul>
+  <li>Fully offline; runs with plain Node.js (&ge;14); zero npm dependencies; no admin rights.</li>
+  <li><code>npm start</code> / launcher scripts serve the lab at <code>http://localhost:3000</code>.</li>
+  <li><code>npm test</code> executes automated checks over the same engine modules used by the browser UI.</li>
+  <li>Acceptance criteria audit (must all be true before release):</li>
+</ul>
+<table>
+<tr><th style="width:60px">No.</th><th>Acceptance criterion</th></tr>
+<tr><td>A1</td><td>Every prompt string matches Junos (login/banner/shell/op/config).</td></tr>
+<tr><td>A2</td><td>Every <code>show *</code> output column layout, legend and value spelling matches Section 4 samples.</td></tr>
+<tr><td>A3</td><td><code>? / Tab</code> completions list real Junos command names with descriptions.</td></tr>
+<tr><td>A4</td><td>Error strings are the real Junos strings (caret positioning included).</td></tr>
+<tr><td>A5</td><td>Pager <code>---(more x%)---</code> supports space / b / q exactly.</td></tr>
+<tr><td>A6</td><td>Config candidate/commit/rollback behavior matches Junos semantics incl. <code>commit confirmed</code> auto-rollback.</td></tr>
+<tr><td>A7</td><td>GNS3-like UI: canvas, dragging, context menu, consoles with telnet-style titles, topology summary, status bar present.</td></tr>
+<tr><td>A8</td><td>VPCS hosts produce VPCS-style (not Junos) consoles.</td></tr>
+<tr><td>A9</td><td>Configs + layout persist across reloads; Reset lab returns the baseline.</td></tr>
+<tr><td>A10</td><td><code>npm test</code> passes with green results covering the engine and CLI machine.</td></tr>
+</table>
+
+</body>
+</html>
