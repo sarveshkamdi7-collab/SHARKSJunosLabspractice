@@ -84,7 +84,7 @@
       case 'undo': APP.undo(); break;
       case 'redo': APP.redo(); break;
       case 'select-all':
-        if (APP.getState().nodes[0]) { APP.selectNode(APP.getState().nodes[0].id); APP.toast('Selected first node · multi-select is not enabled', 'info', 'check'); }
+        if (APP.getState().nodes[0]) { APP.selectNode(APP.getState().nodes[0].id); APP.toast('Selected first node. Multi-select is not enabled', 'info', 'check'); }
         break;
       case 'delete-selection': deleteSelection(); break;
       case 'preferences': if (APP.openPreferences) APP.openPreferences(); break;
@@ -291,10 +291,10 @@
     linkMode = { from: fromId || null };
     var banner = $('#placementBanner'), txt = $('#placementText');
     if (banner) banner.classList.remove('hidden');
-    if (txt) txt.textContent = fromId ? 'Select the second device to complete the link · Esc to cancel' : 'Ethernet link: select the first device';
+    if (txt) txt.textContent = fromId ? 'Select the second device to complete the link, Esc to cancel' : 'Ethernet link: select the first device';
     $('#canvas').classList.add('linking');
     $$('.palette-item').forEach(function (i) { i.classList.toggle('active', i.dataset.device === 'link'); });
-    APP.setStatus('Link mode active · click two devices');
+    APP.setStatus('Link mode active, click two devices');
   }
   function cancelLinkMode() {
     linkMode = null;
@@ -307,8 +307,8 @@
     if (!linkMode) return;
     if (!linkMode.from) {
       linkMode.from = id;
-      if ($('#placementText')) $('#placementText').textContent = 'Select the second device to complete the link · Esc to cancel';
-      APP.setStatus('First device selected · choose the second device');
+      if ($('#placementText')) $('#placementText').textContent = 'Select the second device to complete the link, Esc to cancel';
+      APP.setStatus('First device selected, choose the second device');
       return;
     }
     if (linkMode.from === id) { APP.toast('Choose a different device for the other end of the link', 'warn', 'warning'); return; }
@@ -489,7 +489,7 @@
   function showNodeMenu(id, x, y) {
     var n = APP.nodeById(id);
     if (!n) return;
-    var h = '<div class="ctx-head">' + icon(APP.nodeIconId(n)) + '<span><b>' + esc(n.name) + '</b><small>' + esc(n.model) + ' · ' + esc(n.status) + '</small></span></div><div class="ctx-sep"></div>';
+    var h = '<div class="ctx-head">' + icon(APP.nodeIconId(n)) + '<span><b>' + esc(n.name) + '</b><small>' + esc(n.model) + ', ' + esc(n.status) + '</small></span></div><div class="ctx-sep"></div>';
     h += menuItem('start', 'Start', 'play') + menuItem('pause', 'Pause', 'pause') + menuItem('stop', 'Stop', 'stop') + menuItem('restart', 'Restart', 'reload');
     h += '<div class="ctx-sep"></div>' + menuItem('console', 'Open Console', 'terminal') + menuItem('interfaces', 'Configure Interfaces…', 'settings') + menuItem('capture', 'Packet Capture…', 'packet');
     h += '<div class="ctx-sep"></div>' + menuItem('rename', 'Rename Node…', 'note') + menuItem('delete', 'Delete Node', 'trash', true);
@@ -514,7 +514,7 @@
   function showLinkMenu(id, x, y) {
     var l = APP.linkById(id);
     if (!l) return;
-    var h = '<div class="ctx-head">' + icon('cable') + '<span><b>' + esc(l.aPort + ' ↔ ' + l.bPort) + '</b><small>Ethernet link · ' + esc(l.status) + '</small></span></div><div class="ctx-sep"></div>';
+    var h = '<div class="ctx-head">' + icon('cable') + '<span><b>' + esc(l.aPort + ' ↔ ' + l.bPort) + '</b><small>Ethernet link, ' + esc(l.status) + '</small></span></div><div class="ctx-sep"></div>';
     h += menuItem('label', 'Edit Link Label…', 'tag') + menuItem('delete', 'Delete Link', 'trash', true);
     showMenu(h, x, y);
     $('#contextMenu').onclick = function (e) {

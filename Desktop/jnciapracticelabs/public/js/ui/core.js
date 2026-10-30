@@ -87,9 +87,9 @@
       links: [
         makeLink('l-1', 'n-r1', 'ge-0/0/0', 'n-r2', 'ge-0/0/0', '10.0.12.0/30'),
         makeLink('l-2', 'n-r2', 'ge-0/0/1', 'n-r3', 'ge-0/0/0', '10.0.23.0/30'),
-        makeLink('l-3', 'n-r1', 'ge-0/0/1', 'n-sw1', 'ge-0/0/0', 'trunk · VLAN 10/20'),
-        makeLink('l-4', 'n-sw1', 'ge-0/0/1', 'n-host-a', 'eth0', 'VLAN 10 · staff'),
-        makeLink('l-5', 'n-sw1', 'ge-0/0/2', 'n-host-b', 'eth0', 'VLAN 20 · guest')
+        makeLink('l-3', 'n-r1', 'ge-0/0/1', 'n-sw1', 'ge-0/0/0', 'trunk, VLAN 10/20'),
+        makeLink('l-4', 'n-sw1', 'ge-0/0/1', 'n-host-a', 'eth0', 'VLAN 10, staff'),
+        makeLink('l-5', 'n-sw1', 'ge-0/0/2', 'n-host-b', 'eth0', 'VLAN 20, guest')
       ],
       annotations: [{ id: 'note-1', type: 'text', text: 'JNCIA LAB 01\nOSPF area 0.0.0.0\nR1 ─ R2 ─ R3', x: 64, y: 335, w: 136, h: 68 }],
       view: { zoom: 1, panX: 24, panY: 16 },
@@ -173,7 +173,7 @@
     var title = state.title || 'Untitled Lab';
     if ($('#projectNameLabel')) $('#projectNameLabel').textContent = title;
     if ($('#workspaceTabTitle')) $('#workspaceTabTitle').textContent = title;
-    document.title = title + ' · GNS3 Junos Lab';
+    document.title = title + ', JNCIA Junos Practice Lab';
     $$('.preset-card').forEach(function (b) { b.classList.toggle('active', b.dataset.preset === state.preset); });
   }
 
@@ -182,7 +182,7 @@
     if ($('#statusNodes')) $('#statusNodes').textContent = n;
     if ($('#statusLinks')) $('#statusLinks').textContent = l;
     if ($('#topoCount')) $('#topoCount').textContent = n;
-    if ($('#canvasMeta')) $('#canvasMeta').textContent = state.nodes.map(function (x) { return x.name; }).join(' · ');
+    if ($('#canvasMeta')) $('#canvasMeta').textContent = state.nodes.map(function (x) { return x.name; }).join(', ');
     var running = state.nodes.filter(function (x) { return x.status === 'running'; }).length;
     if ($('#toolbarStatus')) $('#toolbarStatus').textContent = running + '/' + n + ' nodes running';
   }
@@ -401,7 +401,7 @@
     if (!layer) return;
     var html = '';
     state.nodes.forEach(function (n) {
-      html += '<div class="node ' + esc(n.status) + (selectedNodeId === n.id ? ' selected' : '') + (n.booting ? ' booting' : '') + '" data-node-id="' + esc(n.id) + '" style="left:' + n.x + 'px;top:' + n.y + 'px" title="' + esc(n.name + ' · ' + n.model + ' · ' + n.status) + '">' +
+      html += '<div class="node ' + esc(n.status) + (selectedNodeId === n.id ? ' selected' : '') + (n.booting ? ' booting' : '') + '" data-node-id="' + esc(n.id) + '" style="left:' + n.x + 'px;top:' + n.y + 'px" title="' + esc(n.name + ', ' + n.model + ', ' + n.status) + '">' +
         '<div class="node-card"><div class="node-status"></div><div class="node-icon ' + esc(nodeIconId(n)) + '">' + icon(nodeIconId(n)) + '</div><div class="node-label">' + esc(n.name) + '</div><div class="node-sub">' + esc(n.model || n.type) + '</div></div></div>';
     });
     layer.innerHTML = html;
@@ -494,7 +494,7 @@
         selectedAnnotationId = el.dataset.annotationId;
         selectedNodeId = selectedLinkId = null;
         renderNodes(); renderLinks(); renderAnnotations(); APP.updateSelectionStatus();
-        setStatus('Annotation selected · press Delete to remove');
+        setStatus('Annotation selected, press Delete to remove');
       });
     });
   }
@@ -505,7 +505,7 @@
     if (!state.nodes.length) { el.innerHTML = '<div class="topo-empty">No nodes in this project.</div>'; return; }
     var html = '';
     state.nodes.forEach(function (n) {
-      html += '<div class="topo-node ' + esc(n.status) + (selectedNodeId === n.id ? ' selected' : '') + '" data-tree-node="' + esc(n.id) + '"><span class="tree-line"></span><span class="topo-mini-icon">' + icon(nodeIconId(n)) + '</span><span class="topo-main"><span class="topo-name"><span class="status-dot"></span>' + esc(n.name) + '</span><span class="topo-sub">' + esc(n.status === 'running' ? 'Running' : n.status === 'paused' ? 'Paused' : 'Stopped') + ' · <span class="topo-console">telnet localhost:' + n.consolePort + '</span></span></span><span class="topo-actions"><button class="topo-action" data-tree-action="console" title="Open console">' + icon('terminal') + '</button><button class="topo-action" data-tree-action="toggle" title="Start / pause">' + icon(n.status === 'running' ? 'pause' : 'play') + '</button></span></div>';
+      html += '<div class="topo-node ' + esc(n.status) + (selectedNodeId === n.id ? ' selected' : '') + '" data-tree-node="' + esc(n.id) + '"><span class="tree-line"></span><span class="topo-mini-icon">' + icon(nodeIconId(n)) + '</span><span class="topo-main"><span class="topo-name"><span class="status-dot"></span>' + esc(n.name) + '</span><span class="topo-sub">' + esc(n.status === 'running' ? 'Running' : n.status === 'paused' ? 'Paused' : 'Stopped') + ', <span class="topo-console">telnet localhost:' + n.consolePort + '</span></span></span><span class="topo-actions"><button class="topo-action" data-tree-action="console" title="Open console">' + icon('terminal') + '</button><button class="topo-action" data-tree-action="toggle" title="Start / pause">' + icon(n.status === 'running' ? 'pause' : 'play') + '</button></span></div>';
     });
     el.innerHTML = html;
     $$('.topo-node', el).forEach(function (row) {
@@ -627,19 +627,19 @@
     selectedLinkId = id; selectedNodeId = null; selectedAnnotationId = null;
     renderNodes(); renderLinks(); renderAnnotations(); renderTopologyTree(); APP.updateSelectionStatus();
     var l = linkById(id);
-    if (l) setStatus('Link ' + l.aPort + ' ↔ ' + l.bPort + ' selected · ' + l.status.toUpperCase());
+    if (l) setStatus('Link ' + l.aPort + ' ↔ ' + l.bPort + ' selected, ' + l.status.toUpperCase());
   }
   APP.selectNode = selectNode; APP.selectLink = selectLink;
 
   APP.updateSelectionStatus = function (mx, my) {
     var n = nodeById(selectedNodeId);
     if (n) {
-      if ($('#statusSelection')) $('#statusSelection').textContent = n.name + ' · ' + n.model + ' · ' + n.status;
+      if ($('#statusSelection')) $('#statusSelection').textContent = n.name + ', ' + n.model + ', ' + n.status;
       if ($('#statusPosX')) $('#statusPosX').textContent = Math.round(n.x);
       if ($('#statusPosY')) $('#statusPosY').textContent = Math.round(n.y);
     } else if (selectedLinkId) {
       var l = linkById(selectedLinkId);
-      if ($('#statusSelection')) $('#statusSelection').textContent = l ? ('Link ' + l.aPort + ' ↔ ' + l.bPort + ' · ' + l.status) : 'No device selected';
+      if ($('#statusSelection')) $('#statusSelection').textContent = l ? ('Link ' + l.aPort + ' ↔ ' + l.bPort + ', ' + l.status) : 'No device selected';
     } else {
       if ($('#statusSelection')) $('#statusSelection').textContent = 'No device selected';
       if (mx != null) {
@@ -828,7 +828,7 @@
     var pa = list(a).filter(function (p) { return !ua[p]; })[0];
     var pb = list(b).filter(function (p) { return !ub[p]; })[0];
     if (!pa || !pb) return null;
-    return { aPort: pa, bPort: pb, label: a.type === 'switch' || b.type === 'switch' ? 'access / trunk' : 'Ethernet · 1G' };
+    return { aPort: pa, bPort: pb, label: a.type === 'switch' || b.type === 'switch' ? 'access / trunk' : 'Ethernet, 1G' };
   }
   APP.freePorts = freePorts;
 
