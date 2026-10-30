@@ -315,9 +315,9 @@
         var vs = diffValues(co, cn);
         if (vs.length) {
           ensureHeader(group);
-          var childOfChain = chain.slice(0, -1).map(function (q) { return q.name; });
+          var chainTxt = chain.map(function (w) { return w.name; }).join(' ');
           for (var k = 0; k < vs.length; k++) {
-            out.push(vs[k][1] + ' ' + childOfChain.concat([stmtTailText(tail, vs[k][0])]).join(' '));
+            out.push(vs[k][1] + ' ' + chainTxt + ' ' + stmtTailText(tail, vs[k][0]) + ';');
           }
           continue;
         }

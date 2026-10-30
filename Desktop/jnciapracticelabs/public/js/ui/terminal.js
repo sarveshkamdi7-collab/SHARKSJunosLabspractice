@@ -11,6 +11,7 @@
   var minimized = false;
   var floating = false;
   var customHeight = null;
+  var preMax = null; // geometry remembered while maximized
 
   function tabFor(name) {
     for (var i = 0; i < tabs.length; i++) if (tabs[i].name === name) return tabs[i];
@@ -23,16 +24,39 @@
     var dock = $('#terminalDock');
     if (!dock) return;
     dock.classList.remove('hidden');
-    if (customHeight) dock.style.height = customHeight + 'px';
+    if (!floating && !maximized && !minimized && !dock.classList.contains('docked')) {
+      dock.classList.add('docked');
+      dock.classList.remove('floating', 'maximized', 'minimized');
+    }
+    if (dock.classList.contains('docked') && !maximized && !minimized) applyDockGeo();
+    else if (customHeight && !maximized && !minimized) dock.style.height = customHeight + 'px';
     setTimeout(function () { var t = activeTab(); if (t) t.term.focus(); }, 20);
   }
 
   function openConsoleById(id) {
     var node = APP.nodeById(id);
-    if (!node) { APP.toast('Device not found', 'error', 'warning'); return; }
-    openConsoleForNode(node);
+    if (!node) { APP.toast('Device not found', 'error', 'warning'); return null; }
+    return openConsoleForNode(node);
   }
   APP.openConsoleById = openConsoleById;
+
+  // SDN-style push: declarative set lines -> console transaction (configure ... commit)
+  APP.pushConfig = function (node, lines) {
+    if (!node) return 0;
+    var tab = openConsoleById(node.id);
+    if (!tab || !tab.term) { APP.toast('Console unavailable for ' + node.name, 'error', 'warning'); return 0; }
+    var n = 0;
+    try {
+      if (tab.session && tab.session.mode !== 'cli-cfg') tab.term.runCommand('configure', true);
+      lines.forEach(function (l) { tab.term.runCommand(l, true); n++; });
+      tab.term.runCommand('commit', true);
+      APP.setStatus('Intent pushed to ' + node.name + ' - ' + n + ' statements committed');
+    } catch (e) {
+      APP.toast('Config push failed: ' + e.message, 'error', 'warning');
+      return n;
+    }
+    return n;
+  };
 
   function openConsoleForNode(node) {
     var existing = tabFor(node.name);
@@ -71,7 +95,7 @@
     activate(node.name);
     showDock();
     renderTabs();
-    APP.setStatus('Console connected to ' + node.name + ', localhost:' + node.consolePort);
+    APP.setStatus('Console connected to ' + node.name + ' (port ' + node.consolePort + ')');
     setTimeout(function () { term.focus(); }, 50);
     return tab;
   }
@@ -96,8 +120,11 @@
       if (dock) {
         dock.classList.add('hidden');
         dock.classList.remove('maximized', 'floating', 'minimized');
+        ['left', 'top', 'width', 'height'].forEach(function (k) { dock.style[k] = ''; });
       }
       maximized = minimized = floating = false;
+      customHeight = null;
+      preMax = null;
     } else {
       activate(active);
     }
@@ -145,8 +172,8 @@
     });
     var t = activeTab();
     if (t) {
-      if ($('#terminalWindowTitle')) $('#terminalWindowTitle').textContent = 'Console: ' + t.name;
-      if ($('#terminalConnection')) $('#terminalConnection').textContent = 'telnet localhost:' + (t.node ? t.node.consolePort : '');
+      if ($('#terminalWindowTitle')) $('#terminalWindowTitle').textContent = 'Console';
+      if ($('#terminalConnection')) $('#terminalConnection').textContent = 'console port ' + (t.node ? t.node.consolePort : '');
     }
     syncStatus();
   }
@@ -156,7 +183,7 @@
     var t = activeTab();
     if (!t) return;
     var conn = $('#terminalConnection');
-    if (conn) conn.textContent = t.node && t.node.status === 'running' ? 'telnet localhost:' + t.node.consolePort : 'session paused, ' + t.name;
+    if (conn) conn.textContent = t.node && t.node.status === 'running' ? 'console port ' + t.node.consolePort : 'session paused, ' + t.name;
     $$('.terminal-tab').forEach(function (b) {
       var tb = tabFor(b.dataset.tab);
       b.classList.toggle('offline', !!(tb && tb.node && tb.node.status !== 'running'));
@@ -181,100 +208,261 @@
     }
   }
 
+  // ---------------------------------------------------------- window manager
+  // One geometry model for the console: docked | floating | maximized | minimized.
+  // Drag and resize listen on window, so they never die when markup is re-rendered.
+
+  var termGeo = null;
+  try { termGeo = JSON.parse(global.localStorage.getItem('slab.termGeo') || 'null'); } catch (e) { termGeo = null; }
+  if (termGeo && termGeo.height) customHeight = termGeo.height;
+
+  function persistGeo() {
+    try { global.localStorage.setItem('slab.termGeo', JSON.stringify({ height: customHeight || null })); } catch (e) {}
+  }
+
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+  function canvasRect() {
+    var ws = document.querySelector('.canvas-wrap') || document.querySelector('.workspace');
+    if (!ws) return { left: 0, top: 38, width: global.innerWidth, height: global.innerHeight - 66 };
+    return ws.getBoundingClientRect();
+  }
+
+  function applyGeo(rect) {
+    var d = document.getElementById('terminalDock');
+    if (!d) return;
+    ['left', 'top', 'width', 'height'].forEach(function (k) {
+      d.style[k] = Math.round(rect[k]) + 'px';
+    });
+  }
+
+  // Docked console = a window that sits inside the canvas area, never over the panels.
+  function applyDockGeo() {
+    var d = document.getElementById('terminalDock');
+    if (!d) return;
+    var r = canvasRect();
+    var w = Math.round(Math.min(1000, r.width - 24));
+    var h = Math.round(clamp(customHeight || Math.min(420, global.innerHeight * 0.42), 220, Math.max(240, r.height - 16)));
+    d.style.left = Math.round(r.left + (r.width - w) / 2) + 'px';
+    d.style.width = w + 'px';
+    d.style.height = h + 'px';
+    d.style.top = 'auto';
+    d.style.right = 'auto';
+    d.style.bottom = '';
+  }
+
+  // Maximized console fills the canvas area, still inside the panels and above the status bar.
+  function applyMaxGeo() {
+    var d = document.getElementById('terminalDock');
+    if (!d) return;
+    var r = canvasRect();
+    var w = Math.round(r.width - 24);
+    var h = Math.round(Math.max(260, r.height - 16));
+    d.style.left = Math.round(r.left + 12) + 'px';
+    d.style.width = w + 'px';
+    d.style.height = h + 'px';
+    d.style.top = 'auto';
+    d.style.right = 'auto';
+    d.style.bottom = '38px';
+  }
+
   function bindWindowControls() {
     var dock = $('#terminalDock');
     if (!dock) return;
-    if ($('#terminalClose')) $('#terminalClose').addEventListener('click', function () { if (active) closeTerminal(active); });
-    if ($('#terminalMinimize')) $('#terminalMinimize').addEventListener('click', function () {
+    if (dock.dataset.wmBound === '1') return;
+    dock.dataset.wmBound = '1';
+
+    function toFloating(rect) {
+      maximized = false; minimized = false; preMax = null; floating = true;
+      dock.classList.remove('docked', 'maximized', 'minimized');
+      dock.classList.add('floating');
+      applyGeo(rect);
+      customHeight = Math.round(rect.height || customHeight || 440);
+      persistGeo();
+    }
+
+    function syncWindowButtons() {
+      var minBtn = $('#terminalMinimize'), maxBtn = $('#terminalMaximize');
+      if (minBtn) {
+        minBtn.querySelector('use').setAttribute('href', minimized ? '#i-chevron-up' : '#i-minus');
+        minBtn.title = minimized ? 'Restore console' : 'Minimize';
+      }
+      if (maxBtn) {
+        maxBtn.querySelector('use').setAttribute('href', maximized ? '#i-restore' : '#i-square');
+        maxBtn.title = maximized ? 'Restore size' : 'Maximize';
+      }
+    }
+
+    function toggleMinimize() {
+      if (maximized) toggleMaximize();
       minimized = !minimized;
       dock.classList.toggle('minimized', minimized);
-      if (!minimized) { var t = activeTab(); if (t) t.term.focus(); }
-    });
-    if ($('#terminalMaximize')) $('#terminalMaximize').addEventListener('click', function () {
-      maximized = !maximized;
-      minimized = false;
-      dock.classList.remove('minimized');
-      dock.classList.toggle('maximized', maximized);
-    });
-    if ($('#terminalDetach')) $('#terminalDetach').addEventListener('click', function () {
-      if (!floating) {
-        floating = true;
-        maximized = false;
-        dock.classList.remove('maximized', 'docked');
-        dock.classList.add('floating');
-        dock.style.left = Math.max(20, global.innerWidth - 780) + 'px';
-        dock.style.top = Math.max(60, global.innerHeight - 520) + 'px';
-        dock.style.width = '740px';
-        dock.style.height = '430px';
-        customHeight = 430;
-        APP.setStatus('Console detached, drag the title bar to move');
-      } else {
-        floating = false;
-        dock.classList.remove('floating');
-        dock.classList.add('docked');
-        dock.style.left = ''; dock.style.top = ''; dock.style.width = ''; dock.style.height = '';
-        customHeight = null;
+      if (minimized) {
         dock.style.height = '';
-        APP.setStatus('Console docked to bottom');
+        APP.setStatus('Console minimized');
+      } else {
+        dock.style.height = customHeight ? customHeight + 'px' : '';
+        var t = activeTab(); if (t) t.term.focus();
+        APP.setStatus('Console restored');
       }
-    });
-    if ($('#terminalDockBtn')) $('#terminalDockBtn').addEventListener('click', function () {
-      floating = false; maximized = false; minimized = false;
+      syncWindowButtons();
+    }
+
+    function toggleMaximize() {
+      if (!maximized) {
+        preMax = {
+          floating: floating, customHeight: customHeight,
+          left: dock.style.left, top: dock.style.top, width: dock.style.width, height: dock.style.height
+        };
+        maximized = true; minimized = false;
+        dock.classList.remove('minimized', 'floating', 'docked');
+        dock.classList.add('maximized');
+        applyMaxGeo();
+        APP.setStatus('Console maximized');
+      } else {
+        maximized = false;
+        dock.classList.remove('maximized');
+        if (preMax && preMax.floating) {
+          floating = true;
+          dock.classList.add('floating');
+          applyGeo({
+            left: parseFloat(preMax.left) || 40, top: parseFloat(preMax.top) || 80,
+            width: parseFloat(preMax.width) || 740, height: parseFloat(preMax.height) || 430
+          });
+          customHeight = Math.round(parseFloat(preMax.height) || 430);
+        } else {
+          floating = false;
+          dock.classList.add('docked');
+          customHeight = preMax ? preMax.customHeight : customHeight;
+          applyDockGeo();
+        }
+        preMax = null;
+        var t2 = activeTab(); if (t2) t2.term.focus();
+        APP.setStatus('Console restored');
+      }
+      syncWindowButtons();
+      persistGeo();
+    }
+
+    function setDetached() {
+      var b = canvasRect();
+      var w = Math.min(760, Math.max(420, b.width - 24));
+      var h = customHeight || 440;
+      toFloating({
+        left: clamp(b.left + b.width - w - 16, b.left + 4, Math.max(b.left + 4, b.left + b.width - w - 4)),
+        top: clamp(b.top + b.height - h - 16, b.top + 4, Math.max(b.top + 4, b.top + b.height - h - 4)),
+        width: w, height: h
+      });
+      APP.setStatus('Console detached - drag the title bar to move it');
+    }
+
+    function setDocked() {
+      floating = false; maximized = false; minimized = false; preMax = null;
       dock.classList.remove('floating', 'maximized', 'minimized');
       dock.classList.add('docked');
-      dock.style.left = ''; dock.style.top = ''; dock.style.width = '';
-      dock.style.height = customHeight ? customHeight + 'px' : '';
+      dock.style.top = '';
+      applyDockGeo();
+      persistGeo();
       APP.setStatus('Console docked to bottom');
-    });
-    if ($('#terminalNewTab')) $('#terminalNewTab').addEventListener('click', openConsolePicker);
+    }
+
+    function beginDrag(e) {
+      if (maximized || minimized || e.target.closest('button, input, select, textarea')) return;
+      var sx = e.clientX, sy = e.clientY;
+      var startRect = dock.getBoundingClientRect();
+      var grabX = e.clientX - startRect.left;
+      var grabY = e.clientY - startRect.top;
+      var dragging = false;
+      function move(ev) {
+        var dx = ev.clientX - sx, dy = ev.clientY - sy;
+        var b = canvasRect();
+        if (!dragging) {
+          if (Math.abs(dx) + Math.abs(dy) < 4) return;
+          dragging = true;
+          if (!floating) {
+            // leaving the dock: become a normal window under the cursor
+            var w = Math.min(900, Math.max(420, b.width - 24));
+            toFloating({
+              left: clamp(ev.clientX - grabX, b.left + 4, Math.max(b.left + 4, b.left + b.width - w - 4)),
+              top: clamp(ev.clientY - grabY, b.top + 4, Math.max(b.top + 4, b.top + b.height - startRect.height - 4)),
+              width: w, height: startRect.height
+            });
+            startRect = dock.getBoundingClientRect();
+            sx = ev.clientX; sy = ev.clientY; dx = 0; dy = 0;
+          }
+          document.body.classList.add('window-dragging');
+        }
+        var w2 = dock.getBoundingClientRect().width;
+        var h2 = dock.getBoundingClientRect().height;
+        dock.style.left = clamp(startRect.left + dx, b.left + 4, Math.max(b.left + 4, b.left + b.width - w2 - 4)) + 'px';
+        dock.style.top = clamp(startRect.top + dy, b.top + 4, Math.max(b.top + 4, b.top + b.height - h2 - 4)) + 'px';
+        dock.style.right = 'auto';
+        dock.style.bottom = 'auto';
+      }
+      function up() {
+        global.removeEventListener('pointermove', move);
+        global.removeEventListener('pointerup', up);
+        document.body.classList.remove('window-dragging');
+        if (dragging) persistGeo();
+      }
+      global.addEventListener('pointermove', move);
+      global.addEventListener('pointerup', up);
+      e.preventDefault();
+    }
+
+    function beginResize(e) {
+      if (maximized || minimized) return;
+      e.preventDefault();
+      var sx = e.clientX, sy = e.clientY;
+      var r0 = dock.getBoundingClientRect();
+      var both = !!floating;
+      function move(ev) {
+        var dx = ev.clientX - sx, dy = ev.clientY - sy;
+        var b = canvasRect();
+        if (both) {
+          var w = clamp(r0.width + dx, 420, Math.max(420, b.width - 8));
+          var h = clamp(r0.height + dy, 190, Math.max(190, b.height - 8));
+          customHeight = Math.round(h);
+          dock.style.width = Math.round(w) + 'px';
+          dock.style.height = customHeight + 'px';
+        } else {
+          var h2 = clamp(r0.height - dy, 180, Math.max(180, b.height - 8));
+          customHeight = Math.round(h2);
+          dock.style.height = customHeight + 'px';
+        }
+      }
+      function up() {
+        global.removeEventListener('pointermove', move);
+        global.removeEventListener('pointerup', up);
+        persistGeo();
+      }
+      global.addEventListener('pointermove', move);
+      global.addEventListener('pointerup', up);
+    }
+
+    function on(id, fn) { var el = $('#' + id); if (el) el.addEventListener('click', fn); }
+    on('terminalClose', function () { if (active) closeTerminal(active); });
+    on('terminalMinimize', toggleMinimize);
+    on('terminalMaximize', toggleMaximize);
+    on('terminalDetach', function () { if (floating) setDocked(); else setDetached(); });
+    on('terminalDockBtn', setDocked);
 
     var titlebar = $('#terminalTitlebar');
     if (titlebar) {
-      titlebar.addEventListener('pointerdown', function (e) {
-        if (!floating || e.target.closest('button')) return;
-        var sx = e.clientX, sy = e.clientY;
-        var left = parseFloat(dock.style.left) || dock.getBoundingClientRect().left;
-        var top = parseFloat(dock.style.top) || dock.getBoundingClientRect().top;
-        var pid = e.pointerId;
-        titlebar.setPointerCapture(pid);
-        function move(ev) {
-          dock.style.left = Math.max(-200, left + ev.clientX - sx) + 'px';
-          dock.style.top = Math.max(0, top + ev.clientY - sy) + 'px';
-        }
-        function up() {
-          titlebar.removeEventListener('pointermove', move);
-          titlebar.removeEventListener('pointerup', up);
-        }
-        titlebar.addEventListener('pointermove', move);
-        titlebar.addEventListener('pointerup', up);
-      });
+      titlebar.addEventListener('pointerdown', beginDrag);
       titlebar.addEventListener('dblclick', function (e) {
         if (e.target.closest('button')) return;
-        if ($('#terminalMaximize')) $('#terminalMaximize').click();
+        toggleMaximize();
       });
     }
-
     var handle = $('#terminalResizeHandle');
-    if (handle) {
-      handle.addEventListener('pointerdown', function (e) {
-        e.preventDefault();
-        var sy = e.clientY;
-        var startH = dock.getBoundingClientRect().height;
-        handle.setPointerCapture(e.pointerId);
-        function move(ev) {
-          var h = Math.max(170, Math.min(global.innerHeight * .86, startH - (ev.clientY - sy)));
-          customHeight = Math.round(h);
-          dock.style.height = customHeight + 'px';
-          if (floating) dock.style.top = Math.max(0, global.innerHeight - customHeight - 12) + 'px';
-        }
-        function up() {
-          handle.removeEventListener('pointermove', move);
-          handle.removeEventListener('pointerup', up);
-        }
-        handle.addEventListener('pointermove', move);
-        handle.addEventListener('pointerup', up);
-      });
-    }
+    if (handle) handle.addEventListener('pointerdown', beginResize);
+
+    global.addEventListener('resize', function () {
+      if (minimized || floating) return;
+      if (maximized) applyMaxGeo();
+      else if (dock.classList.contains('docked')) applyDockGeo();
+    });
   }
 
   APP.initTerminal = function () {

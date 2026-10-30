@@ -92,6 +92,7 @@
       case 'zoom-in': APP.zoomBy(1.18); break;
       case 'zoom-out': APP.zoomBy(1 / 1.18); break;
       case 'fit-view': APP.fitView(); break;
+      case 'zoom-reset': APP.zoomBy(1 / (APP.getState().view.zoom || 1)); break;
       case 'toggle-grid':
         APP.getState().settings.grid = !APP.getState().settings.grid;
         APP.renderCanvasSettings(); APP.scheduleSave();
@@ -117,6 +118,7 @@
       case 'node-restart': if (n) APP.restartNode(n.id); break;
       case 'node-console': if (n) APP.openConsoleById(n.id); break;
       case 'node-interfaces': if (n && APP.openInterfaces) APP.openInterfaces(n.id); break;
+      case 'node-configure': if (n && APP.openDeviceConfigurator) APP.openDeviceConfigurator(n.id); break;
       case 'node-capture': if (n && APP.openCapture) APP.openCapture(n.id); break;
       case 'node-delete': if (n) confirmAction('Delete ' + n.name + ' and all of its links?', function () { APP.deleteNode(n.id); }); break;
 
@@ -134,6 +136,7 @@
         });
         break;
       case 'lab-guide': if (APP.openGuide) APP.openGuide(); break;
+      case 'fleet': if (APP.openFleetIntent) APP.openFleetIntent(); break;
       case 'shortcuts': if (APP.openShortcuts) APP.openShortcuts(); break;
       case 'about': if (APP.openAbout) APP.openAbout(); break;
       default:
@@ -150,13 +153,12 @@
   }
 
   function bindToolbar() {
-    $$('.tool-btn[data-action], .canvas-tool[data-action], .ws-action[data-action], .icon-btn[data-action], .dock-restore[data-action]').forEach(function (b) {
+    $$('.tool-btn[data-action], .canvas-tool[data-action], .ws-action[data-action], .icon-btn[data-action], .dock-restore[data-action], .zoom-value[data-action]').forEach(function (b) {
       b.addEventListener('click', function (e) { e.stopPropagation(); dispatch(b.dataset.action); });
     });
     var layout = $('#wsLayoutButton');
     if (layout) layout.addEventListener('click', autoLayout);
     if ($('#brandButton')) $('#brandButton').addEventListener('click', function () { if (APP.openAbout) APP.openAbout(); });
-    if ($('#serverPill')) $('#serverPill').addEventListener('click', function () { if (APP.openServerPrefs) APP.openServerPrefs(); });
     if ($('#workspaceTabClose')) $('#workspaceTabClose').addEventListener('click', function () { dispatch('close-project'); });
     var addWs = $('.workspace-add');
     if (addWs) addWs.addEventListener('click', function () { dispatch('new-project'); });
@@ -197,18 +199,8 @@
 
   // ---------------------------------------------------------------- palette
   function bindPalette() {
-    $$('.rail-btn').forEach(function (b) {
-      b.addEventListener('click', function () {
-        var cat = b.dataset.category;
-        $$('.rail-btn').forEach(function (x) { x.classList.toggle('active', x === b); });
-        $$('.palette-section').forEach(function (sec) {
-          sec.style.display = cat === 'all' || sec.dataset.section === cat ? '' : 'none';
-        });
-        filterPalette($('#paletteSearch') ? $('#paletteSearch').value : '', cat);
-      });
-    });
     if ($('#paletteSearch')) {
-      $('#paletteSearch').addEventListener('input', function () { filterPalette(this.value, currentCategory()); });
+      $('#paletteSearch').addEventListener('input', function () { filterPalette(this.value); });
     }
     $$('.section-head').forEach(function (h) {
       h.addEventListener('click', function () { h.parentNode.classList.toggle('collapsed'); });
@@ -244,19 +236,12 @@
     if ($('#placementCancel')) $('#placementCancel').addEventListener('click', function () { cancelPlacement(); });
   }
 
-  function currentCategory() {
-    var a = $('.rail-btn.active');
-    return a ? a.dataset.category : 'all';
-  }
-
-  function filterPalette(q, cat) {
+  function filterPalette(q) {
     q = String(q || '').toLowerCase().trim();
-    cat = cat || 'all';
     var any = false;
     $$('.palette-item').forEach(function (item) {
       var search = (item.textContent + ' ' + (item.dataset.device || '')).toLowerCase();
-      var catOk = cat === 'all' || cat === 'links' || item.dataset.category === cat || (cat === 'links' && (item.dataset.device === 'link' || item.dataset.device === 'console-cable'));
-      var show = catOk && (!q || search.indexOf(q) >= 0);
+      var show = !q || search.indexOf(q) >= 0;
       item.style.display = show ? '' : 'none';
       if (show) any = true;
     });
@@ -264,7 +249,7 @@
       var visible = $$('.palette-item', sec).some(function (x) { return x.style.display !== 'none'; });
       sec.style.display = visible ? '' : 'none';
     });
-    if ($('#paletteEmpty')) $('#paletteEmpty').style.display = any ? 'none' : '';
+    if ($('#paletteEmpty')) $('#paletteEmpty').classList.toggle('visible', !any);
   }
 
   function startPlacement(key) {
@@ -416,7 +401,13 @@
       e.preventDefault(); showCanvasMenu(e.clientX, e.clientY);
     });
     canvas.addEventListener('dblclick', function (e) {
-      if (e.target.closest('.node')) return;
+      var nel = e.target.closest('.node');
+      if (nel && nel.dataset.nodeId) {
+        e.preventDefault();
+        APP.openConsoleById(nel.dataset.nodeId);
+        return;
+      }
+      if (e.target.closest('.link-group')) return;
       var p = APP.screenToWorld(e.clientX, e.clientY);
       if (APP.openAddNote) APP.openAddNote(p.x, p.y);
     });
@@ -493,7 +484,7 @@
     var running = n.status === 'running';
     if (running) h += menuItem('pause', 'Pause', 'pause') + menuItem('stop', 'Stop', 'stop') + menuItem('restart', 'Restart', 'reload');
     else h += menuItem('start', 'Start', 'play');
-    h += '<div class="ctx-sep"></div>' + menuItem('console', 'Open Console', 'terminal') + menuItem('interfaces', 'Configure Interfaces…', 'settings') + menuItem('capture', 'Packet Capture…', 'packet');
+    h += '<div class="ctx-sep"></div>' + menuItem('console', 'Open Console', 'terminal') + menuItem('configure', 'Configure Device (GUI)…', 'settings') + menuItem('capture', 'Packet Capture…', 'packet');
     h += '<div class="ctx-sep"></div>' + menuItem('rename', 'Rename Node…', 'note') + menuItem('delete', 'Delete Node', 'trash', true);
     showMenu(h, x, y);
     $('#contextMenu').onclick = function (e) {
@@ -505,7 +496,7 @@
       else if (act === 'stop') APP.stopNode(id);
       else if (act === 'restart') APP.restartNode(id);
       else if (act === 'console') APP.openConsoleById(id);
-      else if (act === 'interfaces' && APP.openInterfaces) APP.openInterfaces(id);
+      else if (act === 'configure' && APP.openDeviceConfigurator) APP.openDeviceConfigurator(id);
       else if (act === 'capture' && APP.openCapture) APP.openCapture(id);
       else if (act === 'rename' && APP.openRenameNode) APP.openRenameNode(id);
       else if (act === 'delete') confirmAction('Delete ' + n.name + ' and all of its links?', function () { APP.deleteNode(id); });
@@ -531,7 +522,7 @@
   function showCanvasMenu(x, y) {
     var h = '<div class="ctx-head">' + icon('new') + '<span><b>Canvas</b><small>Topology workspace</small></span></div><div class="ctx-sep"></div>';
     h += menuItem('note', 'Add Text Note…', 'note') + menuItem('rect', 'Draw Rectangle', 'rect') + menuItem('ellipse', 'Draw Ellipse', 'ellipse') + menuItem('line', 'Draw Line', 'line');
-    h += '<div class="ctx-sep"></div>' + menuItem('fit', 'Fit to Screen', 'fit') + menuItem('grid', 'Toggle Grid', 'grid');
+    h += '<div class="ctx-sep"></div>' + menuItem('fit', 'Fit to Screen', 'fit') + menuItem('grid', 'Toggle Grid', 'grid') + menuItem('fleet', 'Fleet Intent…', 'network');
     showMenu(h, x, y);
     $('#contextMenu').onclick = function (e) {
       var b = e.target.closest('[data-ctx]'); if (!b) return;
@@ -541,6 +532,7 @@
       else if (act === 'rect' || act === 'ellipse' || act === 'line') startTool(act);
       else if (act === 'fit') APP.fitView();
       else if (act === 'grid') dispatch('toggle-grid');
+      else if (act === 'fleet' && APP.openFleetIntent) APP.openFleetIntent();
     };
   }
   APP.showCanvasMenu = showCanvasMenu;
@@ -559,17 +551,53 @@
   }
 
   function applyPreset(key) {
-    var s = APP.getState();
     var preset = APP.PRESETS[key];
     if (!preset) return;
+    if (APP.closeAllTerminals) APP.closeAllTerminals(true);
     APP.captureHistory();
+    var s = APP.getState();
     s.preset = key; s.title = preset.title;
-    s.nodes.forEach(function (n) {
-      var p = preset.positions[n.name];
-      if (p) { n.x = p.x; n.y = p.y; }
-      else { var idx = s.nodes.indexOf(n); n.x = 120 + (idx % 4) * 180; n.y = 120 + Math.floor(idx / 4) * 160; }
-    });
-    s.annotations = [];
+
+    if (Array.isArray(preset.nodes) && Array.isArray(preset.topology)) {
+      // full rebuild: fresh nodes + links + runtime configs from the preset spec
+      var nodes = [];
+      var byName = {};
+      for (var i = 0; i < preset.nodes.length; i++) {
+        var spec = preset.nodes[i];
+        var tplKey = spec.template || 'router';
+        var n = APP.makeNode('n-' + key + '-' + String(spec.name).toLowerCase(), spec.name, tplKey, 120 + i * 160, 140, 'running', 5001 + i);
+        if (spec.model) n.model = spec.model;
+        var hspec = null;
+        if (preset.hosts) {
+          for (var h = 0; h < preset.hosts.length; h++) if (preset.hosts[h].name === n.name) hspec = preset.hosts[h];
+        }
+        if (hspec) { n.ip = hspec.ip; n.gateway = hspec.gateway; }
+        nodes.push(n); byName[n.name] = n;
+      }
+      var links = [];
+      for (var li = 0; li < preset.topology.length; li++) {
+        var t = preset.topology[li];
+        var a = byName[t.a], b = byName[t.b];
+        if (a && b) links.push(APP.makeLink('l-' + key + '-' + li, a.id, t.ap, b.id, t.bp, t.label || ''));
+      }
+      s.nodes = nodes;
+      s.links = links;
+      s.annotations = [];
+      // runtime reboot
+      APP.clearRuntimes();
+      for (var ri = 0; ri < nodes.length; ri++) {
+        APP.resetRuntime(nodes[ri].name, preset.configs && preset.configs[nodes[ri].name], preset.title, nodes[ri]);
+      }
+      APP.setSelectedNodeId(null);
+    } else {
+      // legacy path: reposition the existing canvas only
+      s.nodes.forEach(function (n) {
+        var p = preset.positions[n.name];
+        if (p) { n.x = p.x; n.y = p.y; }
+        else { var idx = s.nodes.indexOf(n); n.x = 120 + (idx % 4) * 180; n.y = 120 + Math.floor(idx / 4) * 160; }
+      });
+      s.annotations = [];
+    }
     APP.rebuildWorld();
     APP.renderAll(true);
     APP.scheduleSave();
@@ -673,6 +701,52 @@
   }
 
   // ------------------------------------------------------------------- init
+  function initDockResize() {
+    var store = {};
+    try { store = JSON.parse(global.localStorage.getItem('slab.dockW') || '{}'); } catch (e) { store = {}; }
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    function apply(side, w) {
+      var dock = side === 'left' ? $('#leftDock') : $('#rightDock');
+      if (!dock) return;
+      dock.style.flexBasis = w + 'px';
+      dock.style.width = w + 'px';
+    }
+    function bind(side, gripId, minW, maxW) {
+      var grip = $('#' + gripId);
+      if (!grip) return;
+      grip.addEventListener('pointerdown', function (e) {
+        e.preventDefault();
+        var dock = side === 'left' ? $('#leftDock') : $('#rightDock');
+        if (!dock) return;
+        var startW = dock.getBoundingClientRect().width;
+        var sx = e.clientX;
+        grip.classList.add('active');
+        document.body.classList.add('window-resizing');
+        function move(ev) {
+          var dx = ev.clientX - sx;
+          var w = side === 'left' ? clamp(startW + dx, minW, maxW) : clamp(startW - dx, minW, maxW);
+          apply(side, Math.round(w));
+          if (APP.applyView) APP.applyView();
+        }
+        function up() {
+          global.removeEventListener('pointermove', move);
+          global.removeEventListener('pointerup', up);
+          grip.classList.remove('active');
+          document.body.classList.remove('window-resizing');
+          store[side] = Math.round(dock.getBoundingClientRect().width);
+          try { global.localStorage.setItem('slab.dockW', JSON.stringify(store)); } catch (e2) {}
+          if (APP.applyView) APP.applyView();
+        }
+        global.addEventListener('pointermove', move);
+        global.addEventListener('pointerup', up);
+      });
+    }
+    if (store.left) apply('left', clamp(store.left, 190, 300));
+    if (store.right) apply('right', clamp(store.right, 236, 460));
+    bind('left', 'leftDockGrip', 190, 300);
+    bind('right', 'rightDockGrip', 236, 460);
+  }
+
   APP.initInteractions = function () {
     bindMenus();
     bindToolbar();
@@ -682,10 +756,7 @@
     bindFileInput();
     bindKeys();
     applyDockState();
-    $$('.palette-item').forEach(function (item, i) {
-      item.style.animationDelay = (i * 18) + 'ms';
-      item.classList.add('palette-enter');
-    });
+    initDockResize();
     if ($('#terminalDock')) {
       setInterval(function () {
         if ($('#terminalDock').classList.contains('hidden')) return;

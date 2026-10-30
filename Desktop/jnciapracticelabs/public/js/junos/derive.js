@@ -5,7 +5,7 @@
   var db = J.db;
 
   // ============================================================
-  // JJ.net — derives runtime device state (ds) from committed
+  // JJ.net - derives runtime device state (ds) from committed
   // config trees + the lab topology. Pure simulation, no images.
   // ============================================================
 
@@ -289,27 +289,79 @@
     var groups = [];
     var gRoot = db.child(b, 'group');
     if (!gRoot || gRoot.inactive) return { groups: groups };
+    // policy statements: name -> source protocols named in from-protocol terms
+    var stmtProtos = {};
+    var po = db.child(root, 'policy-options');
+    if (po) {
+      var psRoot = db.child(po, 'policy-statement');
+      if (psRoot) {
+        for (var e = 0; e < psRoot.children.length; e++) {
+          var stmt = psRoot.children[e];
+          if (stmt.inactive) continue;
+          var protos = [];
+          var tRoot = db.child(stmt, 'term');
+          var fromOwner = tRoot ? tRoot.children : [stmt];
+          for (var t = 0; t < fromOwner.length; t++) {
+            var fromC = db.child(fromOwner[t], 'from');
+            var protoC = fromC ? db.child(fromC, 'protocol') : null;
+            if (protoC && protoC.values.length) {
+              for (var pv = 0; pv < protoC.values.length; pv++) {
+                if (protos.indexOf(protoC.values[pv]) < 0) protos.push(protoC.values[pv]);
+              }
+            }
+          }
+          stmtProtos[stmt.name] = protos;
+        }
+      }
+    }
+    var localAs = null;
+    var roC = db.child(root, 'routing-options');
+    if (roC && !roC.inactive) localAs = stmtVal(roC, 'autonomous-system');
     for (var i = 0; i < gRoot.children.length; i++) {
       if (gRoot.children[i].inactive) continue;
       var g = gRoot.children[i];
       var gtype = stmtVal(g, 'type');
       if (!gtype) continue;
       var peers = [];
+      var meta = {};
       var nRoot = db.child(g, 'neighbor');
       if (nRoot && !nRoot.inactive) {
         for (var k = 0; k < nRoot.children.length; k++) {
-          if (!nRoot.children[k].inactive) peers.push(nRoot.children[k].name);
+          if (!nRoot.children[k].inactive) {
+            var nc = nRoot.children[k];
+            peers.push(nc.name);
+            var npa = stmtVal(nc, 'peer-as');
+            if (npa) meta[nc.name] = { peerAs: npa, localAddress: stmtVal(nc, 'local-address') };
+          }
+        }
+      }
+      // protocols named by the export policies attached to this group
+      var exportProtos = [];
+      for (var c = 0; c < g.children.length; c++) {
+        if (g.children[c].name !== 'export') continue;
+        var exNode = g.children[c];
+        var polNames = [];
+        var exKids = exNode.children || [];
+        for (var ek = 0; ek < exKids.length; ek++) polNames.push(exKids[ek].name);
+        for (var evv = 0; evv < (exNode.values || []).length; evv++) polNames.push(exNode.values[evv]);
+        for (var xv = 0; xv < polNames.length; xv++) {
+          var own = stmtProtos[polNames[xv]] || [];
+          for (var xp = 0; xp < own.length; xp++) {
+            if (exportProtos.indexOf(own[xp]) < 0) exportProtos.push(own[xp]);
+          }
         }
       }
       groups.push({
         name: g.name,
         type: gtype,
         peerAs: stmtVal(g, 'peer-as'),
+        neighborMeta: meta,
         localAddress: stmtVal(g, 'local-address'),
+        exportProtos: exportProtos,
         neighbors: peers
       });
     }
-    return { groups: groups };
+    return { groups: groups, localAs: localAs };
   }
 
   // ---------- endpoints in an L2 broadcast domain ----------
@@ -984,6 +1036,11 @@
 
   function buildBgpState(world, ds) {
     if (!ds.bgp) return;
+    function subnetCovers(subnet, ipAddr) {
+      var p = J.parseIp ? J.parseIp(subnet.cidr) : null;
+      var pl = (p && p.prefix != null) ? p.prefix : 24;
+      return sameNet(subnet.cidr, ipAddr + '/' + pl);
+    }
     for (var g = 0; g < ds.bgp.groups.length; g++) {
       var grp = ds.bgp.groups[g];
       var list = [];
@@ -1000,6 +1057,8 @@
           if (isPeer) peerKey = od.key;
         }
         var peer = peerKey ? world.devices[peerKey] : null;
+        var nmeta = (grp.neighborMeta && grp.neighborMeta[ip]) ? grp.neighborMeta[ip] : null;
+        var peerAs = (nmeta && nmeta.peerAs) ? nmeta.peerAs : grp.peerAs;
         var state = 'Idle';
         var upFor = 0;
         if (peer) {
@@ -1013,21 +1072,54 @@
               }
             }
           }
-          var hasPeerAs = grp.peerAs && peer.bgp && peer.bgp.groups.length ? true : false;
+          var hasPeerAs = peerAs && peer.bgp && peer.bgp.groups.length ? true : false;
           var iHaveRoute = false;
           for (var r = 0; r < ds.routes.length; r++) {
-            if (ipOf(ds.routes[r].dest) === ip || sameNet(ds.routes[r].dest, ip + '/32')) iHaveRoute = true;
+            if (ipOf(ds.routes[r].dest) === ip || sameNet(ds.routes[r].dest, ip + '/32') || (J.inNet && J.inNet(ip, ds.routes[r].dest))) { iHaveRoute = true; break; }
           }
-          if (peerConfiguredForUs && hasPeerAs && iHaveRoute && grp.localAddress) {
+          var directConnect = false;
+          for (var sb2 = 0; sb2 < ds.subnets.length; sb2++) {
+            if (subnetCovers(ds.subnets[sb2], ip)) { directConnect = true; break; }
+          }
+          if (peerConfiguredForUs && hasPeerAs && iHaveRoute && (grp.localAddress || (nmeta && nmeta.localAddress) || directConnect)) {
             state = 'Establ';
             upFor = Math.floor((world.derivedAt - ds.bootAt) / 1000) % 3600;
+            ds.bgp.advertised = ds.bgp.advertised || {};
+            if (!ds.bgp.advertised[peerKey + '/' + grp.name]) {
+              ds.bgp.advertised[peerKey + '/' + grp.name] = true;
+              // Real Junos: a BGP session with no export policy advertises nothing;
+              // direct/local flow only when an export policy names protocol direct.
+              var protos = (grp.exportProtos || []).join(' ').toLowerCase();
+              if (protos) {
+                var via3 = null;
+                for (var sb3 = 0; sb3 < ds.subnets.length; sb3++) {
+                  if (subnetCovers(ds.subnets[sb3], ip)) { via3 = ds.subnets[sb3].iface; break; }
+                }
+                if (!via3) {
+                  // peer not on a connected subnet: egress follows today's route to the peer
+                  for (var vr = 0; vr < ds.routes.length; vr++) {
+                    var rvr = ds.routes[vr];
+                    if (rvr.proto !== 'BGP' && rvr.via && J.inNet(ip, rvr.dest)) { via3 = rvr.via; break; }
+                  }
+                }
+                if (via3) {
+                  for (var pr = 0; pr < peer.routes.length; pr++) {
+                    var r3 = peer.routes[pr];
+                    var p3 = String(r3.proto).toLowerCase();
+                    var ok3 = (r3.proto === 'Direct' || r3.proto === 'Local') ? protos.indexOf('direct') >= 0 : protos.indexOf(p3) >= 0;
+                    if (!ok3) continue;
+                    ds.routes.push({ dest: r3.dest, proto: 'BGP', pref: 170, to: ip, via: via3, created: world.derivedAt });
+                  }
+                }
+              }
+            }
           } else if (peerConfiguredForUs && hasPeerAs && iHaveRoute) {
             state = 'Active';
           }
         }
         list.push({
           ip: ip,
-          peerAs: grp.peerAs,
+          peerAs: peerAs,
           state: state,
           upFor: upFor,
           inPkt: 200 + (J.hash('bgp:' + ds.key + ':' + ip) % 80),

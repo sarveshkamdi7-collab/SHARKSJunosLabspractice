@@ -34,10 +34,228 @@
   };
 
   var PRESETS = {
-    jncia: { title: 'JNCIA Basic Routing', positions: { R1: { x: 180, y: 132 }, R2: { x: 400, y: 132 }, R3: { x: 620, y: 132 }, SW1: { x: 400, y: 306 }, 'Host-A': { x: 262, y: 458 }, 'Host-B': { x: 540, y: 458 } } },
-    vlan: { title: 'VLAN Trunking & IRB', positions: { R1: { x: 174, y: 180 }, R2: { x: 620, y: 142 }, R3: { x: 620, y: 340 }, SW1: { x: 390, y: 260 }, 'Host-A': { x: 250, y: 445 }, 'Host-B': { x: 530, y: 445 } } },
-    ospf: { title: 'Static Routes & RIP/OSPF', positions: { R1: { x: 195, y: 145 }, R2: { x: 585, y: 145 }, R3: { x: 390, y: 340 }, SW1: { x: 390, y: 480 }, 'Host-A': { x: 210, y: 482 }, 'Host-B': { x: 570, y: 482 } } },
-    vlabs: { title: 'Juniper vLabs Standard 3-Router Hub', positions: { R1: { x: 160, y: 310 }, R2: { x: 390, y: 150 }, R3: { x: 620, y: 310 }, SW1: { x: 390, y: 370 }, 'Host-A': { x: 210, y: 482 }, 'Host-B': { x: 570, y: 482 } } }
+    jncia: {
+      title: 'JNCIA Basic Routing',
+      positions: { R1: { x: 180, y: 132 }, R2: { x: 400, y: 132 }, R3: { x: 620, y: 132 }, SW1: { x: 400, y: 306 }, 'Host-A': { x: 262, y: 458 }, 'Host-B': { x: 540, y: 458 } },
+      nodes: [
+        { name: 'R1', template: 'vsrx' }, { name: 'R2', template: 'vmx' }, { name: 'R3', template: 'vsrx' },
+        { name: 'SW1', template: 'switch' }, { name: 'Host-A', template: 'ubuntu' }, { name: 'Host-B', template: 'vpcs' }
+      ],
+      topology: [
+        { a: 'R1', ap: 'ge-0/0/0', b: 'R2', bp: 'ge-0/0/0', label: '10.0.12.0/30' },
+        { a: 'R2', ap: 'ge-0/0/1', b: 'R3', bp: 'ge-0/0/0', label: '10.0.23.0/30' },
+        { a: 'R1', ap: 'ge-0/0/1', b: 'SW1', bp: 'ge-0/0/0', label: 'trunk, VLAN 10/20' },
+        { a: 'SW1', ap: 'ge-0/0/1', b: 'Host-A', bp: 'eth0', label: 'VLAN 10, staff' },
+        { a: 'SW1', ap: 'ge-0/0/2', b: 'Host-B', bp: 'eth0', label: 'VLAN 20, guest' }
+      ],
+      hosts: [
+        { name: 'Host-A', ip: '10.0.3.20', gateway: '10.0.3.2' },
+        { name: 'Host-B', ip: '10.1.1.20', gateway: '10.1.1.2' }
+      ],
+      configs: null,
+      tasks: [
+        { title: 'Verify OSPF adjacencies', device: 'R1', run: [['show ospf neighbor'], ['show ospf interface']] },
+        { title: 'Trace the learned routes', device: 'R1', run: [['show route protocol ospf'], ['show route table inet.0 summary']] },
+        { title: 'End-to-end reachability', device: 'Host-A', run: [['ping 10.1.1.20'], ['traceroute 10.1.1.20']] }
+      ]
+    },
+    vlan: {
+      title: 'VLAN Trunking & IRB',
+      positions: { R1: { x: 174, y: 180 }, R2: { x: 620, y: 142 }, R3: { x: 620, y: 340 }, SW1: { x: 390, y: 260 }, 'Host-A': { x: 250, y: 445 }, 'Host-B': { x: 530, y: 445 } },
+      nodes: [
+        { name: 'R1', template: 'vsrx' }, { name: 'R2', template: 'vmx' }, { name: 'R3', template: 'vsrx' },
+        { name: 'SW1', template: 'switch' }, { name: 'Host-A', template: 'ubuntu' }, { name: 'Host-B', template: 'vpcs' }
+      ],
+      topology: [
+        { a: 'R1', ap: 'ge-0/0/1', b: 'SW1', bp: 'ge-0/0/0', label: 'trunk, VLAN 10/20' },
+        { a: 'R1', ap: 'ge-0/0/0', b: 'R2', bp: 'ge-0/0/0', label: '10.0.12.0/30' },
+        { a: 'R2', ap: 'ge-0/0/1', b: 'R3', bp: 'ge-0/0/0', label: '10.0.23.0/30' },
+        { a: 'SW1', ap: 'ge-0/0/1', b: 'Host-A', bp: 'eth0', label: 'VLAN 10, staff' },
+        { a: 'SW1', ap: 'ge-0/0/2', b: 'Host-B', bp: 'eth0', label: 'VLAN 20, guest' }
+      ],
+      hosts: [
+        { name: 'Host-A', ip: '192.168.10.20', gateway: '192.168.10.10' },
+        { name: 'Host-B', ip: '192.168.20.20', gateway: '192.168.20.10' }
+      ],
+      configs: null,
+      tasks: [
+        { title: 'Inspect VLAN membership', device: 'SW1', run: [['show vlans'], ['show ethernet-switching interfaces']] },
+        { title: 'Check learned MACs', device: 'SW1', run: [['show ethernet-switching table']] },
+        { title: 'IRB routing view', device: 'R1', run: [['show interfaces irb terse'], ['show route table inet.0 summary']] }
+      ]
+    },
+    ospf: {
+      title: 'Static Routes & RIP/OSPF',
+      positions: { R1: { x: 195, y: 145 }, R2: { x: 585, y: 145 }, R3: { x: 390, y: 340 }, SW1: { x: 390, y: 480 }, 'Host-A': { x: 210, y: 482 }, 'Host-B': { x: 570, y: 482 } },
+      nodes: [
+        { name: 'R1', template: 'vsrx' }, { name: 'R2', template: 'vmx' }, { name: 'R3', template: 'vsrx' },
+        { name: 'SW1', template: 'switch' }, { name: 'Host-A', template: 'ubuntu' }, { name: 'Host-B', template: 'vpcs' }
+      ],
+      topology: [
+        { a: 'R1', ap: 'ge-0/0/0', b: 'R2', bp: 'ge-0/0/0', label: '10.0.12.0/30' },
+        { a: 'R2', ap: 'ge-0/0/1', b: 'R3', bp: 'ge-0/0/0', label: '10.0.23.0/30' },
+        { a: 'R3', ap: 'ge-0/0/2', b: 'SW1', bp: 'ge-0/0/0', label: 'trunk, VLAN 10/20' },
+        { a: 'SW1', ap: 'ge-0/0/1', b: 'Host-A', bp: 'eth0', label: 'VLAN 10, staff' },
+        { a: 'SW1', ap: 'ge-0/0/2', b: 'Host-B', bp: 'eth0', label: 'VLAN 20, guest' }
+      ],
+      hosts: [
+        { name: 'Host-A', ip: '10.0.3.20', gateway: '10.0.3.2' },
+        { name: 'Host-B', ip: '10.1.1.20', gateway: '10.1.1.2' }
+      ],
+      configs: null,
+      tasks: [
+        { title: 'Static route module', device: 'R1', run: [['show route protocol static'], ['show route hidden']] },
+        { title: 'OSPF module', device: 'R2', run: [['show ospf neighbor'], ['show ospf database']] },
+        { title: 'End-to-end ping', device: 'Host-A', run: [['ping 10.1.1.20'], ['traceroute 10.1.1.20']] }
+      ]
+    },
+    vlabs: {
+      title: 'Juniper vLabs Standard 3-Router Hub',
+      positions: { R1: { x: 160, y: 310 }, R2: { x: 390, y: 150 }, R3: { x: 620, y: 310 }, SW1: { x: 390, y: 370 }, 'Host-A': { x: 210, y: 482 }, 'Host-B': { x: 570, y: 482 } },
+      nodes: [
+        { name: 'R1', template: 'vmx' }, { name: 'R2', template: 'vmx' }, { name: 'R3', template: 'vmx' },
+        { name: 'SW1', template: 'switch' }, { name: 'Host-A', template: 'ubuntu' }, { name: 'Host-B', template: 'vpcs' }
+      ],
+      topology: [
+        { a: 'R1', ap: 'ge-0/0/0', b: 'R2', bp: 'ge-0/0/0', label: '10.0.12.0/30' },
+        { a: 'R2', ap: 'ge-0/0/1', b: 'R3', bp: 'ge-0/0/0', label: '10.0.23.0/30' },
+        { a: 'R2', ap: 'ge-0/0/4', b: 'SW1', bp: 'ge-0/0/0', label: 'trunk, VLAN 10/20' },
+        { a: 'SW1', ap: 'ge-0/0/1', b: 'Host-A', bp: 'eth0', label: 'VLAN 10, staff' },
+        { a: 'SW1', ap: 'ge-0/0/2', b: 'Host-B', bp: 'eth0', label: 'VLAN 20, guest' }
+      ],
+      hosts: [
+        { name: 'Host-A', ip: '10.0.3.20', gateway: '10.0.3.2' },
+        { name: 'Host-B', ip: '10.1.1.20', gateway: '10.1.1.2' }
+      ],
+      configs: null,
+      tasks: [
+        { title: 'vLabs standard jump', device: 'R2', run: [['show ospf neighbor'], ['show interfaces terse'], ['show system uptime']] },
+        { title: 'Platform inventory', device: 'R1', run: [['show chassis hardware'], ['show version'], ['show system information']] }
+      ]
+    },
+    bgp: {
+      title: 'EBGP & BFD Peering',
+      positions: { R1: { x: 200, y: 160 }, R2: { x: 560, y: 160 }, 'Host-A': { x: 200, y: 420 }, 'Host-B': { x: 560, y: 420 } },
+      nodes: [
+        { name: 'R1', template: 'vmx', model: 'vMX 21.4' }, { name: 'R2', template: 'vmx', model: 'vMX 21.4' },
+        { name: 'Host-A', template: 'ubuntu' }, { name: 'Host-B', template: 'vpcs' }
+      ],
+      topology: [
+        { a: 'R1', ap: 'ge-0/0/0', b: 'R2', bp: 'ge-0/0/0', label: '10.0.12.0/30, AS65001 ↔ AS65002' },
+        { a: 'R1', ap: 'ge-0/0/1', b: 'Host-A', bp: 'eth0', label: '192.168.10.0/24' },
+        { a: 'R2', ap: 'ge-0/0/1', b: 'Host-B', bp: 'eth0', label: '192.168.20.0/24' }
+      ],
+      hosts: [
+        { name: 'Host-A', ip: '192.168.10.10', gateway: '192.168.10.1' },
+        { name: 'Host-B', ip: '192.168.20.10', gateway: '192.168.20.1' }
+      ],
+      configs: {
+        R1: [
+          'set system host-name R1',
+          'set interfaces ge-0/0/0 description LINK-TO-R2-AS65002',
+          'set interfaces ge-0/0/0 unit 0 family inet address 10.0.12.1/30',
+          'set interfaces ge-0/0/1 description HOST-LAN-A',
+          'set interfaces ge-0/0/1 unit 0 family inet address 192.168.10.1/24',
+          'set interfaces lo0 unit 0 family inet address 1.1.1.1/32',
+          'set routing-options autonomous-system 65001',
+          'set routing-options router-id 1.1.1.1',
+          'set protocols bgp group EBGP type external',
+          'set protocols bgp group EBGP bfd-liveness-detection minimum-interval 300',
+          'set protocols bgp group EBGP bfd-liveness-detection multiplier 3',
+          'set protocols bgp group EBGP neighbor 10.0.12.2 peer-as 65002',
+          'set policy-options policy-statement EXPORT-CONNECTED term DIRECT from protocol direct',
+          'set protocols bgp group EBGP export EXPORT-CONNECTED',
+          'set policy-options policy-statement EXPORT-STATIC term ST1 from protocol static',
+          'set protocols bgp group EBGP export EXPORT-STATIC'
+        ],
+        R2: [
+          'set system host-name R2',
+          'set interfaces ge-0/0/0 description LINK-TO-R1-AS65001',
+          'set interfaces ge-0/0/0 unit 0 family inet address 10.0.12.2/30',
+          'set interfaces ge-0/0/1 description HOST-LAN-B',
+          'set interfaces ge-0/0/1 unit 0 family inet address 192.168.20.1/24',
+          'set interfaces lo0 unit 0 family inet address 2.2.2.2/32',
+          'set routing-options autonomous-system 65002',
+          'set routing-options router-id 2.2.2.2',
+          'set protocols bgp group EBGP type external',
+          'set protocols bgp group EBGP bfd-liveness-detection minimum-interval 300',
+          'set protocols bgp group EBGP bfd-liveness-detection multiplier 3',
+          'set protocols bgp group EBGP neighbor 10.0.12.1 peer-as 65001',
+          'set policy-options policy-statement EXPORT-CONNECTED term DIRECT from protocol direct',
+          'set protocols bgp group EBGP export EXPORT-CONNECTED',
+          'set policy-options policy-statement EXPORT-STATIC term ST1 from protocol static',
+          'set protocols bgp group EBGP export EXPORT-STATIC',
+          'set routing-options static route 203.0.113.0/24 next-hop discard'
+        ]
+      },
+      tasks: [
+        { title: 'Establish the eBGP session', device: 'R1', run: [['show bgp summary'], ['show bgp neighbor']] },
+        { title: 'BFD health for the peer', device: 'R1', run: [['show bfd session'], ['show bfd session detail']] },
+        { title: 'Verify exchanged routes', device: 'R1', run: [['show route protocol bgp'], ['show route table inet.0 summary']] },
+        { title: 'Announce a new prefix (R2)', device: 'R2', sub: 'configure', run: [['set policy-options policy-statement EXPORT-STATIC term ST1 from route-filter 198.51.100.0/24 exact'], ['set routing-options static route 198.51.100.0/24 next-hop discard'], ['commit']] },
+        { title: 'End-to-end via BGP path', device: 'Host-B', run: [['ping 192.168.10.10']] }
+      ]
+    },
+    vsrx: {
+      title: 'vSRX Zones, Policies & NAT',
+      positions: { FW1: { x: 400, y: 140 }, R1: { x: 660, y: 140 }, 'Host-A': { x: 210, y: 300 }, 'Host-B': { x: 210, y: 470 } },
+      nodes: [
+        { name: 'FW1', template: 'srx', model: 'vSRX 3.0' }, { name: 'R1', template: 'vmx', model: 'vMX 21.4' },
+        { name: 'Host-A', template: 'ubuntu' }, { name: 'Host-B', template: 'vpcs' }
+      ],
+      topology: [
+        { a: 'FW1', ap: 'ge-0/0/0', b: 'R1', bp: 'ge-0/0/0', label: 'UNTRUST, 203.0.113.0/30' },
+        { a: 'FW1', ap: 'ge-0/0/1', b: 'Host-A', bp: 'eth0', label: 'TRUST, 192.168.10.0/24' },
+        { a: 'FW1', ap: 'ge-0/0/2', b: 'Host-B', bp: 'eth0', label: 'TRUST, 192.168.20.0/24' }
+      ],
+      hosts: [
+        { name: 'Host-A', ip: '192.168.10.10', gateway: '192.168.10.1' },
+        { name: 'Host-B', ip: '192.168.20.10', gateway: '192.168.20.1' }
+      ],
+      configs: {
+        FW1: [
+          'set system host-name FW1',
+          'set interfaces ge-0/0/0 description UNTRUST-UPSTREAM',
+          'set interfaces ge-0/0/0 unit 0 family inet address 203.0.113.1/30',
+          'set interfaces ge-0/0/1 description TRUST-LAN-A',
+          'set interfaces ge-0/0/1 unit 0 family inet address 192.168.10.1/24',
+          'set interfaces ge-0/0/2 description TRUST-LAN-B',
+          'set interfaces ge-0/0/2 unit 0 family inet address 192.168.20.1/24',
+          'set security zones security-zone TRUST interfaces ge-0/0/1',
+          'set security zones security-zone TRUST interfaces ge-0/0/2',
+          'set security zones security-zone TRUST host-inbound-traffic system-services ping',
+          'set security zones security-zone UNTRUST interfaces ge-0/0/0',
+          'set security policies from-zone TRUST to-zone UNTRUST policy ALLOW-OUT match source-address any',
+          'set security policies from-zone TRUST to-zone UNTRUST policy ALLOW-OUT match destination-address any',
+          'set security policies from-zone TRUST to-zone UNTRUST policy ALLOW-OUT match application any',
+          'set security policies from-zone TRUST to-zone UNTRUST policy ALLOW-OUT then permit',
+          'set security policies from-zone TRUST to-zone UNTRUST policy ALLOW-OUT then permit log',
+          'set security policies from-zone TRUST to-zone UNTRUST policy WEB-ACCESS match source-address any',
+          'set security policies from-zone TRUST to-zone UNTRUST policy WEB-ACCESS match destination-address 203.0.113.0/24',
+          'set security policies from-zone TRUST to-zone UNTRUST policy WEB-ACCESS match application any',
+          'set security policies from-zone TRUST to-zone UNTRUST policy WEB-ACCESS then permit',
+          'set security policies default-policy deny-all',
+          'set security nat source rule-set SNAT from zone TRUST to zone UNTRUST rule SR-1 match source-address 0.0.0.0/0',
+          'set security nat source rule-set SNAT from zone TRUST to zone UNTRUST rule SR-1 then source-nat interface',
+          'set routing-options static route 0.0.0.0/0 next-hop 203.0.113.2'
+        ],
+        R1: [
+          'set system host-name R1',
+          'set interfaces ge-0/0/0 description UPSTREAM-TO-FW1',
+          'set interfaces ge-0/0/0 unit 0 family inet address 203.0.113.2/30',
+          'set interfaces lo0 unit 0 family inet address 9.9.9.9/32',
+          'set routing-options static route 192.168.10.0/24 next-hop 203.0.113.1'
+        ]
+      },
+      tasks: [
+        { title: 'Zones & host-inbound', device: 'FW1', run: [['show security zones'], ['show interfaces descriptions']] },
+        { title: 'Policies & hit counts', device: 'FW1', run: [['show security policies'], ['show security policies hit-count']] },
+        { title: 'Flow sessions & NAT', device: 'FW1', run: [['show security flow session'], ['show security nat source summary']] },
+        { title: 'IKE / IPsec baseline', device: 'FW1', run: [['show security ike security-associations'], ['show security ipsec security-associations']] },
+        { title: 'Add a deny policy step', device: 'FW1', sub: 'configure', run: [['set security policies from-zone TRUST to-zone UNTRUST policy BLOCK-TELNET match destination-address 203.0.113.0/24'], ['set security policies from-zone TRUST to-zone UNTRUST policy BLOCK-TELNET match source-address any'], ['set security policies from-zone TRUST to-zone UNTRUST policy BLOCK-TELNET match application telnet'], ['set security policies from-zone TRUST to-zone UNTRUST policy BLOCK-TELNET then deny'], ['commit'], ['show security policies']] },
+        { title: 'Upstream reachability', device: 'Host-A', run: [['ping 203.0.113.2']] }
+      ]
+    }
   };
 
   APP.TEMPLATES = TEMPLATES;
@@ -91,7 +309,7 @@
         makeLink('l-4', 'n-sw1', 'ge-0/0/1', 'n-host-a', 'eth0', 'VLAN 10, staff'),
         makeLink('l-5', 'n-sw1', 'ge-0/0/2', 'n-host-b', 'eth0', 'VLAN 20, guest')
       ],
-      annotations: [{ id: 'note-1', type: 'text', text: 'JNCIA LAB 01\nOSPF area 0.0.0.0\nR1 ─ R2 ─ R3', x: 64, y: 335, w: 136, h: 68 }],
+      annotations: [{ id: 'note-1', type: 'text', text: 'JNCIA LAB 01\nOSPF area 0.0.0.0\nR1, R2, R3', x: 64, y: 335, w: 136, h: 68 }],
       view: { zoom: 1, panX: 24, panY: 16 },
       settings: { grid: true, labels: false, leftDock: true, rightDock: true },
       savedAt: null
@@ -188,9 +406,8 @@
 
   function updateProjectChrome() {
     var title = state.title || 'Untitled Lab';
-    if ($('#projectNameLabel')) $('#projectNameLabel').textContent = title;
     if ($('#workspaceTabTitle')) $('#workspaceTabTitle').textContent = title;
-    document.title = title + ', JNCIA Junos Practice Lab';
+    document.title = title + ' - SharkLab Studio';
     $$('.preset-card').forEach(function (b) { b.classList.toggle('active', b.dataset.preset === state.preset); });
   }
 
@@ -200,13 +417,15 @@
     if ($('#statusLinks')) $('#statusLinks').textContent = l;
     if ($('#topoCount')) $('#topoCount').textContent = n;
     var running = state.nodes.filter(function (x) { return x.status === 'running'; }).length;
-    if ($('#toolbarStatus')) $('#toolbarStatus').textContent = running + '/' + n + ' nodes running';
+    if ($('#statusRunning')) $('#statusRunning').textContent = running + '/' + n + ' running';
+    var runItem = document.querySelector('.status-run');
+    if (runItem) runItem.classList.toggle('off', !n || running < n);
   }
 
   function markDirty() {
     dirty = true;
     var el = $('#saveState');
-    if (el) { el.style.color = '#9a9b9f'; el.innerHTML = icon('save') + '<span>Unsaved</span>'; }
+    if (el) { el.style.color = '#a9a294'; el.innerHTML = icon('save') + '<span>Unsaved</span>'; }
   }
   function setSaved() {
     dirty = false;
@@ -340,6 +559,41 @@
     markDirty(); scheduleSave();
   };
 
+  // preset bootstrap: wipe every device runtime and rebuild committed configs
+  APP.clearRuntimes = function () {
+    runtimes = {};
+    try { if (J._rts) { for (var k in J._rts) delete J._rts[k]; } } catch (e) {}
+  };
+
+  APP.resetRuntime = function (name, setLines, presetTitle, node) {
+    var n = node || nodeByName(name);
+    if (!n || !n.junos) return null;
+    var rt = createRuntime(n);
+    if (!rt) return null;
+    if (Array.isArray(setLines) && setLines.length) {
+      try {
+        var fresh = J.machine.buildRootFromSetLines(setLines);
+        var committed = J.db ? J.db.clone(fresh) : JSON.parse(JSON.stringify(fresh));
+        rt.committed = committed;
+        rt.config = committed;
+        rt.candidate = J.db ? J.db.clone(fresh) : JSON.parse(JSON.stringify(fresh));
+        rt.revisions = [J.db ? J.db.clone(fresh) : JSON.parse(JSON.stringify(fresh))];
+        rt.files = {};
+        rt.protectedPaths = [];
+      } catch (e) {}
+      var stamp = Date.now();
+      rt.bootAt = stamp - 180000;
+      rt.lastConfigured = rt.bootAt + 60000;
+      rt.commitCount = 1;
+      rt.commitLog = [{ time: stamp, by: 'root', comment: 'preset: ' + (presetTitle || 'baseline') }];
+    }
+    if (rt.spec) {
+      if (n.model) rt.spec.model = n.model;
+      if (n.platform) rt.spec.platform = n.platform;
+    }
+    return rt;
+  };
+
   APP.restoreSnapshot = function () {
     try {
       var raw = localStorage.getItem(SNAPSHOT_KEY);
@@ -403,15 +657,18 @@
     cv.classList.toggle('no-labels', !state.settings.labels);
     // labels toggle must rebuild the link SVG: port labels are no longer drawn when hidden
     APP.render.links();
-    if ($('#gridButton')) $('#gridButton').classList.toggle('active', !!state.settings.grid);
-    if ($('#labelsButton')) $('#labelsButton').classList.toggle('active', !!state.settings.labels);
+    var gridItem = document.querySelector('[data-check="grid"]'); if (gridItem) gridItem.classList.toggle('checked', !!state.settings.grid);
+    var labelItem = document.querySelector('[data-check="labels"]'); if (labelItem) labelItem.classList.toggle('checked', !!state.settings.labels);
     applyView();
   }
   APP.renderCanvasSettings = renderCanvasSettings;
 
-  function nodeIconId(node) {
+  function nodeIconBase(node) {
     return node.icon || (node.type === 'host' ? 'pc' : node.type === 'switch' ? 'switch' : node.type === 'firewall' ? 'firewall' : 'router');
   }
+  function nodeIconId(node) { return 'node-' + nodeIconBase(node); }
+  var TREE_ICON = { router: 'router', switch: 'switch', pc: 'pc', firewall: 'firewall', server: 'server' };
+  function treeIconId(node) { return TREE_ICON[nodeIconBase(node)] || 'router'; }
   APP.nodeIconId = nodeIconId;
 
   function renderNodes() {
@@ -420,7 +677,7 @@
     var html = '';
     state.nodes.forEach(function (n) {
       html += '<div class="node ' + esc(n.status) + (selectedNodeId === n.id ? ' selected' : '') + (n.booting ? ' booting' : '') + '" data-node-id="' + esc(n.id) + '" style="left:' + n.x + 'px;top:' + n.y + 'px" title="' + esc(n.name + ', ' + n.model + ', ' + n.status) + '">' +
-        '<div class="node-card"><div class="node-status"></div><div class="node-icon ' + esc(nodeIconId(n)) + '">' + icon(nodeIconId(n)) + '</div><div class="node-label">' + esc(n.name) + '</div><div class="node-sub">' + esc(n.model || n.type) + '</div></div></div>';
+        '<div class="node-card"><div class="node-status"></div><div class="node-icon ' + esc(nodeIconBase(n)) + '">' + icon(nodeIconId(n)) + '</div><div class="node-label">' + esc(n.name) + '</div><div class="node-sub">' + esc(n.model || n.type) + '</div></div></div>';
     });
     layer.innerHTML = html;
     $$('.node', layer).forEach(bindNodeEvents);
@@ -491,7 +748,7 @@
     if (!layer) return;
     var html = '';
     state.annotations.forEach(function (a) {
-      var sel = '';
+      var sel = selectedAnnotationId === a.id ? ' selected' : '';
       if (a.type === 'rectangle') {
         html += '<g data-annotation-id="' + esc(a.id) + '" class="annotation"' + sel + '><rect x="' + a.x + '" y="' + a.y + '" width="' + a.w + '" height="' + a.h + '" rx="5" fill="rgba(255,255,255,.045)" stroke="rgba(255,255,255,.4)" stroke-width="1.4" stroke-dasharray="6 4"></rect><text class="annotation-text" x="' + (a.x + 8) + '" y="' + (a.y + 17) + '">' + esc(a.text || '') + '</text></g>';
       } else if (a.type === 'ellipse') {
@@ -502,8 +759,8 @@
         var lines = String(a.text || '').split('\n');
         var w = a.w || 150, h = a.h || 58;
         var txt = '';
-        for (var i = 0; i < Math.min(lines.length, 6); i++) txt += '<tspan x="' + (a.x + 10) + '" dy="' + (i === 0 ? 16 : 12) + '">' + esc(lines[i]) + '</tspan>';
-        html += '<g data-annotation-id="' + esc(a.id) + '" class="annotation" style="cursor:move"' + sel + '><rect class="annotation-tape" x="' + (a.x + w / 2 - 11) + '" y="' + (a.y - 5) + '" width="22" height="9" rx="1" transform="rotate(-4 ' + (a.x + w / 2) + ' ' + (a.y - 0.5) + ')"></rect><rect class="annotation-note" x="' + a.x + '" y="' + a.y + '" width="' + w + '" height="' + h + '" rx="2"></rect><text class="annotation-note-text" x="' + (a.x + 10) + '" y="' + (a.y + 2) + '">' + txt + '</text></g>';
+        for (var i = 0; i < Math.min(lines.length, 6); i++) txt += '<tspan x="' + (a.x + 12) + '" dy="' + (i === 0 ? 20 : 15) + '">' + esc(lines[i]) + '</tspan>';
+        html += '<g data-annotation-id="' + esc(a.id) + '" class="annotation" style="cursor:move"' + sel + '><rect class="annotation-note" x="' + a.x + '" y="' + a.y + '" width="' + w + '" height="' + h + '" rx="7"></rect><text class="annotation-note-text" x="' + (a.x + 12) + '" y="' + (a.y + 2) + '">' + txt + '</text></g>';
       }
     });
     layer.innerHTML = html;
@@ -524,7 +781,7 @@
     if (!state.nodes.length) { el.innerHTML = '<div class="topo-empty">No nodes in this project.</div>'; return; }
     var html = '';
     state.nodes.forEach(function (n) {
-      html += '<div class="topo-node ' + esc(n.status) + (selectedNodeId === n.id ? ' selected' : '') + '" data-tree-node="' + esc(n.id) + '" title="Console: telnet localhost:' + n.consolePort + '"><span class="tree-line"></span><span class="topo-mini-icon">' + icon(nodeIconId(n)) + '</span><span class="topo-main"><span class="topo-name"><span class="status-dot"></span>' + esc(n.name) + '</span><span class="topo-sub">' + esc(n.status === 'running' ? 'Running' : n.status === 'paused' ? 'Paused' : 'Stopped') + '</span></span><span class="topo-actions"><button class="topo-action" data-tree-action="console" title="Open console">' + icon('terminal') + '</button><button class="topo-action" data-tree-action="toggle" title="Start / pause">' + icon(n.status === 'running' ? 'pause' : 'play') + '</button></span></div>';
+      html += '<div class="topo-node ' + esc(n.status) + (selectedNodeId === n.id ? ' selected' : '') + '" data-tree-node="' + esc(n.id) + '" title="Console: telnet localhost:' + n.consolePort + '"><span class="topo-mini-icon">' + icon(treeIconId(n)) + '</span><span class="topo-name"><span class="status-dot"></span>' + esc(n.name) + '</span><span class="topo-sub">' + esc(n.status === 'running' ? 'Running' : n.status === 'paused' ? 'Paused' : 'Stopped') + '</span><span class="topo-actions"><button class="topo-action" data-tree-action="console" title="Open console">' + icon('terminal') + '</button><button class="topo-action" data-tree-action="toggle" title="Start / pause">' + icon(n.status === 'running' ? 'pause' : 'play') + '</button></span></div>';
     });
     el.innerHTML = html;
     $$('.topo-node', el).forEach(function (row) {
@@ -700,7 +957,6 @@
       if (drag.moved) { scheduleSave(); renderTopologyTree(); }
       drag = null;
     });
-    el.addEventListener('dblclick', function (e) { e.stopPropagation(); if (APP.openConsoleById) APP.openConsoleById(id); });
     el.addEventListener('contextmenu', function (e) {
       e.preventDefault(); e.stopPropagation(); selectNode(id);
       if (APP.showNodeMenu) APP.showNodeMenu(id, e.clientX, e.clientY);
@@ -907,7 +1163,7 @@
       if (!ifc) return;
       if (ifc.kind === 'phys' && n.type === 'switch' && !/^ge-0\/0\/([0-9]|1[0-1])$/.test(name)) return;
       if (ifc.kind === 'phys' && n.type !== 'switch' && !/^ge-0\/0\/([0-7])$/.test(name)) return;
-      var family = '—', addr = '';
+      var family = '-', addr = '';
       var uni = ifc.unilist && ifc.unilist.length ? ifc.unilist[0] : null;
       if (uni) {
         if (uni.family === 'inet') { family = 'inet'; addr = uni.addrs.join(', '); }

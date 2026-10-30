@@ -8,8 +8,6 @@
   function setServerChrome() {
     var host = global.location.hostname || '127.0.0.1';
     var port = global.location.port || '3000';
-    var pill = $('#serverPill');
-    if (pill) pill.innerHTML = '<span class="pulse-dot"></span><span>Local, ' + host + ':' + port + '</span>';
     var addr = document.querySelector('.server-address');
     if (addr) addr.textContent = host + ':' + port;
   }

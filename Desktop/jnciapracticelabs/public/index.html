@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#09090a">
-  <title>JNCIA Junos Practice Lab</title>
+  <meta name="theme-color" content="#1b1a17">
+  <title>SharkLab Studio</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/app.css">
 </head>
@@ -17,137 +17,94 @@
       <circle cx="15.5" cy="22.5" r="2.6" fill="currentColor"/>
       <path d="M14 12.3l6-.9M12.8 14.4l1.9 5.9M20.7 12.9l-3.4 7.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
     </symbol>
-    <symbol id="i-new" viewBox="0 0 24 24"><path d="M6 3.5h7l5 5v12H6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M13 3.5v5h5M9 14h6M12 11v6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
-    <symbol id="i-open" viewBox="0 0 24 24"><path d="M3.5 7.5h6l2-2h9v13h-17z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M3.5 9.5h17l-2 8.5h-15z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
-    <symbol id="i-save" viewBox="0 0 24 24"><path d="M4 4h13l3 3v13H4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8 4v6h8V4M8 20v-6h8v6" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
-    <symbol id="i-snapshot" viewBox="0 0 24 24"><path d="M4 8h4l1.5-2h5L16 8h4v11H4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13.5" r="3.2" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
-    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.2l11 6.8-11 6.8z" fill="currentColor"/></symbol>
-    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM14 5h4v14h-4z" fill="currentColor"/></symbol>
-    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.2" fill="currentColor"/></symbol>
-    <symbol id="i-reload" viewBox="0 0 24 24"><path d="M19 8.5A7.5 7.5 0 1 0 19.4 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M19 4.5v4.7h-4.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-    <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M7 9l3.2 3L7 15M12.5 15H17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-    <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 3.5h10l4 4v13H5z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M15 3.5v4h4M8 12h8M8 16h6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
-    <symbol id="i-rect" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="1" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
-    <symbol id="i-ellipse" viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8" ry="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
-    <symbol id="i-line" viewBox="0 0 24 24"><path d="M4 19L20 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="4" cy="19" r="1.7" fill="currentColor"/><circle cx="20" cy="5" r="1.7" fill="currentColor"/></symbol>
-    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M4 5h8l7 7-7 7H4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="8" cy="10" r="1.4" fill="currentColor"/></symbol>
-    <symbol id="i-fit" viewBox="0 0 24 24"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="8" y="8" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/></symbol>
-    <symbol id="i-zoom-in" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 15l5 5M8 10.5h5M10.5 8v5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
-    <symbol id="i-zoom-out" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 15l5 5M8 10.5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
-    <symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16" fill="none" stroke="currentColor" stroke-width="1.3"/></symbol>
-    <symbol id="i-router" viewBox="0 0 64 64">
-      <rect x="10" y="15" width="44" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="2.2"/>
-      <!-- status band -->
-      <rect x="14.5" y="19" width="13" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".55"/>
-      <path d="M16.8 22.5h8.4" stroke="currentColor" stroke-width="1.1" opacity=".4"/>
-      <circle cx="41" cy="22.5" r="1.2" fill="currentColor" opacity=".45"/>
-      <circle cx="44.6" cy="22.5" r="1.2" fill="currentColor" opacity=".45"/>
-      <circle cx="48.2" cy="22.5" r="1.2" fill="currentColor" opacity=".45"/>
-      <circle cx="51" cy="22.5" r="1.5" fill="currentColor"/>
-      <path d="M10 29.6h44" stroke="currentColor" stroke-width="1.1" opacity=".35"/>
-      <!-- interface zone -->
-      <g fill="none" stroke="currentColor" stroke-width="1.2" opacity=".6">
-        <rect x="14.5" y="33" width="9.5" height="12" rx="1.2"/>
-        <rect x="26.5" y="33" width="9.5" height="12" rx="1.2"/>
-      </g>
-      <path d="M16.7 35.4h5M16.7 38h5M28.7 35.4h5M28.7 38h5" stroke="currentColor" stroke-width="1" opacity=".4"/>
-      <g fill="none" stroke="currentColor" stroke-width="1.2" opacity=".6">
-        <rect x="39.5" y="33" width="5.6" height="12" rx="1"/>
-        <rect x="47.3" y="33" width="5.6" height="12" rx="1"/>
-      </g>
-      <path d="M41.3 36h2M49.1 36h2" stroke="currentColor" stroke-width="1" opacity=".4"/>
+    <symbol id="i-node-router" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="7" y="18" width="50" height="30" rx="10"/>
+      <rect x="13.5" y="24" width="25" height="5.5" rx="2.75" stroke-width="1.9" opacity=".4"/>
+      <circle cx="45.5" cy="26.75" r="2.1" fill="currentColor" stroke="none"/>
+      <circle cx="51.5" cy="26.75" r="2.1" fill="currentColor" stroke="none" opacity=".45"/>
+      <rect x="13.5" y="35" width="37" height="8" rx="4" stroke-width="1.9" opacity=".45"/>
     </symbol>
-    <symbol id="i-switch" viewBox="0 0 64 64">
-      <rect x="6" y="20" width="52" height="24" rx="3" fill="none" stroke="currentColor" stroke-width="2.2"/>
-      <!-- link LED strip -->
-      <g fill="currentColor">
-        <circle cx="10.6" cy="24.4" r="1.3"/>
-        <circle cx="15.2" cy="24.4" r="1.3" opacity=".45"/>
-        <circle cx="19.8" cy="24.4" r="1.3" opacity=".45"/>
-        <circle cx="24.4" cy="24.4" r="1.3" opacity=".45"/>
-        <circle cx="29" cy="24.4" r="1.3" opacity=".45"/>
-        <circle cx="33.6" cy="24.4" r="1.3" opacity=".45"/>
-      </g>
-      <path d="M38 24.4h16.4" stroke="currentColor" stroke-width="1" opacity=".3"/>
-      <path d="M6 27.8h52" stroke="currentColor" stroke-width="1.1" opacity=".35"/>
-      <!-- RJ45 row -->
-      <g fill="none" stroke="currentColor" stroke-width="1.2" opacity=".6">
-        <rect x="9.6" y="30.6" width="4.6" height="9.6" rx="0.8"/>
-        <rect x="16" y="30.6" width="4.6" height="9.6" rx="0.8"/>
-        <rect x="22.4" y="30.6" width="4.6" height="9.6" rx="0.8"/>
-        <rect x="28.8" y="30.6" width="4.6" height="9.6" rx="0.8"/>
-        <rect x="35.2" y="30.6" width="4.6" height="9.6" rx="0.8"/>
-        <rect x="41.6" y="30.6" width="4.6" height="9.6" rx="0.8"/>
-      </g>
-      <!-- SFP bay -->
-      <rect x="48" y="30.6" width="6" height="9.6" rx="0.8" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".6"/>
-      <path d="M50 33.2h2M50 36h2" stroke="currentColor" stroke-width="1" opacity=".4"/>
+    <symbol id="i-node-switch" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4" y="21" width="56" height="23" rx="10"/>
+      <circle cx="12.5" cy="28.5" r="2" fill="currentColor" stroke="none"/>
+      <circle cx="18.5" cy="28.5" r="2" fill="currentColor" stroke="none" opacity=".45"/>
+      <circle cx="24.5" cy="28.5" r="2" fill="currentColor" stroke="none" opacity=".45"/>
+      <rect x="10" y="34.5" width="6" height="5" rx="2.2" stroke-width="1.9" opacity=".55"/>
+      <rect x="18.5" y="34.5" width="6" height="5" rx="2.2" stroke-width="1.9" opacity=".55"/>
+      <rect x="27" y="34.5" width="6" height="5" rx="2.2" stroke-width="1.9" opacity=".55"/>
+      <rect x="35.5" y="34.5" width="6" height="5" rx="2.2" stroke-width="1.9" opacity=".55"/>
+      <rect x="44" y="34.5" width="8" height="5" rx="2.2" stroke-width="1.9" opacity=".55"/>
     </symbol>
-    <symbol id="i-pc" viewBox="0 0 64 64">
-      <!-- desktop tower -->
-      <rect x="21" y="9" width="22" height="46" rx="3" fill="none" stroke="currentColor" stroke-width="2.2"/>
-      <!-- bezel inset -->
-      <rect x="24.5" y="13" width="15" height="38" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".35"/>
-      <!-- drive bay + media slot -->
-      <rect x="27.5" y="17.5" width="9" height="3.4" rx="1" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".6"/>
-      <path d="M27.5 23.8h9" stroke="currentColor" stroke-width="1.2" opacity=".5"/>
-      <path d="M27.5 26.8h5.4" stroke="currentColor" stroke-width="1.2" opacity=".5"/>
-      <!-- activity LED + power -->
-      <circle cx="33.5" cy="39.5" r="1.4" fill="currentColor" opacity=".55"/>
-      <circle cx="32" cy="47.8" r="2" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".7"/>
-      <circle cx="32" cy="47.8" r=".7" fill="currentColor"/>
+    <symbol id="i-node-pc" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="8" y="13" width="48" height="31" rx="7"/>
+      <rect x="14" y="19" width="36" height="19" rx="4" stroke-width="1.9" opacity=".4"/>
+      <path d="M32 44v6" stroke-width="2.4"/>
+      <path d="M21 50.5h22" stroke-width="2.4"/>
     </symbol>
-    <symbol id="i-firewall" viewBox="0 0 64 64">
-      <rect x="8" y="13" width="48" height="38" rx="3" fill="none" stroke="currentColor" stroke-width="2.2"/>
-      <path d="M8 21.6h48" stroke="currentColor" stroke-width="1.1" opacity=".35"/>
-      <!-- status LEDs -->
-      <circle cx="12.8" cy="17.3" r="1.3" fill="currentColor"/>
-      <circle cx="17" cy="17.3" r="1.3" fill="currentColor" opacity=".45"/>
-      <circle cx="21.2" cy="17.3" r="1.3" fill="currentColor" opacity=".45"/>
-      <!-- vent grid -->
-      <g stroke="currentColor" stroke-width="1.1" opacity=".45">
-        <path d="M12.5 25.8h9.5M12.5 28.8h9.5M12.5 31.8h9.5M12.5 34.8h9.5M12.5 37.8h9.5"/>
-      </g>
-      <path d="M25.5 21.6v29.4" stroke="currentColor" stroke-width="1.1" opacity=".35"/>
-      <!-- port cluster -->
-      <g fill="none" stroke="currentColor" stroke-width="1.2" opacity=".6">
-        <rect x="29.5" y="25.5" width="11" height="7" rx="1"/>
-        <rect x="42" y="25.5" width="11" height="7" rx="1"/>
-        <rect x="29.5" y="35.5" width="4.8" height="9" rx="0.8"/>
-        <rect x="36" y="35.5" width="4.8" height="9" rx="0.8"/>
-        <rect x="42.5" y="35.5" width="4.8" height="9" rx="0.8"/>
-        <rect x="49" y="35.5" width="4.8" height="9" rx="0.8"/>
-      </g>
-      <path d="M31.5 28.2h7M44 28.2h7" stroke="currentColor" stroke-width="1" opacity=".4"/>
+    <symbol id="i-node-firewall" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="7" y="14" width="50" height="36" rx="10"/>
+      <circle cx="14" cy="21" r="2" fill="currentColor" stroke="none"/>
+      <circle cx="20" cy="21" r="2" fill="currentColor" stroke="none" opacity=".45"/>
+      <rect x="13" y="30" width="9" height="6" rx="3" stroke-width="1.9" opacity=".5"/>
+      <rect x="27.5" y="30" width="9" height="6" rx="3" stroke-width="1.9" opacity=".5"/>
+      <rect x="42" y="30" width="9" height="6" rx="3" stroke-width="1.9" opacity=".5"/>
+      <rect x="20" y="40" width="9" height="6" rx="3" stroke-width="1.9" opacity=".5"/>
+      <rect x="34.5" y="40" width="9" height="6" rx="3" stroke-width="1.9" opacity=".5"/>
     </symbol>
-    <symbol id="i-cable" viewBox="0 0 24 24"><path d="M4 17.5h4.2l6.5-6.5H20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="2" y="14.8" width="4" height="5.4" rx="1" fill="currentColor"/><rect x="18" y="8.8" width="4" height="5.4" rx="1" fill="currentColor"/><path d="M10 14l4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
-    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 15l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
-    <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-    <symbol id="i-chevron-up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
-    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
-    <symbol id="i-square" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
-    <symbol id="i-detach" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8 8M9 7H5v12h12v-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-    <symbol id="i-dock" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 10h16M9 10v9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
-    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
-    <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="3" y="13" width="18" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="7" cy="7.5" r="1" fill="currentColor"/><circle cx="7" cy="16.5" r="1" fill="currentColor"/><path d="M11 7.5h6M11 16.5h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
-    <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" opacity=".65"/><path d="M9 3v3M12 3v3M15 3v3M9 18v3M12 18v3M15 18v3M3 9h3M3 12h3M3 15h3M18 9h3M18 12h3M18 15h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
-    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.5l1.5 2.1 2.5-.6.6 2.5 2.1 1.5-1.2 2.2 1.2 2.2-2.1 1.5-.6 2.5-2.5-.6L12 20.5l-1.5-2.1-2.5.6-.6-2.5-2.1-1.5 1.2-2.2-1.2-2.2 2.1-1.5.6-2.5 2.5.6z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
-    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9.6 9a2.5 2.5 0 1 1 4.2 1.8c-.9.8-1.8 1.4-1.8 2.7M12 17.2v.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
-    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14M9 7V4.5h6V7M7 7l1 13h8l1-13M10 11v5M14 11v5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-    <symbol id="i-packet" viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.8 12S6 6.5 12 6.5 21.2 12 21.2 12 18 17.5 12 17.5 2.8 12 2.8 12z" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
-    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-node-server" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="3" y="13" width="18" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="7" cy="7.5" r="1" fill="currentColor"/><circle cx="7" cy="16.5" r="1" fill="currentColor"/><path d="M11 7.5h6M11 16.5h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-cable" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M17 19a1 1 0 0 1-1-1v-2a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2a1 1 0 0 1-1 1z" /><path d="M17 21v-2" /><path d="M19 14V6.5a1 1 0 0 0-7 0v11a1 1 0 0 1-7 0V10" /><path d="M21 21v-2" /><path d="M3 5V3" /><path d="M4 10a2 2 0 0 1-2-2V6a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2a2 2 0 0 1-2 2z" /><path d="M7 5V3" /></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></symbol>
+    <symbol id="i-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6" /></symbol>
+    <symbol id="i-chevron-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6" /></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v2" /><path d="M12 2v2" /><path d="M17 20v2" /><path d="M17 2v2" /><path d="M2 12h2" /><path d="M2 17h2" /><path d="M2 7h2" /><path d="M20 12h2" /><path d="M20 17h2" /><path d="M20 7h2" /><path d="M7 20v2" /><path d="M7 2v2" /><rect x="4" y="4" width="16" height="16" rx="4" /><rect x="8" y="8" width="8" height="8" rx="2.5" /></symbol>
+    <symbol id="i-detach" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></symbol>
+    <symbol id="i-dock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="4" /><path d="M3 15h18" /></symbol>
+    <symbol id="i-ellipse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></symbol>
+    <symbol id="i-firewall" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></symbol>
+    <symbol id="i-fit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3" /><path d="M21 8V5a2 2 0 0 0-2-2h-3" /><path d="M3 16v3a2 2 0 0 0 2 2h3" /><path d="M16 21h3a2 2 0 0 0 2-2v-3" /></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="4" /><path d="M3 9h18" /><path d="M3 15h18" /><path d="M9 3v18" /><path d="M15 3v18" /></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></symbol>
+    <symbol id="i-line" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 2 22" /></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16" /><path d="M4 12h16" /><path d="M4 19h16" /></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /></symbol>
+    <symbol id="i-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m10.586 5.414-5.172 5.172" /><path d="m18.586 13.414-5.172 5.172" /><path d="M6 12h12" /><circle cx="12" cy="20" r="2" /><circle cx="12" cy="4" r="2" /><circle cx="20" cy="12" r="2" /><circle cx="4" cy="12" r="2" /></symbol>
+    <symbol id="i-new" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M11.35 22H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.706.706l3.588 3.588A2.4 2.4 0 0 1 20 8v5.35" /><path d="M14 2v5a1 1 0 0 0 1 1h5" /><path d="M14 19h6" /><path d="M17 16v6" /></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M21 9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z" /><path d="M15 3v5a1 1 0 0 0 1 1h5" /></symbol>
+    <symbol id="i-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" /></symbol>
+    <symbol id="i-packet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" /></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="3" width="5" height="18" rx="2.5" /><rect x="5" y="3" width="5" height="18" rx="2.5" /></symbol>
+    <symbol id="i-pc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="4" /><line x1="8" x2="16" y1="21" y2="21" /><line x1="12" x2="12" y1="17" y2="21" /></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></symbol>
+    <symbol id="i-rect" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="4" /></symbol>
+    <symbol id="i-reload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /></symbol>
+    <symbol id="i-router" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="14" rx="4" /><path d="M6.01 18H6" /><path d="M10.01 18H10" /><path d="M15 10v4" /><path d="M17.84 7.17a4 4 0 0 0-5.66 0" /><path d="M20.66 4.34a8 8 0 0 0-11.31 0" /></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" /><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" /><path d="M7 3v4a1 1 0 0 0 1 1h7" /></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></symbol>
+    <symbol id="i-server" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="4" ry="4" /><rect width="20" height="8" x="2" y="14" rx="4" ry="4" /><line x1="6" x2="6.01" y1="6" y2="6" /><line x1="6" x2="6.01" y1="18" y2="18" /></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5H3" /><path d="M12 19H3" /><path d="M14 3v4" /><path d="M16 17v4" /><path d="M21 12h-9" /><path d="M21 19h-5" /><path d="M21 5h-7" /><path d="M8 10v4" /><path d="M8 12H3" /></symbol>
+    <symbol id="i-snapshot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" /><circle cx="12" cy="13" r="3" /></symbol>
+    <symbol id="i-square" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="4" /></symbol>
+    <symbol id="i-restore" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="4" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="4" /></symbol>
+    <symbol id="i-switch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="2.5" /><rect x="2" y="16" width="6" height="6" rx="2.5" /><rect x="9" y="2" width="6" height="6" rx="2.5" /><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3" /><path d="M12 12V8" /></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" /><circle cx="7.5" cy="7.5" r=".5" fill="currentColor" /></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m7 11 2-2-2-2" /><path d="M11 13h4" /><rect width="18" height="18" x="3" y="3" rx="4" ry="4" /></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11v6" /><path d="M14 11v6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></symbol>
+    <symbol id="i-warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /><path d="M12 9v4" /><path d="M12 17h.01" /></symbol>
+    <symbol id="i-zoom-in" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" x2="16.65" y1="21" y2="16.65" /><line x1="11" x2="11" y1="8" y2="14" /><line x1="8" x2="14" y1="11" y2="11" /></symbol>
+    <symbol id="i-zoom-out" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" x2="16.65" y1="21" y2="16.65" /><line x1="8" x2="14" y1="11" y2="11" /></symbol>
   </svg>
 
   <div class="app-shell" id="appShell">
     <header class="menubar">
-      <button class="brand" id="brandButton" title="mySHARKSlabspractice">
+      <button class="brand" id="brandButton" title="SharkLab Studio">
         <span class="brand-mark"><svg><use href="#i-logo"></use></svg></span>
-        <span class="brand-text">mySHARKSlabspractice</span>
+        <span class="brand-text">SharkLab Studio</span>
       </button>
       <nav class="menu-roots" id="menuRoots" aria-label="Application menu">
         <div class="menu-root">
@@ -182,12 +139,12 @@
         <div class="menu-root">
           <button class="menu-trigger" data-menu="view">View</button>
           <div class="menu-pop" data-pop="view">
-            <button data-action="zoom-in"><span>Zoom In</span><kbd>Ctrl++</kbd></button>
-            <button data-action="zoom-out"><span>Zoom Out</span><kbd>Ctrl+-</kbd></button>
+            <button data-action="zoom-in"><span>Zoom In</span><kbd>Ctrl +</kbd></button>
+            <button data-action="zoom-out"><span>Zoom Out</span><kbd>Ctrl -</kbd></button>
             <button data-action="fit-view"><span>Fit to Screen</span><kbd>Ctrl+0</kbd></button>
             <div class="menu-sep"></div>
-            <button data-action="toggle-grid"><span>Show Grid</span><kbd></kbd></button>
-            <button data-action="toggle-labels"><span>Show Interface Labels</span><kbd></kbd></button>
+            <button data-action="toggle-grid" data-check="grid"><span>Show Grid</span><span class="menu-check"><svg><use href="#i-check"></use></svg></span></button>
+            <button data-action="toggle-labels" data-check="labels"><span>Show Interface Labels</span><span class="menu-check"><svg><use href="#i-check"></use></svg></span></button>
             <div class="menu-sep"></div>
             <button data-action="toggle-left"><span>Toggle Device Dock</span><kbd></kbd></button>
             <button data-action="toggle-right"><span>Toggle Panels</span><kbd></kbd></button>
@@ -202,7 +159,7 @@
             <button data-action="stop-all"><span>Stop All Nodes</span><kbd>Ctrl+Shift+W</kbd></button>
             <button data-action="reload-all"><span>Reload All Nodes</span><kbd>Ctrl+Shift+R</kbd></button>
             <div class="menu-sep"></div>
-            <button data-action="console-all"><span>Console Connect to All</span><kbd>Ctrl+Shift+C</kbd></button>
+            <button data-action="console-all"><span>Connect All Consoles</span><kbd>Ctrl+Shift+C</kbd></button>
             <button data-action="console-manager"><span>Console Manager…</span><kbd></kbd></button>
           </div>
         </div>
@@ -214,8 +171,8 @@
             <button data-action="node-stop"><span>Stop</span><kbd></kbd></button>
             <button data-action="node-restart"><span>Restart</span><kbd></kbd></button>
             <div class="menu-sep"></div>
-            <button data-action="node-console"><span>Web Console / Terminal</span><kbd>Ctrl+Enter</kbd></button>
-            <button data-action="node-interfaces"><span>Configure Interfaces…</span><kbd></kbd></button>
+            <button data-action="node-console"><span>Open Console</span><kbd>Ctrl+Enter</kbd></button>
+            <button data-action="node-configure"><span>Configure Device (GUI)…</span><kbd></kbd></button>
             <button data-action="node-capture"><span>Packet Capture…</span><kbd></kbd></button>
             <div class="menu-sep"></div>
             <button class="danger" data-action="node-delete"><span>Delete Node</span><kbd>Del</kbd></button>
@@ -235,8 +192,7 @@
         <div class="menu-root">
           <button class="menu-trigger" data-menu="tools">Tools</button>
           <div class="menu-pop" data-pop="tools">
-            <button data-action="console-manager"><span>Console Manager</span><kbd></kbd></button>
-            <button data-action="node-capture"><span>Packet Capture</span><kbd></kbd></button>
+            <button data-action="fleet"><span>Fleet Intent…</span><kbd></kbd></button>
             <button data-action="command-reference"><span>Junos Command Reference</span><kbd></kbd></button>
             <div class="menu-sep"></div>
             <button data-action="server-prefs"><span>Server Preferences…</span><kbd></kbd></button>
@@ -249,90 +205,38 @@
             <button data-action="lab-guide"><span>JNCIA Lab Guide</span><kbd></kbd></button>
             <button data-action="shortcuts"><span>Keyboard Shortcuts</span><kbd>?</kbd></button>
             <div class="menu-sep"></div>
-            <button data-action="about"><span>About JNCIA Junos Lab</span><kbd></kbd></button>
+            <button data-action="about"><span>About SharkLab Studio</span><kbd></kbd></button>
           </div>
         </div>
       </nav>
       <div class="menubar-spacer"></div>
-      <div class="project-pill" id="projectPill" title="Current project">
-        <span class="project-dot"></span>
-        <span id="projectNameLabel">JNCIA Basic Routing</span>
-      </div>
-      <button class="server-pill" id="serverPill" title="Local server status">
-        <span class="pulse-dot"></span><span>Local, 127.0.0.1:3000</span>
-      </button>
     </header>
-
-    <div class="toolbar" id="toolbar" aria-label="Main toolbar">
-      <div class="tool-group">
-        <button class="tool-btn" data-action="new-project" data-tip="New Project (Ctrl+N)"><svg><use href="#i-new"></use></svg></button>
-        <button class="tool-btn" data-action="open-project" data-tip="Open Project (Ctrl+O)"><svg><use href="#i-open"></use></svg></button>
-        <button class="tool-btn" data-action="save-project" data-tip="Save Project (Ctrl+S)"><svg><use href="#i-save"></use></svg></button>
-      </div>
-      <div class="tool-sep"></div>
-      <div class="tool-group">
-        <button class="tool-btn start" data-action="start-all" data-tip="Start / Resume All Nodes"><svg><use href="#i-play"></use></svg></button>
-        <button class="tool-btn pause" data-action="pause-all" data-tip="Pause All Nodes"><svg><use href="#i-pause"></use></svg></button>
-        <button class="tool-btn stop" data-action="stop-all" data-tip="Stop All Nodes"><svg><use href="#i-stop"></use></svg></button>
-        <button class="tool-btn" data-action="reload-all" data-tip="Reload All Nodes"><svg><use href="#i-reload"></use></svg></button>
-        <button class="tool-btn console" data-action="console-all" data-tip="Console Connect to All"><svg><use href="#i-terminal"></use></svg></button>
-      </div>
-      <div class="tool-sep"></div>
-      <div class="tool-group">
-        <button class="tool-btn" data-action="add-note" data-tip="Add Note / Text Annotation"><svg><use href="#i-note"></use></svg></button>
-        <button class="tool-btn draw-tool" data-action="tool-rect" data-tool="rect" data-tip="Draw Rectangle"><svg><use href="#i-rect"></use></svg></button>
-        <button class="tool-btn draw-tool" data-action="tool-ellipse" data-tool="ellipse" data-tip="Draw Ellipse"><svg><use href="#i-ellipse"></use></svg></button>
-        <button class="tool-btn draw-tool" data-action="tool-line" data-tool="line" data-tip="Draw Line"><svg><use href="#i-line"></use></svg></button>
-      </div>
-      <div class="tool-sep"></div>
-      <div class="tool-group">
-        <button class="tool-btn toggle active" id="labelsButton" data-action="toggle-labels" data-tip="Show / Hide Interface Labels"><svg><use href="#i-tag"></use></svg></button>
-        <button class="tool-btn" data-action="fit-view" data-tip="Fit to Screen / Center Canvas"><svg><use href="#i-fit"></use></svg></button>
-        <button class="tool-btn" data-action="zoom-out" data-tip="Zoom Out"><svg><use href="#i-zoom-out"></use></svg></button>
-        <span class="zoom-readout" id="zoomReadout">100%</span>
-        <button class="tool-btn" data-action="zoom-in" data-tip="Zoom In"><svg><use href="#i-zoom-in"></use></svg></button>
-        <button class="tool-btn toggle active" id="gridButton" data-action="toggle-grid" data-tip="Show / Hide Grid"><svg><use href="#i-grid"></use></svg></button>
-      </div>
-      <div class="toolbar-spacer"></div>
-      <div class="toolbar-status">
-        <span class="status-led"></span><span id="toolbarStatus">Lab ready</span>
-      </div>
-    </div>
 
     <div class="main-shell" id="mainShell">
       <button class="dock-restore left" id="leftDockRestore" data-action="toggle-left" title="Show device palette" aria-label="Show device palette"><svg><use href="#i-chevron-right"></use></svg></button>
       <button class="dock-restore right" id="rightDockRestore" data-action="toggle-right" title="Show panels" aria-label="Show panels"><svg><use href="#i-chevron-left"></use></svg></button>
       <aside class="left-dock" id="leftDock">
         <div class="dock-titlebar">
-          <div class="dock-title"><svg><use href="#i-menu"></use></svg><span>Device Palette</span></div>
+          <div class="dock-title"><span>Device Palette</span></div>
           <button class="icon-btn" data-action="toggle-left" title="Collapse device dock"><svg><use href="#i-chevron-left"></use></svg></button>
         </div>
         <div class="palette-body">
-          <div class="palette-rail" id="paletteRail">
-            <button class="rail-btn active" data-category="all" data-tip="All Devices"><svg><use href="#i-menu"></use></svg><span>All</span></button>
-            <button class="rail-btn" data-category="routers" data-tip="Routers"><svg><use href="#i-router"></use></svg><span>Routers</span></button>
-            <button class="rail-btn" data-category="switches" data-tip="Switches"><svg><use href="#i-switch"></use></svg><span>Switches</span></button>
-            <button class="rail-btn" data-category="endpoints" data-tip="End Devices / Hosts"><svg><use href="#i-pc"></use></svg><span>Hosts</span></button>
-            <button class="rail-btn" data-category="security" data-tip="Security Devices"><svg><use href="#i-firewall"></use></svg><span>Security</span></button>
-            <button class="rail-btn" data-category="links" data-tip="All Devices &amp; Cables"><svg><use href="#i-cable"></use></svg><span>Links</span></button>
-          </div>
-          <div class="palette-content">
-            <label class="palette-search">
-              <svg><use href="#i-search"></use></svg>
-              <input id="paletteSearch" type="search" placeholder="Search devices…" autocomplete="off">
-            </label>
-            <div class="palette-scroll" id="paletteScroll">
+          <label class="palette-search">
+            <svg><use href="#i-search"></use></svg>
+            <input id="paletteSearch" type="search" placeholder="Search devices…" autocomplete="off">
+          </label>
+          <div class="palette-scroll" id="paletteScroll">
               <section class="palette-section" data-section="routers">
                 <button class="section-head"><span>Routers</span><span class="count">3</span><svg><use href="#i-chevron-down"></use></svg></button>
                 <div class="palette-grid">
                   <button class="palette-item" draggable="true" data-device="vsrx" data-category="routers" title="Juniper vSRX virtual router">
-                    <span class="dev-art router"><svg><use href="#i-router"></use></svg></span><span class="dev-name">vSRX</span><span class="dev-sub">Juniper</span>
+                    <span class="dev-art"><svg><use href="#i-router"></use></svg></span><span class="dev-name">vSRX</span><span class="dev-sub">Juniper</span>
                   </button>
                   <button class="palette-item" draggable="true" data-device="vmx" data-category="routers" title="Juniper vMX virtual router">
-                    <span class="dev-art router alt"><svg><use href="#i-router"></use></svg></span><span class="dev-name">vMX</span><span class="dev-sub">Junos 21.4</span>
+                    <span class="dev-art"><svg><use href="#i-router"></use></svg></span><span class="dev-name">vMX</span><span class="dev-sub">Junos 21.4</span>
                   </button>
                   <button class="palette-item" draggable="true" data-device="router" data-category="routers" title="Generic Junos router">
-                    <span class="dev-art router"><svg><use href="#i-router"></use></svg></span><span class="dev-name">Junos R</span><span class="dev-sub">Router</span>
+                    <span class="dev-art"><svg><use href="#i-router"></use></svg></span><span class="dev-name">Junos R</span><span class="dev-sub">Router</span>
                   </button>
                 </div>
               </section>
@@ -340,56 +244,56 @@
                 <button class="section-head"><span>Switches</span><span class="count">2</span><svg><use href="#i-chevron-down"></use></svg></button>
                 <div class="palette-grid">
                   <button class="palette-item" draggable="true" data-device="switch" data-category="switches" title="Juniper EX-series Ethernet switch">
-                    <span class="dev-art switch"><svg><use href="#i-switch"></use></svg></span><span class="dev-name">EX Switch</span><span class="dev-sub">Ethernet</span>
+                    <span class="dev-art"><svg><use href="#i-switch"></use></svg></span><span class="dev-name">EX Switch</span><span class="dev-sub">Ethernet</span>
                   </button>
                   <button class="palette-item" draggable="true" data-device="ex" data-category="switches" title="EX4300-24T switch">
-                    <span class="dev-art switch"><svg><use href="#i-switch"></use></svg></span><span class="dev-name">EX4300</span><span class="dev-sub">24-port</span>
+                    <span class="dev-art"><svg><use href="#i-switch"></use></svg></span><span class="dev-name">EX4300</span><span class="dev-sub">24-port</span>
                   </button>
                 </div>
               </section>
               <section class="palette-section" data-section="endpoints">
-                <button class="section-head"><span>End Devices / Hosts</span><span class="count">3</span><svg><use href="#i-chevron-down"></use></svg></button>
+                <button class="section-head"><span>Hosts</span><span class="count">3</span><svg><use href="#i-chevron-down"></use></svg></button>
                 <div class="palette-grid">
                   <button class="palette-item" draggable="true" data-device="vpcs" data-category="endpoints" title="Virtual PC Simulator host">
-                    <span class="dev-art pc"><svg><use href="#i-pc"></use></svg></span><span class="dev-name">VPCS</span><span class="dev-sub">Host</span>
+                    <span class="dev-art"><svg><use href="#i-pc"></use></svg></span><span class="dev-name">VPCS</span><span class="dev-sub">Host</span>
                   </button>
                   <button class="palette-item" draggable="true" data-device="ubuntu" data-category="endpoints" title="Ubuntu host">
-                    <span class="dev-art pc"><svg><use href="#i-pc"></use></svg></span><span class="dev-name">Ubuntu</span><span class="dev-sub">Host-A</span>
+                    <span class="dev-art"><svg><use href="#i-pc"></use></svg></span><span class="dev-name">Ubuntu</span><span class="dev-sub">Host-A</span>
                   </button>
                   <button class="palette-item" draggable="true" data-device="pc" data-category="endpoints" title="Generic host">
-                    <span class="dev-art pc"><svg><use href="#i-pc"></use></svg></span><span class="dev-name">Host</span><span class="dev-sub">End device</span>
+                    <span class="dev-art"><svg><use href="#i-pc"></use></svg></span><span class="dev-name">Host</span><span class="dev-sub">End device</span>
                   </button>
                 </div>
               </section>
               <section class="palette-section" data-section="security">
-                <button class="section-head"><span>Security Devices</span><span class="count">1</span><svg><use href="#i-chevron-down"></use></svg></button>
+                <button class="section-head"><span>Security</span><span class="count">1</span><svg><use href="#i-chevron-down"></use></svg></button>
                 <div class="palette-grid">
                   <button class="palette-item" draggable="true" data-device="srx" data-category="security" title="Juniper SRX firewall">
-                    <span class="dev-art firewall"><svg><use href="#i-firewall"></use></svg></span><span class="dev-name">SRX</span><span class="dev-sub">Firewall</span>
+                    <span class="dev-art"><svg><use href="#i-firewall"></use></svg></span><span class="dev-name">SRX</span><span class="dev-sub">Firewall</span>
                   </button>
                 </div>
               </section>
               <section class="palette-section" data-section="links">
-                <button class="section-head"><span>All Devices &amp; Cables</span><span class="count">2</span><svg><use href="#i-chevron-down"></use></svg></button>
+                <button class="section-head"><span>Links</span><span class="count">2</span><svg><use href="#i-chevron-down"></use></svg></button>
                 <div class="palette-grid">
-                  <button class="palette-item" data-device="link" data-category="links" title="Ethernet link tool">
-                    <span class="dev-art cable"><svg><use href="#i-cable"></use></svg></span><span class="dev-name">Ethernet</span><span class="dev-sub">Link tool</span>
+                  <button class="palette-item" draggable="true" data-device="link" data-category="links" title="Ethernet link tool">
+                    <span class="dev-art"><svg><use href="#i-cable"></use></svg></span><span class="dev-name">Ethernet</span><span class="dev-sub">Link tool</span>
                   </button>
-                  <button class="palette-item" data-device="console-cable" data-category="links" title="Console cable tool">
-                    <span class="dev-art cable"><svg><use href="#i-terminal"></use></svg></span><span class="dev-name">Console</span><span class="dev-sub">Serial cable</span>
+                  <button class="palette-item" draggable="true" data-device="console-cable" data-category="links" title="Console cable tool">
+                    <span class="dev-art"><svg><use href="#i-terminal"></use></svg></span><span class="dev-name">Console</span><span class="dev-sub">Serial cable</span>
                   </button>
                 </div>
               </section>
               <div class="palette-empty" id="paletteEmpty">No devices match your search.</div>
             </div>
-            <div class="palette-hint"><kbd>Drag</kbd> to canvas to place</div>
+            <div class="palette-hint">Drag a device onto the canvas</div>
           </div>
-        </div>
+        <div class="dock-grip" id="leftDockGrip" aria-hidden="true"></div>
       </aside>
 
       <main class="workspace">
         <div class="workspace-tabs">
-          <div class="workspace-tab active"><span class="ws-dot"></span><span id="workspaceTabTitle">JNCIA Basic Routing</span><button class="icon-btn tiny" id="workspaceTabClose" title="Close project"><svg><use href="#i-close"></use></svg></button></div>
+          <div class="workspace-tab active"><span id="workspaceTabTitle">JNCIA Basic Routing</span><button class="icon-btn tiny" id="workspaceTabClose" title="Close project"><svg><use href="#i-close"></use></svg></button></div>
           <button class="icon-btn tiny workspace-add" title="New project"><svg><use href="#i-plus"></use></svg></button>
           <div class="ws-spacer"></div>
           <button class="ws-action" id="wsLayoutButton" title="Auto arrange topology">Layout</button>
@@ -408,18 +312,24 @@
               <div class="node-layer" id="nodeLayer"></div>
             </div>
             <div class="placement-banner hidden" id="placementBanner"><span id="placementText">Click on the canvas to place vSRX</span><button id="placementCancel">Cancel</button></div>
+            <div class="canvas-zoom" aria-label="Zoom">
+              <button class="icon-btn" data-action="zoom-out" title="Zoom out"><svg><use href="#i-zoom-out"></use></svg></button>
+              <button class="zoom-value" data-action="zoom-reset" id="zoomReadout" title="Reset to 100%">100%</button>
+              <button class="icon-btn" data-action="zoom-in" title="Zoom in"><svg><use href="#i-zoom-in"></use></svg></button>
+              <span class="zoom-div"></span>
+              <button class="icon-btn" data-action="fit-view" title="Fit to screen (Ctrl+0)"><svg><use href="#i-fit"></use></svg></button>
+            </div>
           </div>
         </div>
       </main>
 
       <aside class="right-dock" id="rightDock">
         <div class="dock-titlebar">
-          <div class="dock-title"><svg><use href="#i-logo"></use></svg><span>Panels</span></div>
-          <button class="icon-btn" data-action="toggle-right" title="Collapse panels"><svg><use href="#i-chevron-right"></use></svg></button>
+          <div class="dock-title"><span>Panels</span></div>          <button class="icon-btn" data-action="toggle-right" title="Collapse panels"><svg><use href="#i-chevron-right"></use></svg></button>
         </div>
         <section class="side-panel" data-panel="topology">
           <button class="side-head">
-            <span class="side-head-title"><svg><use href="#i-logo"></use></svg>Topology Summary</span>
+            <span class="side-head-title"><svg><use href="#i-network"></use></svg>Topology Summary</span>
             <span class="side-head-right"><span class="mini-badge" id="topoCount">6</span><svg class="chev"><use href="#i-chevron-down"></use></svg></span>
           </button>
           <div class="side-body topology-tree" id="topologyTree"></div>
@@ -461,20 +371,33 @@
               <span class="preset-open"><svg><use href="#i-chevron-right"></use></svg></span>
             </button>
             <button class="preset-card" data-preset="vlabs">
-              <span class="preset-glyph"><svg><use href="#i-logo"></use></svg></span>
+              <span class="preset-glyph"><svg><use href="#i-network"></use></svg></span>
               <span class="preset-copy"><b>Juniper vLabs Hub</b><small>Standard 3-router hub</small></span>
+              <span class="preset-open"><svg><use href="#i-chevron-right"></use></svg></span>
+            </button>
+            <button class="preset-card" data-preset="bgp">
+              <span class="preset-glyph"><svg><use href="#i-router"></use></svg></span>
+              <span class="preset-copy"><b>EBGP &amp; BFD Peering</b><small>Two vMX peers, BFD enabled</small></span>
+              <span class="preset-open"><svg><use href="#i-chevron-right"></use></svg></span>
+            </button>
+            <button class="preset-card" data-preset="vsrx">
+              <span class="preset-glyph"><svg><use href="#i-firewall"></use></svg></span>
+              <span class="preset-copy"><b>vSRX Zones, Policies &amp; NAT</b><small>Trust, untrust, source NAT</small></span>
               <span class="preset-open"><svg><use href="#i-chevron-right"></use></svg></span>
             </button>
           </div>
         </section>
+        <div class="dock-grip" id="rightDockGrip" aria-hidden="true"></div>
       </aside>
     </div>
 
     <footer class="statusbar">
       <div class="status-item"><span class="status-led"></span><span id="statusMessage">Local server connected</span></div>
       <div class="status-sep"></div>
-      <div class="status-item"><svg><use href="#i-logo"></use></svg><span id="statusSelection">No device selected</span></div>
+      <div class="status-item"><span id="statusSelection">No device selected</span></div>
       <div class="status-spacer"></div>
+      <div class="status-item status-run"><span class="status-led"></span><span id="statusRunning">6/6 running</span></div>
+      <div class="status-sep"></div>
       <div class="status-item"><span>Nodes</span><b id="statusNodes">6</b></div>
       <div class="status-item"><span>Links</span><b id="statusLinks">5</b></div>
       <div class="status-sep"></div>
@@ -500,7 +423,6 @@
       <div class="terminal-tabs" id="terminalTabs"></div>
       <button class="terminal-new-tab" id="terminalNewTab" title="Open console…"><svg><use href="#i-plus"></use></svg></button>
       <div class="terminal-tab-spacer"></div>
-      <span class="terminal-tab-hint">Ctrl+Shift+C to connect all</span>
     </div>
     <div class="terminal-body" id="terminalBody"></div>
     <div class="terminal-resize-handle" id="terminalResizeHandle"></div>

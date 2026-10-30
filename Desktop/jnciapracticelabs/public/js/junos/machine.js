@@ -7,7 +7,7 @@
   var net = J.net;
 
   // ============================================================
-  // JJ.machine — Junos CLI simulator runtime.
+  // JJ.machine - Junos CLI simulator runtime.
   // Op mode + config mode grammar, Junos-style outputs,
   // unique-prefix keyword matching, pipe filters, session switching.
   // ============================================================
@@ -93,7 +93,9 @@
       running: true,
       confirmed: null,
       pendingRollbackNotice: false,
-      syslog: seedSyslog(key)
+      syslog: seedSyslog(key),
+      files: {},
+      protectedPaths: []
     };
     return J._rts[key];
   }
@@ -189,15 +191,17 @@
   }
 
   // ============================================================
-  // Command trees — words carry one-line Junos help descriptions.
+  // Command trees - words carry one-line Junos help descriptions.
   // Built from [word, desc, subList?, dyn?] tuples.
   // ============================================================
 
   var SHOW_INT_SUB = [
     ['brief', 'Show brief output'],
+    ['descriptions', 'Show interface descriptions'],
     ['detail', 'Show detailed output'],
     ['diagnostics', 'Interface diagnostic status'],
     ['extensive', 'Show extensive output'],
+    ['irb', 'Show IRB interface information', [['terse', 'Show terse output'], ['brief', 'Show brief output'], ['detail', 'Show detailed output']]],
     ['media', 'Show physical interface information'],
     ['statistics', 'Show interface statistics'],
     ['terse', 'Show terse output']
@@ -215,11 +219,15 @@
     ['exact', 'Show exact matching route entries'],
     ['extensive', 'Show extensive route information'],
     ['forwarding-table', 'Show routing table forwarding table', [['detail', 'Show detailed route information'], ['exact', 'Show exact matching route entries'], ['extensive', 'Show extensive route information']]],
+    ['hidden', 'Show hidden route entries', null, true],
     ['protocol', 'Show routes for a given protocol', null, true],
-    ['summary', 'Show summary of route table']
+    ['summary', 'Show summary of route table'],
+    ['table', 'Show routing tables', [['summary', 'Show route table summary'], ['detail', 'Show detailed route information']], true]
   ];
   var SHOW_SYSTEM_SUB = [
+    ['alarms', 'Show current system alarms'],
     ['commit', 'Display committed system information'],
+    ['information', 'Show system information'],
     ['processes', 'Show running processes'],
     ['storage', 'Show storage information'],
     ['uptime', 'Show system uptime'],
@@ -265,17 +273,37 @@
 
   var SHOW_LIST = [
     ['arp', 'Show Address Resolution Protocol table'],
+    ['bfd', 'Show Bidirectional Forwarding Detection', [['session', 'Show BFD session information', [['detail', 'Show detailed BFD session output']]]]],
     ['bgp', 'Show Border Gateway Protocol information', [['summary', 'Show BGP summary information'], ['neighbor', 'Show BGP peer information']]],
     ['chassis', 'Show chassis information', SHOW_CHASSIS_SUB],
     ['configuration', 'Show candidate/committed configuration', null, true],
-    ['ethernet-switching', 'Show ethernet switching table', [['table', 'Show MAC learning table']]],
+    ['ethernet-switching', 'Show ethernet switching table', [['table', 'Show MAC learning table'], ['interfaces', 'Show switching interface information']]],
+    ['firewall', 'Show firewall filter counters', [['filter', 'Show firewall counter and filter information', null, true], ['log', 'Show firewall log event information']]],
     ['interfaces', 'Display interface information', SHOW_INT_SUB, true],
+    ['isis', 'Show IS-IS information', [['adjacency', 'Show IS-IS adjacency database'], ['database', 'Show IS-IS link-state database'], ['interface', 'Show IS-IS interface information'], ['route', 'Show IS-IS routing table'], ['statistics', 'Show IS-IS protocol statistics']]],
+    ['lacp', 'Show Link Aggregation Control Protocol', [['interfaces', 'Show LACP member interfaces']]],
+    ['ldp', 'Show Label Distribution Protocol', [['database', 'Show LDP label database'], ['neighbor', 'Show LDP neighbor information'], ['session', 'Show LDP session information']]],
     ['lldp', 'Display Link Layer Discovery Protocol', [['neighbors', 'Show LLDP neighbor information']]],
     ['log', 'Show contents of a log file', null, true],
+    ['mpls', 'Show MPLS information', [['interface', 'Show MPLS interface information'], ['lsp', 'Show label-switched-path session information']]],
     ['ospf', 'Show Open Shortest Path First information', SHOW_OSPF_SUB],
     ['route', 'Show routing table (RIB)', SHOW_ROUTE_SUB, true],
+    ['rsvp', 'Show Resource Reservation Protocol', [['interface', 'Show RSVP interface information'], ['session', 'Show RSVP session information']]],
+    ['security', 'Show security (SRX) information', [
+      ['flow', 'Show flow session information', [['session', 'Show flow sessions'], ['summary', 'Show flow session summary'], ['status', 'Show flow status']]],
+      ['ike', 'Show IKE security associations', [['security-associations', 'Show IKE security associations']]],
+      ['ipsec', 'Show IPsec security associations', [['security-associations', 'Show IPsec security associations']]],
+      ['nat', 'Show network address translation', [
+        ['destination', 'Show destination NAT', [['rule', 'Show destination NAT rules', [['all', 'Show all rules']]]]],
+        ['source', 'Show source NAT', [['rule', 'Show source NAT rules', [['all', 'Show all rules']]], ['summary', 'Show source NAT summary']]],
+        ['static', 'Show static NAT', [['rule', 'Show static NAT rules', [['all', 'Show all rules']]]]]
+      ]],
+      ['policies', 'Show security policies', [['detail', 'Show policy detail', null, true], ['hit-count', 'Show policy hit counts']]],
+      ['zones', 'Show security zones']
+    ]],
     ['spanning-tree', 'Show Rapid Spanning Tree Protocol information', [['bridge', 'Show STP bridge information'], ['interface', 'Show STP interface information']]],
     ['system', 'Show system information', SHOW_SYSTEM_SUB],
+    ['vrrp', 'Show Virtual Router Redundancy Protocol', [['brief', 'Show VRRP summary']]],
     ['version', 'Show software version'],
     ['vlans', 'Show configured VLANs']
   ];
@@ -287,21 +315,26 @@
   var CFG_TOP = [
     ['activate', 'Remove the inactive marker from a statement'],
     ['annotate', 'Annotate a statement with a comment'],
-    ['commit', 'Commit the configuration', [['and-quit', 'Commit and return to operational mode'], ['check', 'Check the configuration for correctness'], ['comment', 'Comment to attach to the commit'], ['confirmed', 'Automatically roll back if not confirmed']]],
+    ['commit', 'Commit the configuration', [['and-quit', 'Commit and return to operational mode'], ['at', 'Schedule the commit'], ['check', 'Check the configuration for correctness'], ['comment', 'Comment to attach to the commit'], ['confirmed', 'Automatically roll back if not confirmed'], ['synchronize', 'Commit on both routing engines']]],
     ['copy', 'Copy a statement'],
     ['deactivate', 'Add the inactive marker to a statement'],
     ['delete', 'Delete a data element'],
     ['edit', 'Edit a sub-element'],
     ['exit', 'Exit from this level'],
     ['insert', 'Insert a new element'],
+    ['load', 'Merge or replace data from an ASCII file'],
+    ['protect', 'Protect a statement against changes'],
     ['rename', 'Rename a statement'],
+    ['replace', 'Replace a text string or pattern'],
     ['rollback', 'Roll back to last committed configuration'],
     ['run', 'Run an operational-mode command'],
     ['set', 'Set a set of statements in the configuration'],
     ['show', 'Show a configuration'],
     ['status', 'Display users currently in configuration mode'],
     ['top', 'Return to top of the hierarchy'],
-    ['up', 'Move up in the hierarchy']
+    ['unprotect', 'Unprotect a statement'],
+    ['up', 'Move up in the hierarchy'],
+    ['wildcard', 'Perform wildcard operations', [['delete', 'Delete matching statements (? is single, * is any)']]]
   ];
 
   // ---------- keyword resolution (Junos unique prefix matching) ----------
@@ -492,7 +525,7 @@
   function showRouteSummary(ds) {
     var out = [];
     if (!ds) return out;
-    if (ds.bgp && ds.bgp.groups && ds.bgp.groups.length) out.push('Autonomous system number: 65000');
+    if (ds.bgp && ds.bgp.groups && ds.bgp.groups.length) out.push('Autonomous system number: ' + (ds.bgp.localAs || '65000'));
     out.push('Router ID: ' + (ds.routerId || '1.1.1.1'));
     out.push('');
     var byProto = {};
@@ -700,6 +733,1031 @@
     return out;
   }
 
+  // ============================================================
+  // PART 3B - BFD / IS-IS / LDP / MPLS / LACP / VRRP / firewall /
+  //           SRX security. All parse the device's committed config
+  //           through the same db tree helpers (tGo/tKid/tKids).
+  // ============================================================
+
+  function tGo(root, path) {
+    var n = root;
+    for (var i = 0; n && i < path.length; i++) n = db.child(n, path[i]);
+    return n;
+  }
+  function tKid(node, name) { return node ? db.child(node, name) : null; }
+  function tKids(node, name) {
+    var out = [];
+    if (!node) return out;
+    for (var i = 0; i < node.children.length; i++) {
+      var c = node.children[i];
+      if (name && c.name !== name) continue;
+      if (c.name === '[' || c.name === ']') continue;
+      if (c.inactive) continue;
+      out.push(c);
+    }
+    return out;
+  }
+  function tVal(n) {
+    if (!n) return null;
+    return n.values.length ? n.values[0] : (n.children.length ? n.children[0].name : null);
+  }
+  function firstUnder(node, name) { return tVal(tKid(node, name)); }
+  // deep find: value tokens typed after a value capture nest arbitrarily deeply
+  // (e.g. minimum-interval 300 multiplier 5 puts multiplier under the 300 node)
+  function deepFind(node, name) {
+    if (!node) return null;
+    for (var i = 0; i < node.children.length; i++) {
+      var c = node.children[i];
+      if (c.name === name) return c;
+      var d = deepFind(c, name);
+      if (d) return d;
+    }
+    return null;
+  }
+  function deepVal(node, name) { return tVal(tKid(node, name) || deepFind(node, name)); }
+  function valuesUnder(node, name) { var c = tKid(node, name); return c ? c.values.slice() : []; }
+  function namesOf(node) {
+    if (!node) return [];
+    var out = [];
+    for (var i = 0; i < node.children.length; i++) {
+      var nm = node.children[i].name;
+      if (nm !== '[' && nm !== ']' && !node.children[i].inactive) out.push(nm);
+    }
+    return out;
+  }
+  function pad2(x) { return z2(x < 10 ? x : x % 100).slice(-2); }
+  function hex4(x) { return ('0000' + (x & 0xffff).toString(16)).slice(-4); }
+  // IDENT-parent containers e.g. `set firewall family inet filter F1` yields
+  // family { inet { filter { F1 { ... } } } } - this helper plucks the value
+  // nodes (the actual named items) hanging under every container of `name`.
+  function groupValueNodes(parent, name) {
+    var out = [];
+    var containers = tKids(parent, name);
+    for (var i = 0; i < containers.length; i++) {
+      for (var k = 0; k < containers[i].children.length; k++) {
+        var c = containers[i].children[k];
+        if (c.name === '[' || c.name === ']' || c.inactive) continue;
+        out.push(c);
+      }
+    }
+    return out;
+  }
+  function committedRoot(rt) { return rt.committed || rt.config; }
+
+  // ---------- interface descriptions (operational view) ----------
+
+  function showIntDescriptions(ds, rt) {
+    var out = ['Interface       Admin Link Description'];
+    var root = committedRoot(rt);
+    var ifRoot = tGo(root, ['interfaces']);
+    if (!ifRoot) return out;
+    var ifaces = tKids(ifRoot);
+    for (var i = 0; i < ifaces.length; i++) {
+      var ifn = ifaces[i];
+      var desc = tVal(tKid(ifn, 'description'));
+      if (!desc) {
+        var uvals = groupValueNodes(ifn, 'unit');
+        for (var u = 0; u < uvals.length && !desc; u++) desc = tVal(tKid(uvals[u], 'description'));
+      }
+      if (!desc) {
+        var dnode = deepFind(ifn, 'description');
+        desc = dnode ? tVal(dnode) : null;
+      }
+      if (!desc) continue;
+      var auf = '--', lnk = '--';
+      if (ds && ds.interfaces[ifn.name]) {
+        auf = ds.interfaces[ifn.name].adminUp ? 'up' : 'down';
+        lnk = ds.interfaces[ifn.name].linkUp ? 'up' : 'down';
+      }
+      out.push(padR(ifn.name, 16) + padR(auf, 6) + padR(lnk, 6) + desc);
+    }
+    return out;
+  }
+
+  // ---------- system alarms / information ----------
+
+  function showSystemAlarms(rt) {
+    var root = committedRoot(rt);
+    if (!tGo(root, ['system', 'root-authentication'])) {
+      return [
+        '1 alarms currently active',
+        'Alarm time               Class  Description',
+        utc(rt.bootAt) + '  Minor  Root password is still not configured'
+      ];
+    }
+    return ['No alarms currently active'];
+  }
+
+  function showSystemInformation(rt) {
+    var root = committedRoot(rt);
+    var host = firstUnder(tGo(root, ['system']), 'host-name') || rt.key;
+    return [
+      'Model: ' + ((rt.spec && rt.spec.model) || 'vSRX 3.0'),
+      'Family: junos',
+      'Junos: ' + ((rt.spec && rt.spec.version) || '20.4R2-S2.1'),
+      'Hostname: ' + host
+    ];
+  }
+
+  // ---------- BFD ----------
+
+  function bfdSessions(ds, rt) {
+    var out = [];
+    var root = committedRoot(rt);
+    function minMs(bfdNode) {
+      var mv = deepVal(bfdNode, 'minimum-interval');
+      return parseInt(mv, 10) || 300;
+    }
+    function multOf(bfdNode) {
+      var mv = deepVal(bfdNode, 'multiplier');
+      return parseInt(mv, 10) || 3;
+    }
+    function nbrState(ds, ifaceBase, peer) {
+      if (ds && ds.ospfNeighbors) {
+        for (var i = 0; i < ds.ospfNeighbors.length; i++) {
+          var n = ds.ospfNeighbors[i];
+          if (peer) { if (n.ip === peer) return { addr: n.ip, iface: n.iface, up: String(n.state || '').toLowerCase() === 'full' }; }
+          if (ifaceBase && String(n.iface || '').split('.')[0] === ifaceBase) {
+            return { addr: n.ip, iface: n.iface, up: String(n.state || '').toLowerCase() === 'full' };
+          }
+        }
+      }
+      return null;
+    }
+    function ifaceFor(ds, ip) {
+      if (ds && ds.subnets) {
+        for (var i = 0; i < ds.subnets.length; i++) {
+          if (J.inNet(ip, ds.subnets[i].cidr)) return ds.subnets[i].iface;
+        }
+      }
+      return '-';
+    }
+    function bgPeerUp(ds, ip) {
+      if (ds && ds.bgp && ds.bgp.peers) {
+        for (var i = 0; i < ds.bgp.peers.length; i++) {
+          if (ds.bgp.peers[i].ip === ip) {
+            var s = String(ds.bgp.peers[i].state || 'Establ');
+            return s.indexOf('Idle') < 0 && s.indexOf('Active') < 0 ? 'Up' : 'Down';
+          }
+        }
+      }
+      return 'Up';
+    }
+    var po = tGo(root, ['protocols', 'ospf']);
+    if (po) {
+      var areas = groupValueNodes(po, 'area');
+      for (var a = 0; a < areas.length; a++) {
+        var ifVals = groupValueNodes(areas[a], 'interface');
+        for (var k = 0; k < ifVals.length; k++) {
+          var bfd = tKid(ifVals[k], 'bfd-liveness-detection');
+          if (!bfd) continue;
+          var ifName = ifVals[k].name;
+          var hit = nbrState(ds, ifName.split('.')[0], null);
+          out.push({
+            addr: hit ? hit.addr : '0.0.0.0',
+            iface: ifName + (String(ifName).indexOf('.') < 0 ? '.0' : ''),
+            state: !hit || hit.up ? 'Up' : 'Down',
+            client: 'OSPF', min: minMs(bfd), mult: multOf(bfd)
+          });
+        }
+      }
+    }
+    var st = tGo(root, ['routing-options', 'static']);
+    var routes = st ? tKid(st, 'route') : null;
+    if (routes) {
+      var rns = tKids(routes);
+      for (var r2 = 0; r2 < rns.length; r2++) {
+        var bfd2 = tKid(rns[r2], 'bfd-liveness-detection');
+        if (!bfd2) {
+          var nhNode2 = tKid(rns[r2], 'next-hop');
+          bfd2 = nhNode2 ? deepFind(nhNode2, 'bfd-liveness-detection') : null;
+        }
+        if (!bfd2) continue;
+        var nh2 = firstUnder(rns[r2], 'next-hop');
+        if (!nh2) continue;
+        var up2 = false, if2 = '-';
+        if (ds && ds.routes) {
+          for (var q2 = 0; q2 < ds.routes.length; q2++) {
+            var rr2 = ds.routes[q2];
+            if ((rr2.proto === 'Direct' || rr2.proto === 'Local') && J.inNet(nh2, rr2.dest)) { up2 = true; break; }
+          }
+        }
+        if (ds && ds.subnets) {
+          for (var sn2 = 0; sn2 < ds.subnets.length; sn2++) {
+            if (J.inNet(nh2, ds.subnets[sn2].cidr)) { if2 = ds.subnets[sn2].iface; break; }
+          }
+        }
+        out.push({ addr: nh2, iface: if2, state: up2 ? 'Up' : 'Down', client: 'Static', min: minMs(bfd2), mult: multOf(bfd2) });
+      }
+    }
+    var bg = tGo(root, ['protocols', 'bgp']);
+    if (bg) {
+      var grps = groupValueNodes(bg, 'group');
+      for (var g2 = 0; g2 < grps.length; g2++) {
+        var bfd3 = tKid(grps[g2], 'bfd-liveness-detection');
+        if (!bfd3) continue;
+        var nbrs = [];
+        var nbC = tKids(grps[g2], 'neighbor');
+        for (var nb = 0; nb < nbC.length; nb++) {
+          namesOf(nbC[nb]).forEach(function (nip) { nbrs.push(nip); });
+        }
+        for (var s2 = 0; s2 < nbrs.length; s2++) {
+          var ip2 = nbrs[s2];
+          var hit2 = nbrState(ds, null, ip2);
+          out.push({
+            addr: ip2,
+            iface: hit2 && hit2.iface ? hit2.iface : ifaceFor(ds, ip2),
+            state: bgPeerUp(ds, ip2),
+            client: 'BGP', min: minMs(bfd3), mult: multOf(bfd3)
+          });
+        }
+      }
+    }
+    return out;
+  }
+
+  function showBfdSession(ds, rt, wantDetail) {
+    var ss = bfdSessions(ds, rt);
+    if (!ss.length) return [];
+    var out = [];
+    if (wantDetail) {
+      for (var i = 0; i < ss.length; i++) {
+        var s = ss[i];
+        var seed = detBig(rt.key + ':bfd:' + s.addr);
+        out.push('Address ' + s.addr + ', State ' + s.state + ', Interface ' + s.iface);
+        out.push('  Client: ' + s.client + ', Examined: 0, Sessions: 1');
+        out.push('  Local discr ' + (1000 + seed % 800) + ', Remote discr ' + (1000 + detBig(s.addr + ':r') % 800) + ', Min interval ' + s.min + 'ms, Multiplier ' + s.mult);
+        out.push('  Min Tx interval ' + s.min + 'ms, Min Rx interval ' + s.min + 'ms');
+        out.push('');
+      }
+      return out;
+    }
+    out.push('                                               Detect   Transmit');
+    out.push('Address          State     Interface      Interval     Interval   Multiplier');
+    for (var j = 0; j < ss.length; j++) {
+      var r = ss[j];
+      out.push(padR(r.addr, 17) + padR(r.state, 10) + padR(r.iface, 15) + padL(String(r.min), 9) + padL(String(r.min), 11) + padL(String(r.mult), 12));
+    }
+    return out;
+  }
+
+  // ---------- firewall filters / policers ----------
+
+  function firewallFilters(rt) {
+    var root = committedRoot(rt);
+    var famF = tGo(root, ['firewall', 'family']);
+    var filters = [];
+    if (!famF) return filters;
+    var inetNodes = tKids(famF, 'inet');
+    for (var v = 0; v < inetNodes.length; v++) {
+      var fConts = tKids(inetNodes[v], 'filter');
+      for (var fc = 0; fc < fConts.length; fc++) {
+        var termVals = groupValueNodes(fConts[fc], 'term');
+        var terms = [];
+        for (var t = 0; t < termVals.length; t++) {
+          var thenN = tKid(termVals[t], 'then');
+          var countConts = tKids(thenN, 'count');
+          var counted = false;
+          for (var cn = 0; cn < countConts.length; cn++) {
+            var kids = countConts[cn].children;
+            for (var ck = 0; ck < kids.length; ck++) {
+              if (kids[ck].name === '[' || kids[ck].name === ']' || kids[ck].inactive) continue;
+              terms.push(kids[ck].name);
+              counted = true;
+            }
+          }
+          if (!counted) {
+            // terms without an explicit counter still get shown under the term name
+            var has = false;
+            for (var d = 0; d < terms.length; d++) if (terms[d] === termVals[t].name) has = true;
+            if (!has) terms.push(termVals[t].name);
+          }
+        }
+        var names = namesOf(fConts[fc]);
+        for (var xn = 0; xn < names.length; xn++) filters.push({ name: names[xn], counters: terms });
+      }
+    }
+    return filters;
+  }
+
+  function showFirewall(rt, filterName) {
+    var filters = firewallFilters(rt);
+    if (!filters.length) return [];
+    var out = [];
+    for (var i = 0; i < filters.length; i++) {
+      var f = filters[i];
+      if (filterName && f.name !== filterName.toLowerCase()) continue;
+      if (!f.counters.length) continue;
+      out.push('Filter: ' + f.name);
+      out.push('Counters:');
+      out.push('Name                                                Bytes              Packets');
+      var used = {};
+      for (var c = 0; c < f.counters.length; c++) {
+        var cn = f.counters[c];
+        if (used[cn]) continue;
+        used[cn] = 1;
+        var seed = detBig(rt.key + ':fw:' + f.name + ':' + cn);
+        out.push(padR(cn, 52) + padL(String(detBig(cn + ':b') % 90000), 9) + padL(String(seed % 900), 12));
+      }
+      out.push('');
+    }
+    if (out.length && out[out.length - 1] === '') out.length--;
+    return out;
+  }
+
+  function showFirewallLog(rt) {
+    var seed = detBig(rt.key + ':fwlog');
+    var out = [
+      'Oct 30 ' + z2(10 + seed % 3) + ':' + z2(seed % 60) + ':' + z2((seed >> 3) % 60) + ' ' + rt.key + ' RT_FLOW: RT_FLOW_SESSION_DENY: session denied 192.168.10.' + (2 + seed % 60) + '/42' + (seed % 5) + '->203.0.113.2/80 tcp 6 ge-0/0/1.0 192.168.10.1/1 default-policy(3) 0'
+    ];
+    return out;
+  }
+
+  function showPolicer(rt) {
+    var root = committedRoot(rt);
+    var po = tGo(root, ['firewall']);
+    var pConts = po ? tKids(po, 'policer') : [];
+    if (!pConts.length) return [];
+    var out = [];
+    for (var i = 0; i < pConts.length; i++) {
+      var names = namesOf(pConts[i]);
+      for (var k = 0; k < names.length; k++) {
+        var seed = detBig(rt.key + ':pl:' + names[k]);
+        out.push(names[k] + ':');
+        out.push('  Bandwidth limit: ' + (1 + seed % 9) + 'm');
+        out.push('  Burst size limit: ' + (10 + seed % 20) + 'k');
+        out.push('  Packets: ' + (seed % 5000));
+        out.push('');
+      }
+    }
+    if (out.length && out[out.length - 1] === '') out.length--;
+    return out;
+  }
+
+  // ---------- IS-IS ----------
+
+  function isisCfg(ds, rt) { return tGo(committedRoot(rt), ['protocols', 'isis']); }
+
+  function isisPeers(ds) {
+    var out = [];
+    if (ds && ds.lldp) {
+      for (var i = 0; i < ds.lldp.length; i++) out.push(ds.lldp[i]);
+    }
+    return out;
+  }
+
+  function isisSysId(name) {
+    var seed = detBig(name + ':isis');
+    return pad2(seed % 100) + '.' + z2((seed >> 3) % 10) + pad2((seed >> 5) % 100) + '.' + z2((seed >> 8) % 10) + pad2((seed >> 11) % 100) + '.00';
+  }
+
+  function showIsisAdjacency(ds, rt) {
+    var out = [];
+    out.push('Interface             System         L State        Hold (secs) SNPA');
+    if (!isisCfg(ds, rt)) return out;
+    var peers = isisPeers(ds);
+    for (var i = 0; i < peers.length; i++) {
+      var p = peers[i];
+      var seed = detBig(p.peer + ':isis:hold');
+      var level = 2;
+      out.push(padR(p.localIf || 'ge-0/0/0' + '.' + (0), 22) + padR(p.peer || '-', 15) + padL(String(level), 2) + padR('', 1) + padR('Up', 13) + padL(String(18 + seed % 12), 9));
+    }
+    return out;
+  }
+
+  function showIsisDatabase(ds, rt) {
+    var out = [];
+    if (!isisCfg(ds, rt)) return out;
+    out.push('IS-IS level 2 link-state database:');
+    out.push('LSP ID                      Sequence Checksum Lifetime Attributes');
+    var self = detBig(rt.key + ':isis:seq');
+    out.push(padR(rt.key + '.00-00', 28) + padR('0x' + (1 + self % 9), 9) + padR('0x' + hex4(self), 7) + padL('1043', 9) + padR(' L1 L2', 7));
+    var peers = isisPeers(ds);
+    for (var i = 0; i < peers.length; i++) {
+      var ps = detBig(peers[i].peer + ':isis:seq');
+      out.push(padR((peers[i].peer || 'peer') + '.00-00', 28) + padR('0x' + (1 + ps % 9), 9) + padR('0x' + hex4(ps), 7) + padL('1042', 9) + padR(' L1 L2', 7));
+    }
+    out.push('  ' + (peers.length + 1) + ' LSPs');
+    return out;
+  }
+
+  function showIsisInterface(ds, rt) {
+    var out = [];
+    out.push('Interface           State         System ID       L Level  ES HELLO SID');
+    var ics = isisCfg(ds, rt);
+    if (!ics) return out;
+    var ifVals = groupValueNodes(ics, 'interface');
+    if (!ifVals.length) {
+      // bare `set protocols isis interface ge-0/0/0` - value nodes may sit directly under isis
+      var direct = namesOf(ics);
+      for (var d = 0; d < direct.length; d++) if (/^(ge|et|xe|ae|lo)-/.test(direct[d])) ifVals.push({ name: direct[d] });
+    }
+    for (var i = 0; i < ifVals.length; i++) {
+      var lv = firstUnder(ifVals[i], 'level') || '2';
+      var seed = detBig(ifVals[i].name + ':isisif');
+      out.push(padR(ifVals[i].name, 20) + padR('Up', 14) + padR(isisSysId(rt.key), 16) + padL('2', 2) + padR(lv, 9) + padL(String(seed % 9000), 6));
+    }
+    return out;
+  }
+
+  function showIsisRoute(ds, rt) {
+    var out = [];
+    if (!isisCfg(ds, rt)) return out;
+    out.push('IS-IS level 2 routing table:');
+    out.push('Prefix             Path Type  Route Type    NH-Type        Metric   Interface');
+    var peers = isisPeers(ds);
+    for (var i = 0; i < peers.length; i++) {
+      out.push(padR((peers[i].peer || '0.0.0.0') + '/32', 19) + padR('2 Intra', 8) + padR('Network', 10) + padR('IP', 10) + padL(String(10), 7) + padR('  ' + (peers[i].localIf || 'ge-0/0/0.0'), 16));
+    }
+    return out;
+  }
+
+  function showIsisStats(ds, rt) {
+    var seed = detBig(rt.key + ':isisstats');
+    return [
+      'IS-IS statistics for ' + rt.key + ':',
+      'PduConstructor:                 ' + (350 + seed % 400),
+      'LspBuilder:                     ' + (20 + seed % 40),
+      'LspRefresh:                     ' + (5 + seed % 20),
+      'DrHellosSent:                   ' + (60 + seed % 100)
+    ];
+  }
+
+  // ---------- LDP / MPLS / RSVP ----------
+
+  function showLdpNeighbor(ds, rt) {
+    var out = [];
+    out.push('Address            Interface          Label space ID         Hold time');
+    if (!tGo(committedRoot(rt), ['protocols', 'ldp'])) return out;
+    var peers = isisPeers(ds);
+    for (var i = 0; i < peers.length; i++) {
+      var p = peers[i];
+      var seed = detBig(p.peer + ':ldp:hold');
+      var addr = '0.0.0.0';
+      if (ds && ds.ospfNeighbors) {
+        var base = String(p.localIf || '').split('.')[0];
+        for (var q = 0; q < ds.ospfNeighbors.length; q++) {
+          if (String(ds.ospfNeighbors[q].iface || '').split('.')[0] === base) addr = ds.ospfNeighbors[q].ip;
+        }
+      }
+      out.push(padR(addr, 19) + padR(p.localIf || 'ge-0/0/0.0', 19) + padR((p.peer || '0.0.0.0') + ':0', 23) + padL(String(10 + seed % 260), 5));
+    }
+    return out;
+  }
+
+  function showLdpSession(ds, rt) {
+    var out = [];
+    out.push('Address           State        Connection     Hold time  Adv. Mode');
+    if (!tGo(committedRoot(rt), ['protocols', 'ldp'])) return out;
+    var peers = isisPeers(ds);
+    for (var i = 0; i < peers.length; i++) {
+      var seed = detBig(peers[i].peer + ':ldp:session');
+      out.push(padR(detBigSeedIp(rt.key, peers[i].peer), 18) + padR('Operational', 13) + padR('Open', 15) + padL(String(10 + seed % 260), 7) + padR('    DU', 6));
+    }
+    return out;
+  }
+
+  function detBigSeedIp(a, b) {
+    var s = detBig(a + ':ldpip:' + b);
+    return '10.' + (0 + s % 254) + '.' + ((s >> 4) % 254) + '.' + ((s >> 8) % 254);
+  }
+
+  function showLdpDatabase(ds, rt) {
+    var out = [];
+    if (!tGo(committedRoot(rt), ['protocols', 'ldp'])) return out;
+    out.push('Input label database, ' + rt.key + ':');
+    var base = detBig(rt.key + ':ldp:lbl');
+    out.push(padL(String(300000 + base % 900), 8) + '  ' + rt.key + '/32');
+    out.push('Output label database, ' + rt.key + ':');
+    var peers = isisPeers(ds);
+    for (var i = 0; i < peers.length; i++) {
+      out.push(padL(String(300000 + detBig(peers[i].peer + ':ldp:lbl') % 900), 8) + '  ' + (peers[i].peer || 'peer') + '/32');
+    }
+    return out;
+  }
+
+  function mplsLspList(rt) {
+    var root = committedRoot(rt);
+    var mpls = tGo(root, ['protocols', 'mpls']);
+    var lsps = [];
+    var lspNodes = mpls ? groupValueNodes(mpls, 'label-switched-path') : [];
+    for (var i = 0; i < lspNodes.length; i++) {
+      var to = firstUnder(lspNodes[i], 'to');
+      lsps.push({ name: lspNodes[i].name, to: to });
+    }
+    return lsps;
+  }
+
+  function lo0SelfIp(rt) {
+    var lo = tGo(committedRoot(rt), ['interfaces', 'lo0']);
+    if (!lo) return null;
+    var uvals = groupValueNodes(lo, 'unit');
+    for (var i = 0; i < uvals.length; i++) {
+      var fam = tKid(uvals[i], 'family');
+      var inetNodes = fam ? tKids(fam, 'inet') : [];
+      for (var v = 0; v < inetNodes.length; v++) {
+        var avals = groupValueNodes(inetNodes[v], 'address');
+        for (var a = 0; a < avals.length; a++) {
+          var nm = avals[a].name;
+          if (nm && nm.split('/')[0]) return nm.split('/')[0];
+        }
+      }
+    }
+    return null;
+  }
+
+  function showMplsLsp(rt, kind) {
+    var lsps = mplsLspList(rt);
+    if (!lsps.length) return [];
+    var out = [];
+    out.push('Ingress LSP: ' + lsps.length + ' sessions');
+    out.push('To              From            State Rt P     ActivePath       LSPname');
+    var selfIp = lo0SelfIp(rt) || detBigSeedIp(rt.key, 'self');
+    for (var i = 0; i < lsps.length; i++) {
+      out.push(padR(lsps[i].to || '0.0.0.0', 16) + padR(selfIp, 16) + padR('Up', 7) + padL('0', 2) + padR('*', 3) + padR('', 12) + lsps[i].name.replace(/ /g, '-'));
+    }
+    out.push('Total ' + lsps.length + ' displayed, ' + lsps.length + ' Up, ' + lsps.length + ' Egress, ' + lsps.length + ' Ingress');
+    return out;
+  }
+
+  function showMplsInterface(rt) {
+    var out = [];
+    var mpls = tGo(committedRoot(rt), ['protocols', 'mpls']);
+    var ifVals = mpls ? groupValueNodes(mpls, 'interface') : [];
+    if (!ifVals.length) return out;
+    out.push('MPLS interface                    State');
+    for (var i = 0; i < ifVals.length; i++) {
+      out.push(padR(ifVals[i].name, 34) + padR('Up', 8));
+    }
+    return out;
+  }
+
+  function showRsvpInterface(rt) {
+    var rsvp = tGo(committedRoot(rt), ['protocols', 'rsvp']);
+    var ifVals = rsvp ? groupValueNodes(rsvp, 'interface') : [];
+    var out = [];
+    out.push('RSVP interface: ' + ifVals.length + ' activated interfaces');
+    for (var i = 0; i < ifVals.length; i++) {
+      var seed = detBig(ifVals[i].name + ':rsvpif');
+      out.push('RSVP interface: ' + ifVals[i].name + ' (Active Reservations: ' + (seed % 3) + ', Bandwidth: 1bps)');
+    }
+    return out;
+  }
+
+  // ---------- LACP / VRRP ----------
+
+  function showLacp(rt) {
+    var root = committedRoot(rt);
+    var ifRoot = tGo(root, ['interfaces']);
+    if (!ifRoot) return [];
+    var aegroups = {};
+    var ifaces = tKids(ifRoot);
+    for (var i = 0; i < ifaces.length; i++) {
+      var ge = tKid(ifaces[i], 'gigether-options');
+      var a802 = ge ? tKids(ge, '802.3ad') : [];
+      if (!a802.length) continue;
+      var aeName = a802[0].children.length ? a802[0].children[0].name : (a802[0].values[0] || 'ae0');
+      (aegroups[aeName] = aegroups[aeName] || []).push(ifaces[i].name);
+    }
+    if (!Object.keys(aegroups).length) return [];
+    var out = [];
+    var aeNames = Object.keys(aegroups).sort();
+    for (var g = 0; g < aeNames.length; g++) {
+      var members = aegroups[aeNames[g]].sort();
+      out.push('Aggregated interface: ' + aeNames[g]);
+      out.push('    LACP state:       Role   Exp   Def  Dist  Col  Syn  Aggr  Timeout  Activity');
+      for (var m = 0; m < members.length; m++) {
+        out.push('      ' + padR(members[m], 12) + 'Actor    No    No   Yes  Yes  Yes   Yes     Fast    Active');
+        out.push('      ' + padR(members[m], 12) + 'Partner  No    No   Yes  Yes  Yes   Yes     Fast    Active');
+      }
+      out.push('    LACP protocol:        Receive State  Transmit State          Mux State');
+      for (var m2 = 0; m2 < members.length; m2++) {
+        out.push('      ' + padR(members[m2], 12) + 'Current   Fast periodic Collecting distributing');
+      }
+    }
+    return out;
+  }
+
+  function processVrrpIfaces(out, rt) {
+    var root = committedRoot(rt);
+    var ifRoot = tGo(root, ['interfaces']);
+    if (!ifRoot) return;
+    var ifaces = tKids(ifRoot);
+    for (var i = 0; i < ifaces.length; i++) {
+      var ifn = ifaces[i];
+      var uvals = groupValueNodes(ifn, 'unit');
+      for (var u = 0; u < uvals.length; u++) {
+        var famC = tKid(uvals[u], 'family');
+        var inetNodes = famC ? tKids(famC, 'inet') : [];
+        for (var iv = 0; iv < inetNodes.length; iv++) {
+          var avals = groupValueNodes(inetNodes[iv], 'address');
+          for (var a = 0; a < avals.length; a++) {
+            var groups = groupValueNodes(avals[a], 'vrrp-group');
+            for (var v = 0; v < groups.length; v++) {
+              var gid = groups[v].name;
+              var pri = parseInt(firstUnder(groups[v], 'priority'), 10) || 100;
+              var vaddrs = namesOf(tKid(groups[v], 'virtual-address'));
+              var vIp = vaddrs.length ? vaddrs[0] : (vinetOf(avals[a]) || '0.0.0.0');
+              var role = pri >= 100 ? 'master' : 'backup';
+              var mac = '00:00:5e:00:01:' + z2(parseInt(gid, 10) % 256);
+              var mseed = detBig(ifn.name + ':vrrp:' + gid);
+              var st = mseed % 3 === 0 ? 'up' : (role === 'master' ? 'master' : 'backup');
+              out.push(padR(ifn.name + '.' + uvals[u].name, 14) + padR(st, 12) + padR(gid, 8) + padR(gid, 6) + padR('active', 9) + padR(vIp, 15) + padR(mac, 16) + padR(role === 'master' ? rt.key : 'n/a', 8));
+            }
+          }
+        }
+      }
+    }
+  }
+
+  function showVrrp(rt) {
+    var out = [];
+    out.push('Interface     State       Group   VRID  Mode     Virtual IP     Virtual MAC     Master of');
+    processVrrpIfaces(out, rt);
+    return out.length > 1 ? out : [];
+  }
+
+  function vinetOf(addrNode) {
+    var nm = addrNode.name;
+    return nm && nm.indexOf('/') > 0 ? nm.split('/')[0] : nm;
+  }
+
+  // ---------- SRX security ----------
+
+  function secZones(rt) {
+    var root = committedRoot(rt);
+    var zRoot = tGo(root, ['security', 'zones']);
+    var zones = [];
+    if (!zRoot) return zones;
+    var zvals = groupValueNodes(zRoot, 'security-zone');
+    for (var i = 0; i < zvals.length; i++) {
+      var z = zvals[i];
+      var zone = { name: z.name, ifaces: [], services: [], protocols: [], screens: [] };
+      zone.ifaces = namesOf(tKid(z, 'interfaces'));
+      var hb = tKid(z, 'host-inbound-traffic');
+      zone.services = namesOf(tKid(hb, 'system-services'));
+      zone.protocols = namesOf(tKid(hb, 'protocols'));
+      zone.screens = namesOf(tKid(z, 'screen'));
+      zones.push(zone);
+    }
+    return zones;
+  }
+
+  // policies tree: security { policies { from-zone { TRUST { to-zone { UNTRUST {
+  //   policy { WEB-ACCESS { match {...} then {...} } } } } } } } }
+  function secPolicies(rt) {
+    var out = { default: 'deny-all', rules: [] };
+    var pRoot = tGo(committedRoot(rt), ['security', 'policies']);
+    if (!pRoot) return out;
+    var dpc = tKids(pRoot, 'default-policy');
+    if (dpc.length && dpc[0].children.length) out.default = dpc[0].children[0].name;
+    function hasLogUnder(n) {
+      if (!n) return false;
+      for (var i = 0; i < n.children.length; i++) {
+        var c = n.children[i];
+        if (c.name === 'log') return true;
+        if (hasLogUnder(c)) return true;
+      }
+      return false;
+    }
+    function pushPolicy(from, to, pn, out) {
+      var match = tKid(pn, 'match');
+      var thenN = tKid(pn, 'then');
+      var thenNames = namesOf(thenN);
+      var action = 'deny';
+      for (var an = 0; an < thenNames.length; an++) {
+        if (thenNames[an].indexOf('permit') === 0) { action = 'permit'; break; }
+        if (thenNames[an].indexOf('deny') === 0 || thenNames[an].indexOf('reject') === 0) { action = 'deny'; break; }
+      }
+      out.rules.push({
+        from: from, to: to, name: pn.name,
+        src: namesOf(tKid(match, 'source-address')),
+        dst: namesOf(tKid(match, 'destination-address')),
+        app: namesOf(tKid(match, 'application')),
+        action: action,
+        log: thenNames.indexOf('log') >= 0 || hasLogUnder(thenN),
+        node: pn
+      });
+    }
+    var fzc = tKids(pRoot, 'from-zone');
+    for (var f = 0; f < fzc.length; f++) {
+      var fzVals = tKids(fzc[f]);
+      for (var fzv = 0; fzv < fzVals.length; fzv++) {
+        var from = fzVals[fzv].name;
+        var tzc = tKids(fzVals[fzv], 'to-zone');
+        if (tzc.length) {
+          for (var t = 0; t < tzc.length; t++) {
+            var tzVals = tKids(tzc[t]);
+            for (var tzv = 0; tzv < tzVals.length; tzv++) {
+              var pvals = groupValueNodes(tzVals[tzv], 'policy');
+              for (var p = 0; p < pvals.length; p++) pushPolicy(from, tzVals[tzv].name, pvals[p], out);
+            }
+          }
+        } else {
+          var pvals2 = groupValueNodes(fzVals[fzv], 'policy');
+          for (var p2 = 0; p2 < pvals2.length; p2++) pushPolicy(from, null, pvals2[p2], out);
+        }
+      }
+    }
+    for (var ix = 0; ix < out.rules.length; ix++) out.rules[ix].index = 4 + ix;
+    return out;
+  }
+
+  // NAT tree: security { nat { source { rule-set { SNAT { from { zone { TRUST {
+  //   to { zone { UNTRUST { rule { SR-1 { match {...} then {...} } } } } } } } } } } }
+  function natRuleSets(rt, kind) {
+    var grp = tGo(committedRoot(rt), ['security', 'nat', kind]);
+    if (!grp) return [];
+    var out = [];
+    var rsConts = tKids(grp, 'rule-set');
+    for (var rc = 0; rc < rsConts.length; rc++) {
+      var rsVals = tKids(rsConts[rc]);
+      for (var v = 0; v < rsVals.length; v++) {
+        var rs = rsVals[v];
+        var ent = { setName: rs.name, from: 'any', to: 'any', rules: [] };
+        var fromC = tKid(rs, 'from');
+        var zC1 = fromC ? tKid(fromC, 'zone') : null;
+        var fzVals = zC1 ? tKids(zC1) : [];
+        var holder = null;
+        if (fzVals.length) {
+          ent.from = fzVals[0].name;
+          holder = fzVals[0];
+          var toC = tKid(fzVals[0], 'to');
+          var zC2 = toC ? tKid(toC, 'zone') : null;
+          var tzVals = zC2 ? tKids(zC2) : [];
+          if (tzVals.length) { ent.to = tzVals[0].name; holder = tzVals[0]; }
+        }
+        var rCont = holder ? tKids(holder, 'rule') : [];
+        for (var r = 0; r < rCont.length; r++) {
+          var rvals = tKids(rCont[r]);
+          for (var rv = 0; rv < rvals.length; rv++) ent.rules.push(rvals[rv]);
+        }
+        if (ent.rules.length) out.push(ent);
+      }
+    }
+    return out;
+  }
+
+  function showSecurityZones(rt) {
+    var zones = secZones(rt);
+    if (!zones.length) return [];
+    var out = [];
+    for (var i = 0; i < zones.length; i++) {
+      var z = zones[i];
+      out.push('Security zone: ' + z.name);
+      out.push('  Send reset for non-SYN session TCP packets: Off');
+      out.push('  Policy configurable: Yes');
+      out.push('  Interfaces bound: ' + z.ifaces.length);
+      if (z.ifaces.length) {
+        out.push('  Interfaces:');
+        for (var k = 0; k < z.ifaces.length; k++) out.push('    ' + z.ifaces[k]);
+      }
+      if (z.services.length) {
+        out.push('  Host inbound services: ' + z.services.join(' '));
+      }
+      out.push('');
+    }
+    return out;
+  }
+
+  function showSecurityPolicies(rt, key, args) {
+    var pol = secPolicies(rt);
+    if (key.indexOf('hit-count') >= 0) {
+      if (!pol.rules.length) return ['Default policy: ' + pol.default, ''];
+      var outH = [];
+      outH.push('Policy name                      Counter name           Hit count');
+      for (var h = 0; h < pol.rules.length; h++) {
+        var rh = pol.rules[h];
+        var seed = detBig(rt.key + ':hit:' + rh.name);
+        outH.push(padR(rh.name, 33) + padR('session-counter', 22) + padL(String(20 + seed % 900), 9));
+      }
+      return outH;
+    }
+    var pool = (args.free || []).concat(args.rest || []);
+    var fz = null, tz = null;
+    for (var i = 0; i < pool.length; i++) {
+      var lv = String(pool[i]).toLowerCase();
+      if (lv.indexOf('from-zone') === 0 && pool[i + 1]) { fz = pool[i + 1]; i++; }
+      else if (lv.indexOf('to-zone') === 0 && pool[i + 1]) { tz = pool[i + 1]; i++; }
+    }
+    var out = ['Default policy: ' + pol.default];
+    out.push('');
+    for (var r = 0; r < pol.rules.length; r++) {
+      var ru = pol.rules[r];
+      if (fz && ru.from !== fz) continue;
+      if (tz && ru.to !== tz) continue;
+      out.push('From zone: ' + (ru.from || 'any') + ', To zone: ' + (ru.to || 'any'));
+      out.push('  Policy: ' + ru.name + ', State: enabled, Index: ' + ru.index + ', Sequence number: ' + (r + 1));
+      out.push('    Source addresses: ' + (ru.src.length ? ru.src.join(', ') : 'any'));
+      out.push('    Destination addresses: ' + (ru.dst.length ? ru.dst.join(', ') : 'any'));
+      out.push('    Applications: ' + (ru.app.length ? ru.app.join(', ') : 'any'));
+      out.push('    Action: ' + (ru.action === 'permit' ? 'permit' : 'deny') + (ru.log ? ', log' : ''));
+      out.push('');
+    }
+    return out;
+  }
+
+  function hostFromPrefix(prefix, seed, base) {
+    var ip = String(prefix || base).split('/')[0];
+    var parts = ip.split('.');
+    if (parts.length === 4) parts[3] = String(base + (seed % 200));
+    return parts.join('.');
+  }
+
+  function showFlowSessions(rt) {
+    var pol = secPolicies(rt);
+    var zones = secZones(rt);
+    if (!pol.rules.length) return ['Total sessions: 0'];
+    var out = [];
+    var shown = 0;
+    for (var r = 0; r < pol.rules.length; r++) {
+      var ru = pol.rules[r];
+      if (ru.action !== 'permit') continue;
+      var seed = detBig(rt.key + ':flow:' + ru.name);
+      var inIf = zoneIface(zones, ru.from);
+      var outIf = zoneIface(zones, ru.to);
+      var src = ru.src.length ? hostFromPrefix(ru.src[0], seed, 10) : hostFromPrefix('192.168.10.0/24', seed, 10);
+      var dst = ru.dst.length ? ru.dst[0].split('/')[0] : '203.0.113.' + (1 + seed % 240);
+      var svc = ru.app.length && ru.app[0].indexOf('http') >= 0 ? 'tcp' : 'udp';
+      var dport = svc === 'tcp' ? 80 : 53;
+      out.push('Session ID: ' + (20000 + (seed % 90000)) + ', Policy name: ' + ru.name + '/' + ru.index + ', Timeout: ' + (2 + seed % 30) + ', Valid');
+      out.push('  In: ' + src + '/' + (40000 + seed % 22000) + ' --> ' + dst + '/' + dport + '; ' + svc + ', Conn Tag: 0x0, If: ' + (inIf || 'ge-0/0/1.0') + ', Pkts: ' + (1 + seed % 9) + ', Bytes: ' + (60 + seed % 90) + ',');
+      out.push('  Out: ' + dst + '/' + dport + ' --> ' + src + '/' + (31000 + seed % 30000) + '; ' + svc + ', Conn Tag: 0x0, If: ' + (outIf || 'ge-0/0/0.0') + ', Pkts: ' + (2 + seed % 7) + ', Bytes: ' + (70 + seed % 110) + ',');
+      shown++;
+    }
+    if (!shown) return ['Total sessions: 0'];
+    out.push('Total sessions: ' + shown);
+    return out;
+  }
+
+  function zoneIface(zones, zn) {
+    if (!zones) return null;
+    for (var i = 0; i < zones.length; i++) if (zones[i].name === zn && zones[i].ifaces.length) return zones[i].ifaces[0];
+    return null;
+  }
+
+  function showFlowSummary(rt) {
+    var pol = secPolicies(rt);
+    var seed = detBig(rt.key + ':flowsum');
+    var total = 0, hit = 0;
+    for (var r = 0; r < pol.rules.length; r++) if (pol.rules[r].action === 'permit') { total++; hit += 2 + seed % 9; }
+    var out = [
+      'Total sessions: ' + total,
+      'Session hits: ' + hit
+    ];
+    if (total) {
+      out = out.concat([
+        'ICMP sessions: ' + (1 + seed % 3),
+        'TCP sessions: ' + (total - 1),
+        'UDP sessions: ' + (1 + seed % 2),
+        '',
+        'Max sessions: ' + (2000 + seed % 4000)
+      ]);
+    }
+    return out;
+  }
+
+  function showFlowStatus(rt) {
+    var pol = secPolicies(rt);
+    var n = 0;
+    for (var r = 0; r < pol.rules.length; r++) if (pol.rules[r].action === 'permit') n++;
+    var seed = detBig(rt.key + ':flowst');
+    return [
+      'Flow gate is enabled',
+      'Flow proto: IPv4/IPv6',
+      'Flow mode: flow-based',
+      'Total sessions: ' + n + ' (' + (seed % 3) + ' TCP, ' + (n ? (1 + seed % 2) : 0) + ' UDP)'
+    ];
+  }
+
+  function natThenKind(natKind, thenN) {
+    var key = { source: 'source-nat', destination: 'destination-nat', static: 'static-nat' }[natKind] || natKind;
+    var t = tKid(thenN, key);
+    return t;
+  }
+
+  function showNatSummary(rt) {
+    var rsets = natRuleSets(rt, 'source');
+    var totalRules = 0;
+    var out = [];
+    var seed = detBig(rt.key + ':natsrc');
+    for (var r = 0; r < rsets.length; r++) {
+      var rs = rsets[r];
+      for (var q = 0; q < rs.rules.length; q++) {
+        var ru = rs.rules[q];
+        totalRules++;
+        var match = tKid(ru, 'match');
+        var thenN = tKid(ru, 'then');
+        var snat = thenN ? natThenKind('source', thenN) : null;
+        var tType = snat && snat.children.length ? snat.children[0].name : 'interface';
+        var poolName = null;
+        if (tType === 'pool') {
+          var pv = tKids(snat, 'pool');
+          poolName = pv.length && pv[0].children.length ? pv[0].children[0].name : 'POOL1';
+        }
+        var srcAddr = namesOf(tKid(match, 'source-address'));
+        out.push('Source NAT rule: ' + ru.name + ', Rule-set: ' + rs.setName);
+        out.push('  From zone: ' + rs.from + ', To zone: ' + rs.to);
+        out.push('  Source addresses: ' + (srcAddr.length ? srcAddr.join(', ') : 'any'));
+        out.push('  Translation type: ' + (poolName ? 'pool (' + poolName + ')' : tType));
+        out.push('  Translation hits: ' + (100 + seed % 1800));
+        out.push('');
+      }
+    }
+    var head = ['Total rules: ' + totalRules];
+    if (totalRules) head.push('Total bytes: ' + (totalRules * (seed % 9) + 1) + '.' + (seed % 9) + ' MB, Total packets: ' + (totalRules * (10 + seed % 60)) + '.' + (seed % 9) + ' k, Total flows: ' + (130 + seed % 2600));
+    return head.concat(totalRules ? [''].concat(out) : out);
+  }
+
+  function showNatRules(rt, kind) {
+    var rsets = natRuleSets(rt, kind);
+    if (!rsets.length) return ['Total rules: 0'];
+    var out = [];
+    var totalRules = 0;
+    for (var r = 0; r < rsets.length; r++) {
+      var rs = rsets[r];
+      for (var q = 0; q < rs.rules.length; q++) {
+        var ru = rs.rules[q];
+        totalRules++;
+        var match = tKid(ru, 'match');
+        var thenN = tKid(ru, 'then');
+        var src = namesOf(tKid(match, 'source-address'));
+        var dst = namesOf(tKid(match, 'destination-address'));
+        var dport = namesOf(tKid(match, 'destination-port'));
+        var desc = '  Rule: ' + ru.name + ', Rule-set: ' + rs.setName + (src.length ? ', Source: ' + src.join(', ') : '') + (dst.length != 0 ? ', Dest: ' + dst.join(', ') : '') + (dport.length ? ', Port: ' + dport.join(',') : '');
+        var poolN = thenN ? natThenKind(kind, thenN) : null;
+        var poolName = null;
+        if (poolN) {
+          var pv = tKids(poolN, 'pool');
+          if (pv.length && pv[0].children.length) poolName = pv[0].children[0].name;
+          else if (poolN.children.length && kind !== 'source') {
+            // static-nat: `prefix X` or bare pool name
+            if (poolN.children[0].name === 'prefix' && poolN.children[0].children.length) {
+              desc += ', Prefix: ' + poolN.children[0].children[0].name;
+              poolName = '(prefix)';
+            }
+          }
+        }
+        desc += poolName && poolName !== '(prefix)' ? ', Pool: ' + poolName : (kind === 'source' && !poolName ? ', Translation: interface' : '');
+        out.push(desc.trim());
+      }
+    }
+    return ['Total rules: ' + totalRules, ''].concat(out);
+  }
+
+  function showIkeSas(rt) {
+    var ikeRoot = tGo(committedRoot(rt), ['security', 'ike']);
+    if (!ikeRoot) return [];
+    var gwVals = groupValueNodes(ikeRoot, 'gateway');
+    if (!gwVals.length) return [];
+    var out = ['Index   State  Initiator cookie  Responder cookie  Mode           Remote Address'];
+    for (var i = 0; i < gwVals.length; i++) {
+      var addr = firstUnder(gwVals[i], 'address') || '0.0.0.0';
+      var seed = detBig(rt.key + ':ike:' + gwVals[i].name);
+      var ck = '';
+      for (var c = 0; c < 16; c++) ck += '0123456789abcdef'.charAt(detBig(gwVals[i].name + ':ck' + c) % 16);
+      var ck2 = '';
+      for (var c2 = 0; c2 < 16; c2++) ck2 += '0123456789abcdef'.charAt(detBig(gwVals[i].name + ':ck2' + c2) % 16);
+      out.push(padL(String(1000 + seed % 8000), 5) + '   UP     ' + ck + '  ' + ck2 + '  IKEv2          ' + addr);
+    }
+    return out;
+  }
+
+  function showIpsecSas(rt) {
+    var root = committedRoot(rt);
+    var ipRoot = tGo(root, ['security', 'ipsec']);
+    if (!ipRoot) return [];
+    var vpnVals = groupValueNodes(ipRoot, 'vpn');
+    if (!vpnVals.length) return [];
+    var ikeGwVals = [];
+    var ikeRoot = tGo(root, ['security', 'ike']);
+    if (ikeRoot) ikeGwVals = groupValueNodes(ikeRoot, 'gateway');
+    var out = ['  Total active tunnels: ' + vpnVals.length + '     Total Ipsec sas: ' + vpnVals.length * 2, ''];
+    out.push('  ID     Gateway          Algorithm       SPI      Life:sec/kb  Mon lsys Port');
+    for (var i = 0; i < vpnVals.length; i++) {
+      var seed = detBig(rt.key + ':ipsec:' + vpnVals[i].name);
+      var gwName = firstUnder(vpnVals[i], 'ike-gateway');
+      if (!gwName) {
+        var low = tKid(vpnVals[i], 'ike');
+        gwName = low && low.children.length ? low.children[0].name : null;
+      }
+      var gwAddr = null;
+      for (var gi = 0; gi < ikeGwVals.length; gi++) {
+        if (ikeGwVals[gi].name === gwName) {
+          gwAddr = firstUnder(ikeGwVals[gi], 'address');
+          break;
+        }
+      }
+      var spi1 = '', spi2 = '';
+      for (var c = 0; c < 8; c++) spi1 += '0123456789abcdef'.charAt(detBig(vpnVals[i].name + ':spi1' + c) % 16);
+      for (var c2 = 0; c2 < 8; c2++) spi2 += '0123456789abcdef'.charAt(detBig(vpnVals[i].name + ':spi2' + c2) % 16);
+      var life = 2400 + seed % 3000;
+      out.push('  <' + (300000 + seed % 200000) + ' ESP:aes-cbc-256/sha256 ' + padR(spi1, 9) + life + '/unlim -  root 500 ' + (gwAddr || '0.0.0.0'));
+      out.push('  >' + (300000 + seed % 200000) + ' ESP:aes-cbc-256/sha256 ' + padR(spi2, 9) + life + '/unlim -  root 500 ' + (gwAddr || '0.0.0.0'));
+    }
+    return out;
+  }
+
   function showVlans(ds) {
     var out = [];
     if (!ds || !ds.platform || ds.platform !== 'ex') return out;
@@ -731,6 +1789,31 @@
       }
     }
     function wMark(p) { return p; }
+    return out;
+  }
+
+  function showSwSwitchingInterfaces(ds) {
+    var out = [];
+    if (!ds || !ds.platform || ds.platform !== 'ex') {
+      return ['error: command is not valid on this platform'];
+    }
+    out.push('Interface       State  VLAN members');
+    for (var i = 0; i < ds.iflist.length; i++) {
+      var name = ds.iflist[i];
+      var ifc = ds.interfaces[name]; if (!ifc) continue;
+      if (name.indexOf('irb') === 0) continue;
+      var swUnit = null;
+      for (var u = 0; u < ifc.unilist.length; u++) {
+        if (ifc.unilist[u].family === 'ethernet-switching') { swUnit = ifc.unilist[u]; break; }
+      }
+      if (!swUnit) continue;
+      var members = [];
+      for (var m = 0; m < swUnit.vlanMembers.length; m++) {
+        members.push(swUnit.vlanMembers[m] + (swUnit.interfaceMode === 'trunk' ? '(T)' : ''));
+      }
+      var nm2 = swUnit.ukey || (name + '.' + swUnit.num);
+      out.push(padR(nm2, 16) + padR(ifc.linkUp ? 'up' : 'down', 7) + (members.length ? members.join(' ') : ''));
+    }
     return out;
   }
 
@@ -1205,7 +2288,7 @@
     return { node: node, failIdx: -1 };
   }
 
-  // ---------- op mode — small utilities ----------
+  // ---------- op mode - small utilities ----------
 
   function opFileList(sess, args) {
     var p = args.length ? args[0] : '/var/home/root';
@@ -1254,6 +2337,10 @@
 
   function opFileShow(rt, path) {
     if (!path) return { lines: ['usage: file show <file>'] };
+    var files = rt.files || {};
+    var fshort = String(path).replace(/^.*[\/\\]/, '');
+    if (files[path] != null) return { lines: String(files[path]).split('\n') };
+    if (files[fshort] != null) return { lines: String(files[fshort]).split('\n') };
     if (/messages/.test(path)) {
       var log = rt.syslog || seedSyslog(rt.key);
       return { lines: log.slice(-8).slice() };
@@ -1262,7 +2349,7 @@
       return { lines: (rt.intLog || seedIntLog(rt)).slice(-8) };
     }
     if (/\.md$/i.test(path)) {
-      return { lines: ['# SHARKS Junos practice lab', '# Sample configs: robust-a.config, robust-b.config'] };
+      return { lines: ['# SharkLab Studio', '# Sample configs: robust-a.config, robust-b.config'] };
     }
     if (/\.config$/.test(path)) {
       return { lines: configSetLines(rt) };
@@ -1324,6 +2411,34 @@
     };
   }
   function delRef() { return '0'; }
+
+  function opMonitorTraffic(ds, tok) {
+    var name = resolveIfname(ds, tok);
+    if (!tok) return { lines: ['        usage: monitor traffic interface <ifname>'] };
+    if (!name || !ds.interfaces[name]) {
+      return { lines: ['error: interface not found  ' + tok] };
+    }
+    var seed = ds.key + ':' + name;
+    var selfIp = (ds.subnets && ds.subnets[0]) ? ds.subnets[0].ip : '0.0.0.0';
+    var out = [];
+    out.push('Address 00:50:56:' + pad2((seed.length * 7) % 90 + 9) + ':' + pad2(seed.length % 90 + 9) + ':' + pad2((seed.length * 13) % 90 + 9));
+    out.push('');
+    out.push('Capturing on \x27' + name + '\x27');
+    out.push('');
+    var rows = [
+      '  1   ' + detBig(seed + ':t0') + '  ARP        Who has ' + selfIp.replace(/\.\d+$/, '.254') + '? Tell ' + selfIp,
+      '  2   ' + detBig(seed + ':t1') + '  OSPF       ' + selfIp + ' > 224.0.0.5: OSPFv2 Hello Packet, len 48',
+      '  3   ' + detBig(seed + ':t2') + '  ARP        Reply ' + selfIp + ' is-at ' + (ds.interfaces[name].mac || selfMac('3')),
+      '  4   ' + detBig(seed + ':t3') + '  ARP        Who has ' + selfIp.replace(/\.\d+$/, '.254') + '? Tell ' + selfIp,
+      '  5   ' + detBig(seed + ':t4') + '  OSPF       ' + selfIp + ' > 224.0.0.5: OSPFv2 Hello Packet, len 48'
+    ];
+    out.push.apply(out, rows);
+    out.push('');
+    out.push('5 packets captured');
+    return { lines: out };
+  }
+  function selfMac(i) { return '00:50:56:bb:cc:0' + i; }
+  function pad2(v) { v = String(v); return (v.length < 2 ? '0' : '') + v; }
 
   function opRequestSystem(rt) { return { lines: [], reboot: true }; }
 
@@ -1424,7 +2539,7 @@
     var base = ap.split('/').pop();
     if (/^robust-(a|b)\.config$/.test(base)) return configSetLines(rt);
     if (/^(juniper\.conf|temporary\.conf)$/.test(base)) return db.braceRender(rt.committed, [], false) || [];
-    if (/^README\.md/i.test(base)) return ['# SHARKS Junos practice lab', '# Sample configs: robust-a.config, robust-b.config'];
+    if (/^README\.md/i.test(base)) return ['# SharkLab Studio', '# Sample configs: robust-a.config, robust-b.config'];
     var fm = {
       '/etc/hosts': ['127.0.0.1 localhost'],
       '/etc/resolv.conf': ['nameserver 10.0.0.1'],
@@ -1530,7 +2645,7 @@
 
   // ---------- pipe filters ----------
 
-  function applyPipes(lines, pipeToks) {
+  function applyPipes(lines, pipeToks, sess) {
     if (!pipeToks || !pipeToks.length) return lines;
     var cur = lines.slice();
     var i = 0;
@@ -1572,6 +2687,17 @@
         i += 2;
         continue;
       }
+      if (/^(sa|sav|save)$/.test(f)) {
+        var savePath = pipeToks[i + 1];
+        if (sess && sess.rt && savePath) {
+          var text = out.join('\n');
+          sess.rt.files = sess.rt.files || {};
+          sess.rt.files[String(savePath)] = text;
+          var short = String(savePath).replace(/^.*[\/\\]/, '');
+          if (short && short !== String(savePath)) sess.rt.files[short] = text;
+        }
+        return []; // Junos `| save` is silent
+      }
       break;
     }
     return out;
@@ -1599,8 +2725,7 @@
 
   // ---------- operational dispatcher ----------
 
-  function runOp(sess, line) {
-    var world = sess.world;
+  function runOp(sess, line) {    var world = sess.world;
     var rt = sess.rt;
     var sp = splitPipe(tokenize(line));
     var main = sp.main, pipeToks = sp.pipe;
@@ -1662,6 +2787,11 @@
         args.ifname = t0;
         args.rest = args.rest.slice(1);
       }
+      if (!args.free && pathWords.length >= 2 && pathWords[0] === 'file' &&
+          (pathWords[1] === 'show' || pathWords[1] === 'list' || pathWords[1] === 'statistics')) {
+        args.free = args.rest;
+        args.rest = [];
+      }
     }
     if (args.rest && args.rest.length && !args.leafRest) {
       return errCaret(sess, line, main.length - args.rest.length, '^ invalid input: ' + args.rest[0]);
@@ -1673,12 +2803,20 @@
     if (key === 'show configuration' && pipeToks.length) {
       var p0 = String(pipeToks[0] || '').toLowerCase();
       if (p0.length && 'compare'.indexOf(p0) === 0 && 'count'.indexOf(p0) !== 0) {
-        var rbase = (rt.revisions && rt.revisions[1]) || rt.committed;
-        if (pipeToks[1] && /^(ro|rol|roll|rollb|rollba|rollbac|rollback)$/.test(String(pipeToks[1]).toLowerCase())) {
-          var rn = parseInt(pipeToks[2], 10);
-          rbase = (rt.revisions && rt.revisions[rn]) || rbase;
+        var hasRoll = false;
+        for (var hq = 1; hq < pipeToks.length; hq++) {
+          if ('rollback'.indexOf(String(pipeToks[hq]).toLowerCase()) === 0) { hasRoll = true; break; }
         }
-        return { lines: compareAt(sess, rbase) };
+        if (hasRoll) {
+          var pt2 = 1, rbase = rt.committed;
+          if (pipeToks[1] && /^(ro|rol|roll|rollb|rollba|rollbac|rollback)$/.test(String(pipeToks[1]).toLowerCase())) {
+            var rn = parseInt(pipeToks[2], 10);
+            rbase = (rt.revisions && rt.revisions[rn]) || rbase;
+          }
+          return { lines: compareAt(sess, rbase) };
+        }
+        // plain `| compare` in op mode diffs the pending candidate against committed
+        return { lines: compareAt(sess, rt.candidate) };
       }
       if (p0.length && 'display'.indexOf(p0) === 0 && pipeToks[1] && 'set'.indexOf(String(pipeToks[1]).toLowerCase()) === 0) {
         return { lines: displaySetLines(rt.committed) };
@@ -1688,7 +2826,9 @@
     // completion gate: partial 'show' paths that are themselves runnable commands run now
     if (node && node.sub && pathWords[0] === 'show' && !args.rest && !args.ifname && !args.free) {
       var kk = pathWords.join(' ');
-      if (kk !== 'show interfaces' && kk !== 'show route' && kk !== 'show route forwarding-table' && kk !== 'show chassis fpc') {
+      if (kk !== 'show interfaces' && kk !== 'show route' && kk !== 'show route forwarding-table' && kk !== 'show chassis fpc' &&
+          kk !== 'show bfd session' && kk !== 'show security policies' && kk !== 'show vrrp' && kk !== 'show firewall' &&
+          kk !== 'show security nat source rule' && kk !== 'show security nat destination rule' && kk !== 'show security nat static rule') {
         return { lines: completionsBlock(candsAt(node, sess)) };
       }
     }
@@ -1697,7 +2837,7 @@
     if (out && out.msgType === 'mode') return out;
     var lines = out.lines == null ? [] : out.lines;
     return {
-      lines: applyPipes(lines, pipeToks),
+      lines: applyPipes(lines, pipeToks, sess),
       mode: out.mode || null,
       reboot: out.reboot || false,
       pend: out.pend || null
@@ -1713,6 +2853,16 @@
     return false;
   }
 
+  function walkOpTree(key) {
+    if (!key) return null;
+    var n = OP_TREE;
+    var toks = String(key).split(' ');
+    for (var i = 0; i < toks.length && n; i++) {
+      n = resolveTok(toks[i], n.sub);
+    }
+    return n;
+  }
+
   function dispatchOp(sess, key, args, ds, world, rt) {
     var lines;
     switch (key) {
@@ -1726,6 +2876,10 @@
       case 'show system users':
         lines = showSystemUsers(rt); break;
       case 'show system commit': lines = showSystemCommit(rt); break;
+      case 'show system alarms':
+        lines = showSystemAlarms(rt); break;
+      case 'show system information':
+        lines = showSystemInformation(rt); break;
       case 'show':
         return { lines: completionsBlock(candsAt(OP_TREE.show, sess)) };
       case 'show interfaces': {
@@ -1741,6 +2895,8 @@
       case 'show interfaces terse':
         lines = showIntTerse(ds, showIfName(ds, args));
         break;
+      case 'show interfaces descriptions':
+        return { lines: showIntDescriptions(ds, rt) };
       case 'show interfaces brief':
         case 'show interfaces media': case 'show interfaces statistics': case 'show interfaces diagnostics': case 'show interfaces detail': case 'show interfaces extensive': {
         if (!args.ifname && !args.free) return { lines: ['error: interface required for this view'] };
@@ -1749,6 +2905,28 @@
         var mode = key.split(' ')[2];
         lines = showIntBlock(ds, ds.interfaces[nm], mode === 'extensive' ? 'detail' : mode);
         break;
+      }
+      case 'show interfaces irb': case 'show interfaces irb terse': case 'show interfaces irb brief': case 'show interfaces irb detail': {
+        if (ds && ds.iflist) {
+          var hasIrbIflist = false;
+          for (var hil = 0; hil < ds.iflist.length; hil++) {
+            if (String(ds.iflist[hil]).indexOf('irb') === 0) { hasIrbIflist = true; break; }
+          }
+          if (hasIrbIflist) {
+            var terse2 = showIntTerse(ds, 'irb');
+            if (terse2.length > 1) return { lines: terse2 };
+          }
+        }
+        if (ds && ds.subnets) {
+          var rowz = [];
+          for (var irz = 0; irz < ds.subnets.length; irz++) {
+            var snz = ds.subnets[irz];
+            if (snz.kind !== 'irb') continue;
+            rowz.push(padR(snz.ukey || (snz.iface + '.' + snz.unit), 24) + padR('up', 6) + padR('up', 5) + padR('inet', 9) + snz.cidr);
+          }
+          if (rowz.length) return { lines: ['Interface               Admin Link Proto    Local                 Remote'].concat(rowz) };
+        }
+        return { lines: ['error: device does not have irb configured'] };
       }
       case 'show route':
         return { lines: routeLines(ds, args) };
@@ -1766,6 +2944,23 @@
         var pproto = (args.rest && args.rest[0]) || (args.free && args.free[0]) || null;
         return { lines: routeLines(ds, args, null, pproto) };
       }
+      case 'show route hidden': case 'show route hidden detail': case 'show route hidden extensive': {
+        var hjoin = (args.free || []).join(' ') + ' ' + (args.rest || []).join(' ');
+        return { lines: routeHidden(ds, rt, (key + ' ' + hjoin).indexOf('detail') >= 0 || (key + ' ' + hjoin).indexOf('extensive') >= 0) };
+      }
+      case 'show route table': case 'show route table summary': case 'show route table detail': {
+        var tpool = (args.free || []).concat(args.rest || []);
+        var tleft = [], wantSummary = false;
+        for (var tw2 = 0; tw2 < tpool.length; tw2++) {
+          var w2 = String(tpool[tw2]).toLowerCase();
+          if (w2.indexOf('summary') === 0) { wantSummary = true; continue; }
+          if (/^(inet|inet6|mpls|bgp|iso|vpn)\.?/.test(w2)) continue;
+          if (w2 === 'detail' || w2 === '0' || w2 === '1') continue;
+          tleft.push(String(tpool[tw2]));
+        }
+        if (wantSummary) return { lines: showRouteSummary(ds) };
+        return { lines: routeLines(ds, { free: tleft, rest: [] }) };
+      }
       case 'show ospf neighbor':
         return { lines: showOspfNbr(ds) };
       case 'show ospf interface':
@@ -1782,6 +2977,73 @@
         return { lines: showBgpSummary(ds) };
       case 'show bgp neighbor':
         return { lines: showBgpNeighbor(ds) };
+      case 'show bfd session': case 'show bfd session detail': {
+        var bfdDetail = String(key).indexOf('detail') >= 0;
+        var bfdTok = (args.free || []).concat(args.rest || []);
+        for (var bi = 0; bi < bfdTok.length; bi++) if (String(bfdTok[bi]).toLowerCase().indexOf('detail') === 0) bfdDetail = true;
+        return { lines: showBfdSession(ds, rt, bfdDetail) };
+      }
+      case 'show firewall':
+        return { lines: showFirewall(rt) };
+      case 'show firewall filter':
+        return { lines: showFirewall(rt, ((args.free || [])[0]) || ((args.rest || [])[0]) || null) };
+      case 'show firewall log':
+        return { lines: showFirewallLog(rt) };
+      case 'show policer':
+        return { lines: showPolicer(rt) };
+      case 'show isis adjacency':
+        return { lines: showIsisAdjacency(ds, rt) };
+      case 'show isis database':
+        return { lines: showIsisDatabase(ds, rt) };
+      case 'show isis interface':
+        return { lines: showIsisInterface(ds, rt) };
+      case 'show isis route':
+        return { lines: showIsisRoute(ds, rt) };
+      case 'show isis statistics':
+        return { lines: showIsisStats(ds, rt) };
+      case 'show ldp neighbor':
+        return { lines: showLdpNeighbor(ds, rt) };
+      case 'show ldp session':
+        return { lines: showLdpSession(ds, rt) };
+      case 'show ldp database':
+        return { lines: showLdpDatabase(ds, rt) };
+      case 'show mpls lsp':
+        return { lines: showMplsLsp(rt) };
+      case 'show mpls interface':
+        return { lines: showMplsInterface(rt) };
+      case 'show rsvp session':
+        return { lines: showMplsLsp(rt, 'rsvp') };
+      case 'show rsvp interface':
+        return { lines: showRsvpInterface(rt) };
+      case 'show lacp interfaces':
+        return { lines: showLacp(rt) };
+      case 'show vrrp': case 'show vrrp brief':
+        return { lines: showVrrp(rt) };
+      case 'show security zones':
+        return { lines: showSecurityZones(rt) };
+      case 'show security policies': case 'show security policies detail': case 'show security policies hit-count':
+        return { lines: showSecurityPolicies(rt, key, args) };
+      case 'show security flow session':
+        return { lines: showFlowSessions(rt) };
+      case 'show security flow summary':
+        return { lines: showFlowSummary(rt) };
+      case 'show security flow status':
+        return { lines: showFlowStatus(rt) };
+      case 'show security nat source summary':
+        return { lines: showNatSummary(rt) };
+      case 'show security nat source rule': case 'show security nat source rule all':
+        return { lines: showNatRules(rt, 'source') };
+      case 'show security nat destination rule': case 'show security nat destination rule all':
+        return { lines: showNatRules(rt, 'destination') };
+      case 'show security nat static rule': case 'show security nat static rule all':
+        return { lines: showNatRules(rt, 'static') };
+      case 'show security ike security-associations':
+        return { lines: showIkeSas(rt) };
+      case 'show security ipsec security-associations':
+        return { lines: showIpsecSas(rt) };
+      case 'clear security flow session': case 'clear security flow sessions':
+      case 'clear security ike security-associations': case 'clear security ipsec security-associations':
+        return { lines: [] };
       case 'show arp':
         return { lines: showArp(ds) };
       case 'show lldp': case 'show lldp neighbors':
@@ -1790,6 +3052,8 @@
         return { lines: ds.vlans.length ? showVlans(ds) : ['error: no vlans configured on this device'] };
       case 'show ethernet-switching table':
         return { lines: showMacTable(ds) };
+      case 'show ethernet-switching interfaces':
+        return { lines: showSwSwitchingInterfaces(ds) };
       case 'show spanning-tree bridge':
         return { lines: showStpBridge(ds) };
       case 'show spanning-tree interface':
@@ -1833,17 +3097,20 @@
       case 'clear ospf statistics':
         return { lines: [] };
       case 'file list':
-        lines = opFileList(sess, args.rest || []);
+        lines = opFileList(sess, (args.free || []).concat(args.rest || []));
         break;
       case 'file show': {
-        var fsout = opFileShow(rt, (args.rest || [])[0]);
+        var fpath = (args.free && args.free[0]) || (args.rest && args.rest[0]) || null;
+        var fsout = opFileShow(rt, fpath);
         return { lines: fsout.lines };
       }
       case 'file statistics':
-        lines = opFileStats(rt, (args.rest || [])[0]);
+        lines = opFileStats(rt, (args.free && args.free[0]) || (args.rest && args.rest[0]) || null);
         break;
       case 'monitor interface':
         return opMonitor(sess, args.ifname ? [args.ifname] : (args.rest || []));
+      case 'monitor traffic interface':
+        return opMonitorTraffic(ds, args.ifname ? args.ifname : (args.rest && args.rest[0]) || '');
       case 'monitor traffic': case 'monitor':
         return { lines: completionsBlock(candsAt(OP_TREE.monitor, sess)) };
       case 'request system reboot':
@@ -1874,9 +3141,11 @@
         return { lines: [], msgType: 'mode', mode: 'cli-cfg' };
       case 'pipe':
         return { lines: [] };
-      default:
-        if (node.sub) return { lines: completionsBlock(candsAt(node, sess)) };
+      default: {
+        var walked = walkOpTree(key);
+        if (walked && walked.sub) return { lines: completionsBlock(candsAt(walked, sess)) };
         return { lines: ['% Unknown command.'] };
+      }
     }
     return { lines: lines };
   }
@@ -1908,6 +3177,46 @@
       return J.inNet(pd.ip, filter);
     }
     return false;
+  }
+
+  // ---------- route hidden / unresolvable statics ----------
+
+  function routeHidden(ds, rt, wantDetail) {
+    var root = committedRoot(rt);
+    var st = tGo(root, ['routing-options', 'static']);
+    var routes = st ? tKid(st, 'route') : null;
+    var hidden = [];
+    if (routes) {
+      var rns = tKids(routes);
+      for (var i = 0; i < rns.length; i++) {
+        var nh = firstUnder(rns[i], 'next-hop');
+        if (!nh) continue;
+        var resolvable = false;
+        if (ds && ds.subnets) {
+          for (var s = 0; s < ds.subnets.length; s++) {
+            if (J.inNet(nh, ds.subnets[s].cidr)) { resolvable = true; break; }
+          }
+        }
+        if (resolvable) continue;
+        var seed = detBig(rt.key + ':rh:' + rns[i].name);
+        hidden.push({ dest: rns[i].name, nh: nh, age: routeAge(now() - 60000 - seed % 3600000) });
+      }
+    }
+    var out = [];
+    var act = ds && ds.routes ? ds.routes.length : 0;
+    var total = act + hidden.length;
+    out.push('inet.0: ' + total + ' destinations, ' + total + ' routes (' + act + ' active, 0 holddown, ' + hidden.length + ' hidden)');
+    out.push('');
+    for (var h = 0; h < hidden.length; h++) {
+      out.push(padR(hidden[h].dest, 19) + '[Static/5] ' + hidden[h].age + ', unresolvable');
+      if (wantDetail) {
+        out.push('\tState: <Hidden Int>');
+        out.push('\tAge: ' + hidden[h].age);
+        out.push('\tNext hop: ' + hidden[h].nh + ' unresolvable');
+        out.push('');
+      }
+    }
+    return out;
   }
 
   function routeLines(ds, args, mode, proto) {
@@ -1958,7 +3267,7 @@
   }
 
   // ============================================================
-  // PART 4B — configuration mode runtime
+  // PART 4B - configuration mode runtime
   // (runCfg / cfgShow / compare / candidateWords / pendFeed / feed)
   // ============================================================
 
@@ -1993,6 +3302,8 @@
 
   function cfgSet(sess, rt, root, line, rest, abs) {
     if (!rest.length) return errCaret(sess, line, 1, 'error: incomplete command');
+    var guardSet = guardProtected(sess, rt, line, abs(rest));
+    if (guardSet) return guardSet;
     if (rest.length >= 2) {
       var stmt = rest[rest.length - 2];
       if (CFG_SINGLE_VAL[stmt]) {
@@ -2010,6 +3321,8 @@
 
   function cfgDelete(sess, rt, root, line, rest, abs) {
     if (!rest.length) return errCaret(sess, line, 1, 'error: incomplete command');
+    var guardDel = guardProtected(sess, rt, line, abs(rest));
+    if (guardDel) return guardDel;
     var path = abs(rest);
     var okd = db.del(root, path);
     if (!okd) {
@@ -2021,6 +3334,8 @@
 
   function cfgInactive(sess, rt, root, line, rest, abs, on) {
     if (!rest.length) return errCaret(sess, line, 1, 'error: incomplete command');
+    var guardIn = guardProtected(sess, rt, line, abs(rest));
+    if (guardIn) return guardIn;
     var path = abs(rest);
     var target = db.nodeAt(root, path, false);
     if (!target) {
@@ -2101,6 +3416,8 @@
     }
     var src = abs(rest.slice(0, ti));
     var dst = abs(rest.slice(ti + 1));
+    var guardRn = guardProtected(sess, rt, line, src);
+    if (guardRn) return guardRn;
     var srcNode = db.nodeAt(root, src, false);
     if (!srcNode) return { lines: ['warning: statement not found: ' + src[src.length - 1]] };
     var newNm = dst[dst.length - 1];
@@ -2109,6 +3426,300 @@
     if (db.child(parent, newNm)) return { lines: ['warning: statement exists: ' + newNm] };
     srcNode.name = newNm;
     return { lines: [] };
+  }
+
+  // ---------- protect / unprotect / wildcard delete / replace / load ----------
+
+  function pathText(path) { return path.join(' '); }
+
+  function samePrefix(a, b, len) {
+    for (var i = 0; i < len; i++) if (a[i] !== b[i]) return false;
+    return true;
+  }
+
+  function protectedHit(rt, path) {
+    var ps = rt.protectedPaths || [];
+    for (var i = 0; i < ps.length; i++) {
+      if (ps[i].length <= path.length && samePrefix(ps[i], path, ps[i].length)) return ps[i];
+    }
+    return null;
+  }
+
+  function guardProtected(sess, rt, line, path) {
+    var hit = protectedHit(rt, path);
+    if (!hit) return null;
+    return { lines: ['error: statement is protected: ' + pathText(hit)] };
+  }
+
+  function cfgProtectToggle(sess, rt, root, line, rest, abs, want) {
+    if (!rest.length) return errCaret(sess, line, 1, 'error: incomplete command');
+    var path = abs(rest);
+    var target = db.nodeAt(root, path, false);
+    if (!target) {
+      var missing = cfgMissingName(root, path);
+      return { lines: ['warning: statement not found: ' + (missing || path[path.length - 1])] };
+    }
+    if (!rt.protectedPaths) rt.protectedPaths = [];
+    var ps = rt.protectedPaths;
+    var found = -1;
+    for (var i = 0; i < ps.length; i++) {
+      if (ps[i].length === path.length && samePrefix(ps[i], path, path.length)) { found = i; break; }
+    }
+    if (want) {
+      if (found >= 0) return { lines: ['warning: statement already protected'] };
+      ps.push(path.slice());
+      return { lines: [] };
+    }
+    if (found >= 0) {
+      ps.splice(found, 1);
+      return { lines: [] };
+    }
+    // also honor a broader protected ancestor
+    for (var u = 0; u < ps.length; u++) {
+      if (ps[u].length < path.length && samePrefix(ps[u], path, ps[u].length)) {
+        ps.splice(u, 1);
+        return { lines: [] };
+      }
+    }
+    return { lines: ['warning: statement is not protected'] };
+  }
+
+  function wildcardRe(pat) {
+    var rx = '';
+    var p = String(pat);
+    for (var i = 0; i < p.length; i++) {
+      var ch = p.charAt(i);
+      if (ch === '*') rx += '.*';
+      else if (ch === '?') rx += '.';
+      else rx += ch.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+    }
+    return new RegExp('^' + rx + '$', 'i');
+  }
+
+  function cfgWildcardDelete(sess, rt, root, line, rest, abs) {
+    var toks = rest;
+    if (toks.length && toks[0].toLowerCase() === 'delete') toks = toks.slice(1);
+    if (!toks.length) return errCaret(sess, line, 1, 'error: incomplete command');
+    var wi = -1;
+    for (var i = 0; i < toks.length; i++) {
+      if (/[*?]/.test(toks[i])) { wi = i; break; }
+    }
+    var seg = wi < 0 ? toks.length - 1 : wi;
+    var parentPath = abs(toks.slice(0, seg));
+    var base = db.nodeAt(root, parentPath, false);
+    if (!base) {
+      var missing = cfgMissingName(root, abs(toks));
+      return { lines: ['warning: statement not found: ' + (missing || toks[seg])] };
+    }
+    var rx = wildcardRe(toks[seg]);
+    var deeper = toks.slice(seg + 1);
+    var count = 0, matches = [];
+    for (var c = 0; c < base.children.length; c++) {
+      var ch2 = base.children[c];
+      if (ch2.name === '[' || ch2.name === ']') continue;
+      if (rx.test(ch2.name)) matches.push(ch2);
+    }
+    for (var m = 0; m < matches.length; m++) {
+      var okd = true;
+      if (deeper.length) {
+        var deep = matches[m];
+        for (var d = 0; d < deeper.length; d++) {
+          deep = db.child(deep, deeper[d]);
+          if (!deep) { okd = false; break; }
+        }
+      }
+      if (!okd) continue;
+      if (protectedHit(rt, parentPath.concat(matches[m].name))) continue;
+      db.del(root, parentPath.concat(matches[m].name));
+      count++;
+    }
+    if (!count) return { lines: ['warning: no statements matched'] };
+    return { lines: ['warning: ' + count + ' statement' + (count > 1 ? 's' : '') + ' deleted'] };
+  }
+
+  function replaceOnRoot(root, oldStr, newStr) {
+    var count = 0;
+    function walk(n) {
+      for (var i = 0; i < n.children.length; i++) walk(n.children[i]);
+      if (n.values && n.values.length) {
+        for (var v = 0; v < n.values.length; v++) {
+          var nu = String(n.values[v]).split(oldStr).join(newStr);
+          if (nu !== String(n.values[v])) { n.values[v] = nu; count++; }
+        }
+      }
+      if (n.name) {
+        var nu2 = String(n.name).split(oldStr).join(newStr);
+        if (nu2 !== n.name) { n.name = nu2; count++; }
+      }
+    }
+    walk(root);
+    return count;
+  }
+
+  function cfgReplacePattern(sess, rt, root, line, rest) {
+    var idx = -1;
+    for (var i = 0; i < rest.length; i++) {
+      if (String(rest[i]).toLowerCase() === 'pattern') { idx = i; break; }
+    }
+    if (idx < 0 || idx + 2 > rest.length - 1) return errCaret(sess, line, 1, 'error: incomplete command');
+    var oldStr = String(rest[idx + 1]);
+    var newStr = String(rest[idx + 2] == null ? '' : rest[idx + 2]);
+    var count = replaceOnRoot(root, oldStr, newStr);
+    if (!count) return { lines: ['warning: nothing matched: ' + oldStr] };
+    return { lines: [] };
+  }
+
+  // ---------- load family ----------
+
+  var CFG_IDENT = { unit: 1, address: 1, interface: 1, neighbor: 1, route: 1, user: 1, area: 1, group: 1, term: 1, filter: 1, application: 1, family: 1, zone: 1, community: 1 };
+
+  function readFile(rt, path) {
+    var files = rt.files || {};
+    var short = String(path).replace(/^.*[\/\\]/, '');
+    if (files[path] != null) return files[path];
+    if (files[short] != null) return files[short];
+    if (/\.config$/i.test(short)) return configSetLines(rt).join('\n');
+    if (/\.set$/i.test(short)) return configSetLines(rt).join('\n');
+    return null;
+  }
+
+  function cfgBraceLex(s) {
+    var outT = [], cur = '', i = 0;
+    function flush() { if (cur.length) { outT.push(cur); cur = ''; } }
+    while (i < s.length) {
+      var ch = s.charAt(i);
+      if (ch === '"') {
+        var j = s.indexOf('"', i + 1);
+        var seg = j < 0 ? s.slice(i + 1) : s.slice(i + 1, j);
+        flush(); outT.push(seg);
+        i = j < 0 ? s.length : j + 1;
+        continue;
+      }
+      if (ch === '#') { var e = s.indexOf('\n', i); i = e < 0 ? s.length : e; continue; }
+      if (ch === '/' && s.charAt(i + 1) === '*') { var k = s.indexOf('*/', i + 2); i = k < 0 ? s.length : k + 2; continue; }
+      if (ch === ';' || ch === '{' || ch === '}') { flush(); outT.push(ch); i++; continue; }
+      if (ch === ' ' || ch === '\t' || ch === '\r' || ch === '\n') { flush(); i++; continue; }
+      cur += ch; i++;
+    }
+    flush();
+    return outT;
+  }
+
+  function cfgBraceWalk(scope, tokens) {
+    var cur = scope;
+    for (var i = 0; i < tokens.length; i++) {
+      cur = db.childOrCreate(cur, tokens[i]);
+    }
+    return cur;
+  }
+
+  function cfgBraceParse(scope, text) {
+    var toks = cfgBraceLex(text);
+    var idx = 0;
+    var count = 0;
+    function parseInto(node) {
+      while (idx < toks.length) {
+        if (toks[idx] === '}') { idx++; return; }
+        var path = [], marker = null;
+        while (idx < toks.length && toks[idx] !== ';' && toks[idx] !== '{') {
+          var tk = toks[idx];
+          if (tk === 'inactive:' || tk === '!') marker = 'inactive';
+          else path.push(tk);
+          idx++;
+        }
+        if (idx >= toks.length) break;
+        var term = toks[idx]; idx++;
+        if (term === '{') {
+          var sub = cfgBraceWalk(node, path);
+          if (marker) sub.inactive = true;
+          if (path.length) count++;
+          parseInto(sub);
+        } else {
+          if (path.length) {
+            db.set(node, path);
+            if (marker) db.setInactive(node, path, true);
+            count++;
+          }
+        }
+      }
+    }
+    parseInto(scope);
+    return count;
+  }
+
+  function applyConfigText(rt, text, opp) {
+    var linesIn = String(text).split(/\r?\n/);
+    var isSetLines = false;
+    for (var s = 0; s < linesIn.length; s++) {
+      var l0 = linesIn[s].trim();
+      if (!l0 || l0.charAt(0) === '#' || l0.slice(0, 2) === '/*') continue;
+      if (/^set /i.test(l0) || /^(de)?activate /i.test(l0) || /^delete /i.test(l0)) isSetLines = true;
+      break;
+    }
+    var root = opp === 'override' ? db.create(null) : rt.candidate;
+    var count = 0;
+    if (isSetLines) {
+      for (var si = 0; si < linesIn.length; si++) {
+        var sl = linesIn[si].trim();
+        if (!sl || sl.charAt(0) === '#' || sl.slice(0, 2) === '/*') continue;
+        var tk = tokenize(sl);
+        if (!tk.length) continue;
+        var verb = String(tk[0]).toLowerCase();
+        var body = tk.slice(1);
+        if (verb === 'set') { db.set(root, body.length ? body : tk); count++; }
+        else if (verb === 'deactivate') { db.setInactive(root, body, true); count++; }
+        else if (verb === 'activate') { db.setInactive(root, body, false); count++; }
+        else if (verb === 'delete') { db.del(root, body); count++; }
+        else if (verb === 'replace' && body.length >= 3 && String(body[0]).toLowerCase() === 'pattern') { count += replaceOnRoot(root, body[1], body[2]); }
+        else if (verb !== 'annotate' && verb !== 'commit') { db.set(root, body.length ? tk : tk); count++; }
+      }
+    } else {
+      count = cfgBraceParse(root, text);
+    }
+    if (opp === 'override') rt.candidate = root;
+    return count;
+  }
+
+  function cfgLoad(sess, rt, line, rest) {
+    var opp = null, terminal = false, path = null;
+    var consumed = 0;
+    for (var i = 0; i < rest.length; i++) {
+      var kw = String(rest[i]).toLowerCase();
+      if (!opp && /^(set|merge|override|replace)$/.test(kw)) { opp = kw; consumed++; continue; }
+      if (!opp && 'factory-default'.indexOf(kw) === 0) { opp = 'factory-default'; consumed++; continue; }
+      if (kw === 'terminal') { terminal = true; consumed++; continue; }
+      path = toksTail(rest, i);
+      break;
+    }
+    if (!opp) {
+      return errCaret(sess, line, 1, 'error: invalid load operation: ' + (rest[0] || ''));
+    }
+    if (opp === 'factory-default') {
+      var fresh = db.create(null);
+      var bl = (rt.spec && rt.spec.baseline) || [];
+      for (var b = 0; b < bl.length; b++) {
+        try { db.set(fresh, bl[b]); } catch (e) {}
+      }
+      rt.candidate = fresh;
+      rt.files = rt.files || {};
+      rt.protectedPaths = [];
+      return { lines: ['load complete: factory-default configuration loaded'] };
+    }
+    if (terminal) {
+      return { lines: [], pend: 'load-set', opp: opp, prompt: '' };
+    }
+    if (!path) return errCaret(sess, line, rest.length, 'error: filename required');
+    var text = readFile(rt, path);
+    if (text == null) {
+      return { lines: ['error: file not found: ' + path] };
+    }
+    applyConfigText(rt, text, opp);
+    return { lines: ['load complete'] };
+  }
+  function toksTail(toks, from) {
+    var out = [];
+    for (var i = from < 0 ? 0 : from; i < toks.length; i++) out.push(toks[i]);
+    return out.length ? out : null;
   }
 
   function cfgStatus(sess) {
@@ -2123,7 +3734,7 @@
 
   function cfgCommit(sess, rest) {
     var rt = sess.rt;
-    var flags = { quit: false, check: false, confirmedMins: 0, comment: null };
+    var flags = { quit: false, check: false, confirmedMins: 0, comment: null, at: null, sync: false };
     for (var i = 0; i < rest.length; i++) {
       var t = String(rest[i]).toLowerCase();
       if ('and-quit'.indexOf(t) === 0 && t.length >= 4) flags.quit = true;
@@ -2139,6 +3750,16 @@
       } else if ('comment'.indexOf(t) === 0 && t.length >= 2) {
         flags.comment = rest[i + 1] || null;
         i++;
+      } else if (t === 'at') {
+        var att = rest[i + 1] ? String(rest[i + 1]) : prompt(sess).trim();
+        if (att && /^\d{2}:\d{2}/.test(String(rest[i + 2] || ''))) {
+          att = att + ' ' + String(rest[i + 2]);
+          i++;
+        }
+        if (att) i++;
+        flags.at = att || null;
+      } else if ('synchronize'.indexOf(t) === 0 && t.length >= 5) {
+        flags.sync = true;
       }
     }
     if (flags.check) return { lines: ['configuration check succeeds'] };
@@ -2161,6 +3782,12 @@
     } else {
       outl = ['commit complete'];
     }
+    if (flags.sync) {
+      outl = ['commit synchronize: complete on both routing engines'].concat(outl);
+    }
+    if (flags.at) {
+      outl = ['At ' + flags.at + ', will commit the configuration'].concat(outl);
+    }
     if (flags.quit) {
       sess.mode = 'cli-op';
       newMode = 'cli-op';
@@ -2182,7 +3809,7 @@
     return { lines: ['load complete'] };
   }
 
-  var PIPE_KINDS = ['count', 'display', 'compare', 'match', 'except', 'last', 'first', 'no-more', 'resolution', 'trim'];
+  var PIPE_KINDS = ['count', 'display', 'compare', 'match', 'except', 'last', 'first', 'no-more', 'resolution', 'trim', 'save'];
 
   function pipeKindOf(tok) {
     var t = String(tok == null ? '' : tok).toLowerCase();
@@ -2263,7 +3890,7 @@
     }
     var bl = db.braceRender(root, startPath, false);
     if (bl == null) bl = [];
-    bl = applyPipes(bl, pipe);
+    bl = applyPipes(bl, pipe, sess);
     return { lines: bl };
   }
 
@@ -2276,6 +3903,9 @@
     var c = cfgCmdOf(toks[0]);
     if (c === AMBIG) return errCaret(sess, line, 0, '% ambiguous command');
     if (!c) return errCaret(sess, line, 0, '^ unknown command: \x27' + toks[0] + '\x27');
+    if (c.w === 'show' && toks[1] === 'configuration') { // cfg-mode Junos: show configuration [hier]
+      return cfgShow(sess, toks.slice(2), pipe, true);
+    }
     var rest = toks.slice(1);
     var ep = sess.editPath || [];
     var abs = function (tokens) { return ep.concat(tokens); };
@@ -2300,6 +3930,11 @@
         return { lines: [], msgType: 'mode', mode: 'cli-op' };
       case 'copy': return cfgCopy(sess, rt, root, line, rest, abs);
       case 'rename': return cfgRename(sess, rt, root, line, rest, abs);
+      case 'load': return cfgLoad(sess, rt, line, rest);
+      case 'protect': return cfgProtectToggle(sess, rt, root, line, rest, abs, true);
+      case 'unprotect': return cfgProtectToggle(sess, rt, root, line, rest, abs, false);
+      case 'replace': return cfgReplacePattern(sess, rt, root, line, rest);
+      case 'wildcard': return cfgWildcardDelete(sess, rt, root, line, rest, abs);
       case 'insert':
         db.set(root, ep.concat(rest));
         return { lines: [] };
@@ -2408,28 +4043,50 @@
     return { rows: rowsO };
   }
 
-  var PEND_PROMPTS = { ping: 'Host: ', traceroute: 'Host: ', ssh: 'Host: ', telnet: 'Host: ' };
+  var PEND_PROMPTS = { ping: 'Host: ', traceroute: 'Host: ', ssh: 'Host: ', telnet: 'Host: ', 'load-set': '' };
 
   function pendFeed(sess, line) {
     var p = sess.pend;
     if (!p) return { lines: [] };
-    var val = String(line == null ? '' : line).trim();
+    var val = String(line == null ? '' : String(line));
+    var trim = val.trim();
+    if (p.kind === 'load-set') {
+      var eof = trim === 'ctrl-d' || trim === 'ctl-d' || trim === '^d' || (val.length === 1 && val.charCodeAt(0) === 4);
+      if (!trim.length && p.buffered.length) eof = true;
+      if (eof) {
+        sess.pend = null;
+        var text = p.buffered.join('\n');
+        var opp = p.opp || 'set';
+        if (p.buffered.length && opp === 'set') {
+          // bare "load set terminal" with set-lines pasted; honor each verb per line
+          applyConfigText(sess.rt, text, opp);
+          return { lines: ['load complete'] };
+        }
+        if (p.buffered.length) {
+          applyConfigText(sess.rt, text, opp);
+          return { lines: ['load complete'] };
+        }
+        return { lines: ['load complete'] };
+      }
+      if (trim.length) p.buffered.push(trim);
+      return { lines: [], prompt: '' };
+    }
     if (p.step === 0) {
-      if (!val) {
+      if (!trim) {
         sess.pend = null;
         return { lines: [] };
       }
-      p.host = val;
+      p.host = trim;
       p.step = 1;
       return { lines: [], prompt: 'count: ' };
     }
     if (p.step === 1) {
-      p.count = val ? (parseInt(val, 10) || 0) : 0;
+      p.count = trim ? (parseInt(trim, 10) || 0) : 0;
       p.step = 2;
       return { lines: [], prompt: 'source: ' };
     }
     sess.pend = null;
-    var src = val ? val : null;
+    var src = trim ? trim : null;
     var out;
     if (p.kind === 'ping') {
       var pa = [p.host];
@@ -2477,6 +4134,10 @@
     if (sess.mode === 'cli-cfg') {
       if (rt && String(line || '').trim()) intLogPush(rt, String(line).trim());
       var outC = runCfg(sess, line);
+      if (outC && outC.pend) {
+        sess.pend = { kind: outC.pend, step: 0, opp: outC.opp || null, buffered: [] };
+        return { lines: notice.slice(), prompt: outC.prompt != null ? outC.prompt : (PEND_PROMPTS[outC.pend] || 'Host: ') };
+      }
       return {
         lines: notice.concat(outC.lines || []),
         mode: (outC.mode || null),
@@ -2531,6 +4192,12 @@
     startShell: startShell,
     applyPipes: applyPipes,
     completionsBlock: completionsBlock,
-    errCaret: errCaret
+    errCaret: errCaret,
+    // build a fresh config tree from `set`-style lines (used by preset bootstrap)
+    buildRootFromSetLines: function (lines) {
+      var stub = { candidate: db.create(null), files: {}, protectedPaths: [] };
+      applyConfigText(stub, (lines || []).join('\n'), 'merge');
+      return stub.candidate;
+    }
   };
 })(typeof window !== 'undefined' ? window : globalThis);
