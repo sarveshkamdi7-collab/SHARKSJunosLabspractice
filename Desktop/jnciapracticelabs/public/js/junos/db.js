@@ -277,7 +277,7 @@
       out.push('[edit' + (group.length ? ' ' + group.join(' ') : '') + ']');
       lastGroup = key;
     }
-    function walk(o, n, group) {
+    function namesOf(a, b) {
       var names = [], seen = {};
       function add(node) {
         if (!node) return;
@@ -286,56 +286,56 @@
           if (!seen[nm]) { seen[nm] = 1; names.push(nm); }
         }
       }
-      add(n); add(o);
+      add(b); add(a);
       names.sort(J.cmpTokens);
+      return names;
+    }
+    // Junos folds identifier keywords (`unit 0`, `address 1.2.3.4/24`) into the
+    // statement text and keeps the `[edit ...]` header on the enclosing block.
+    function emitChild(sign, node, parentPath) {
+      var parentName = parentPath.length ? parentPath[parentPath.length - 1] : null;
+      var folded = parentName && IDENT_PARENTS[parentName];
+      ensureHeader(folded ? parentPath.slice(0, parentPath.length - 1) : parentPath);
+      var lines = braceRender(rootSide(node), [], false);
+      for (var i = 0; i < lines.length; i++) {
+        var txt = lines[i];
+        if (folded && i === 0) txt = parentName + ' ' + txt;
+        out.push(sign + ' ' + txt);
+      }
+    }
+    function diffValues(co, cn) {
+      var so = {}, sn = {}, res = [];
+      for (var i = 0; i < co.values.length; i++) so[co.values[i]] = 1;
+      for (var j = 0; j < cn.values.length; j++) sn[cn.values[j]] = 1;
+      for (var m in so) if (!(m in sn)) res.push([m, '-']);
+      for (var k in sn) if (!(k in so)) res.push([k, '+']);
+      res.sort(function (a, b) { return J.cmpTokens([a[0]], [b[0]]); });
+      return res;
+    }
+    function walk(o, n, path) {
+      var parent = path.slice(0, path.length - 1);
+      if (o && n && !equal(o, n) && equalIgnoreInactive(o, n)) {
+        ensureHeader(parent);
+        out.push('! ' + chainLineFor(n, null));
+      }
+      if (o && n) {
+        var vs = diffValues(o, n);
+        if (vs.length) {
+          ensureHeader(parent);
+          for (var k = 0; k < vs.length; k++) {
+            out.push(vs[k][1] + ' ' + n.name + ' ' + quoteVal(vs[k][0], n.name) + ';');
+          }
+        }
+      }
+      var names = namesOf(o, n);
       for (var x = 0; x < names.length; x++) {
         var nm = names[x];
         var co = child(o, nm), cn = child(n, nm);
-        if (co && !cn) {
-          ensureHeader(group);
-          var dl = braceRender(rootSide(co), [], false);
-          for (var i = 0; i < dl.length; i++) out.push('- ' + dl[i]);
-          continue;
-        }
-        if (cn && !co) {
-          ensureHeader(group);
-          var ax = braceRender(rootSide(cn), [], false);
-          for (var j = 0; j < ax.length; j++) out.push('+ ' + ax[j]);
-          continue;
-        }
+        if (co && !cn) { emitChild('-', co, path); continue; }
+        if (cn && !co) { emitChild('+', cn, path); continue; }
         if (!co || !cn) continue;
         if (equal(co, cn)) continue;
-        if (equalIgnoreInactive(co, cn)) {
-          ensureHeader(group);
-          out.push('! ' + chainLineFor(cn, null));
-          continue;
-        }
-        var chain = chainOf(cn);
-        var tail = chain[chain.length - 1];
-        var vs = diffValues(co, cn);
-        if (vs.length) {
-          ensureHeader(group);
-          var chainTxt = chain.map(function (w) { return w.name; }).join(' ');
-          for (var k = 0; k < vs.length; k++) {
-            out.push(vs[k][1] + ' ' + chainTxt + ' ' + stmtTailText(tail, vs[k][0]) + ';');
-          }
-          continue;
-        }
-        var chainO = chainOf(co);
-        var tailO = chainO[chainO.length - 1];
-        walk(tailO, tail, group.concat(chain.map(function (w) { return w.name; })));
-      }
-      function stmtTailText(tail, val) {
-        return quoteVal(val, tail.name);
-      }
-      function diffValues(co, cn) {
-        var so = {}, sn = {}, res = [];
-        for (var i = 0; i < co.values.length; i++) so[co.values[i]] = 1;
-        for (var j = 0; j < cn.values.length; j++) sn[cn.values[j]] = 1;
-        for (var k in sn) if (!(k in so)) res.push([k, '+']);
-        for (var m in so) if (!(m in sn)) res.push([m, '-']);
-        res.sort(function (a, b) { return J.cmpTokens([a[0]], [b[0]]); });
-        return res;
+        walk(co, cn, path.concat([nm]));
       }
     }
     function rootSide(node) {
@@ -375,6 +375,7 @@
     braceRender: braceRender,
     setLines: setLines,
     compareTrees: compareTrees,
+    isIdentParent: function (name) { return !!IDENT_PARENTS[name]; },
     activeChildren: activeChildren,
     stmtText: stmtText,
     chainOf: chainOf

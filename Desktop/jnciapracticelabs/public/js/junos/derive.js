@@ -487,7 +487,7 @@
   return {
     dest: ipOf(cidr) + '/32',
     proto: 'Local',
-    pref: 8,
+    pref: 0,
     metric: 0,
     via: ukey,
     to: null,

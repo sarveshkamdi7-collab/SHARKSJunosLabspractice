@@ -638,7 +638,7 @@
         rt.committed = committed;
         rt.config = committed;
         rt.candidate = J.db ? J.db.clone(fresh) : JSON.parse(JSON.stringify(fresh));
-        rt.revisions = [J.db ? J.db.clone(fresh) : JSON.parse(JSON.stringify(fresh))];
+        rt.revisions = [];
         rt.files = {};
         rt.protectedPaths = [];
       } catch (e) {}
@@ -861,7 +861,7 @@
           return;
         }
         selectNode(id);
-        focusNode(id);
+        APP.focusNode(id);
       });
     });
   }

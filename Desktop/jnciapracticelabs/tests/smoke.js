@@ -54,7 +54,7 @@ function cfgText() {
   return (cfgRun('show configuration').lines || []).join('\n');
 }
 function showExact(cmd) {
-  if (sess.mode === 'cli-cfg') feed('exit'); // op-mode commands via op dispatch
+  if (sess.mode === 'cli-cfg') feed('quit'); // op-mode commands via op dispatch
   const out = feed(cmd);
   return (out.lines || []).join('\n');
 }
@@ -170,7 +170,7 @@ t = cfgText();
 check('replace pattern applied', has(t, 'NEWNAME') && !has(t, 'OLDNAME'), t);
 cfgRun('delete interfaces ge-0/0/9');
 cfgRun('commit');
-feed('exit');
+feed('quit');
 
 // --- | save + file show ---
 t = showExact('show configuration | save /var/tmp/rbase.set');
@@ -181,7 +181,7 @@ check('saved file readable', has(t, 'set system host-name') || has(t, 'set '), t
 // --- load merge from saved file (brace/set) ---
 t = (cfgRun('load set /var/tmp/rbase.set').lines || []).join('\n');
 check('load set from file', has(t, 'load complete'), t);
-feed('exit');
+feed('quit');
 t = showExact('show system commit');
 check('show system commit ok', typeof t === 'string', t);
 

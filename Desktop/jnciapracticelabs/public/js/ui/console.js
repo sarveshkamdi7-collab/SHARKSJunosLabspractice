@@ -97,8 +97,11 @@
       scroll.scrollTop = scroll.scrollHeight;
     }
     function clear() { out.innerHTML = ''; }
-    function focus() {
+    function focusCapture() {
       try { capture.focus({ preventScroll: true }); } catch (e) { try { capture.focus(); } catch (_) {} }
+    }
+    function focus() {
+      focusCapture();
       try { host.focus({ preventScroll: true }); } catch (e) { try { host.focus(); } catch (_) {} }
     }
     function currentPrompt() {
@@ -436,7 +439,7 @@
       e.preventDefault();
       focus();
     });
-    host.addEventListener('focus', function () { cursor.classList.add('focused'); focus(); });
+    host.addEventListener('focus', function () { cursor.classList.add('focused'); focusCapture(); });
     host.addEventListener('blur', function () { cursor.classList.remove('focused'); });
     capture.addEventListener('focus', function () { cursor.classList.add('focused'); });
     capture.addEventListener('blur', function () { cursor.classList.remove('focused'); });

@@ -127,7 +127,10 @@
   function splitPipe(toks) {
     var i = toks.indexOf('|');
     if (i < 0) return { main: toks, pipe: [] };
-    return { main: toks.slice(0, i), pipe: toks.slice(i + 1) };
+    // keep chained filters: `| match x | count` must see ['match','x','count']
+    var pipe = [];
+    for (var k = i + 1; k < toks.length; k++) if (toks[k] !== '|') pipe.push(toks[k]);
+    return { main: toks.slice(0, i), pipe: pipe };
   }
   function errCaret(sess, line, tokIdx, msg) {
     var p = prompt(sess);
@@ -324,6 +327,7 @@
     ['insert', 'Insert a new element'],
     ['load', 'Merge or replace data from an ASCII file'],
     ['protect', 'Protect a statement against changes'],
+    ['quit', 'Exit from configuration mode'],
     ['rename', 'Rename a statement'],
     ['replace', 'Replace a text string or pattern'],
     ['rollback', 'Roll back to last committed configuration'],
@@ -447,13 +451,23 @@
       var name = ds.iflist[i];
       if (nameFilter && name.indexOf(nameFilter) !== 0) continue;
       var ifc = ds.interfaces[name]; if (!ifc) continue;
-      out.push(padR(name, 24) + padR(ifc.adminUp ? 'up' : 'down', 6) + padR(ifc.linkUp ? 'up' : 'down', 5));
+      var admin = ifc.adminUp ? 'up' : 'down';
+      var link = ifc.linkUp ? 'up' : 'down';
+      out.push(padR(name, 24) + padR(admin, 6) + padR(link, 5));
+      var isLo = /^lo\d*$/.test(name);
       for (var u = 0; u < ifc.unilist.length; u++) {
         var un = ifc.unilist[u];
-        if (un.family === 'inet') {
+        var uname = name + '.' + un.num;
+        var proto = un.family === 'inet' ? 'inet' :
+          (un.family === 'ethernet-switching' ? 'eth-switch' : (un.family || ''));
+        if (un.family === 'inet' && un.addrs && un.addrs.length) {
           for (var a = 0; a < un.addrs.length; a++) {
-            out.push(padR(name + '.' + un.num, 24) + padR('--', 6) + padR('--', 5) + padR('inet', 9) + un.addrs[a]);
+            var row = padR(uname, 24) + padR(admin, 6) + padR(link, 5) + padR('inet', 9) + un.addrs[a];
+            if (isLo) row = padR(uname, 24) + padR(admin, 6) + padR(link, 5) + padR('inet', 9) + padR(un.addrs[a], 22) + '--> 0/0';
+            out.push(row);
           }
+        } else {
+          out.push(padR(uname, 24) + padR(admin, 6) + padR(link, 5) + padR(proto, 9));
         }
       }
     }
@@ -467,10 +481,21 @@
     if (ifc.desc) out.push('  Description: ' + ifc.desc);
     out.push('  Link-level type: Ethernet, MTU: ' + (ifc.mtu || 65535) + ', Speed: ' + (ifc.speed || 'Unspecified'));
     out.push('  Device flags   : Present Running ' + (ifc.adminUp ? '' : 'Down ') + (ifc.linkUp ? '' : 'LinkDown'));
-    if (mode === 'statistics') {
+    if (mode === 'statistics' || mode === 'detail' || mode === 'extensive') {
       var seed = ds.key + ':' + ifc.name;
-      out.push('  Input packets : ' + detBig(seed + ':pk') + ' (' + detBig(seed + ':pr') + ' pps)');
-      out.push('  Output packets: ' + detBig(seed + ':opk') + ' (' + detBig(seed + ':opr') + ' pps)');
+      var ib = detBig(seed + ':ib') * 137 + 4096;
+      var ip = detBig(seed + ':ip') * 3 + 12;
+      var ob = detBig(seed + ':ob') * 131 + 2048;
+      var op = detBig(seed + ':op') * 3 + 8;
+      var ibr = detBig(seed + ':ibr') * 8;
+      var opr = detBig(seed + ':opr') * 8;
+      out.push('  Traffic statistics:');
+      out.push('   Input  bytes  :' + padL(String(ib), 22) + padL(String(ibr), 21) + ' bps');
+      out.push('   Input  packets:' + padL(String(ip), 22) + padL(String(detBig(seed + ':ipp')), 21) + ' pps');
+      out.push('   Output bytes  :' + padL(String(ob), 22) + padL(String(opr), 21) + ' bps');
+      out.push('   Output packets:' + padL(String(op), 22) + padL(String(detBig(seed + ':opp')), 21) + ' pps');
+      out.push('  Start time: ' + utc(now() - 900000));
+      out.push('');
     }
     if (mode === 'media') {
       out.push('  Media type: Copper, Link-mode: Full-duplex');
@@ -514,7 +539,7 @@
       out.push(head);
       if (detailMode) out.push('              Route type: ' + (r.proto === 'OSPF' ? 'intra-area' : (r.proto === 'Static' ? 'static' : 'direct')));
       if (r.mode === 'discard' || r.mode === 'reject') { out.push('                      Discard'); continue; }
-      if (r.proto === 'Local') { out.push('                      Local via ' + (r.local ? r.local : r.dest.split('/')[0])); continue; }
+      if (r.proto === 'Local') { out.push('                      Local via ' + (r.via || r.local || r.dest.split('/')[0])); continue; }
       if (r.proto === 'Direct') { out.push('                    > via ' + (r.via || '')); continue; }
       if (r.to) out.push('                    > to ' + r.to + ' via ' + (r.via || ''));
       else out.push('                    > via ' + (r.via || '?'));
@@ -528,13 +553,17 @@
     if (ds.bgp && ds.bgp.groups && ds.bgp.groups.length) out.push('Autonomous system number: ' + (ds.bgp.localAs || '65000'));
     out.push('Router ID: ' + (ds.routerId || '1.1.1.1'));
     out.push('');
-    var byProto = {};
-    for (var i = 0; i < ds.routes.length; i++) byProto[ds.routes[i].proto] = (byProto[ds.routes[i].proto] || 0) + 1;
-    out.push('inet.0: ' + ds.routes.length + ' total routes');
+    var byProto = {}, dests = {};
+    for (var i = 0; i < ds.routes.length; i++) {
+      byProto[ds.routes[i].proto] = (byProto[ds.routes[i].proto] || 0) + 1;
+      dests[ds.routes[i].dest] = 1;
+    }
+    var dcount = Object.keys(dests).length;
+    out.push('inet.0: ' + dcount + ' destinations, ' + ds.routes.length + ' routes (' + ds.routes.length + ' active, 0 holddown, 0 hidden)');
     var order = ['Direct', 'Local', 'Static', 'OSPF', 'BGP'];
     for (var o = 0; o < order.length; o++) {
       var proto = order[o];
-      if (byProto[proto]) out.push('  ' + padL(padR(proto + ':', 9), 0) + padR(padL(byProto[proto], 4), 11) + 'routes, ' + padL(byProto[proto], 4) + ' active');
+      if (byProto[proto]) out.push(padL(proto + ':', 21) + padL(String(byProto[proto]), 7) + ' routes,' + padL(String(byProto[proto]), 7) + ' active');
     }
     return out;
   }
@@ -711,13 +740,16 @@
 
   function showArp(ds) {
     var out = [];
-    out.push('MAC Address       Address         Name                      Interface     Flags');
+    out.push('MAC Address       Address         Name                      Interface           Flags');
+    var n = 0;
     if (ds && ds.arp) {
       for (var i = 0; i < ds.arp.length; i++) {
         var a = ds.arp[i];
-        out.push(padR(a.mac, 18) + padR(a.ip, 16) + padR(a.ip, 26) + padR(a.iface, 14) + ' none');
+        out.push(padR(a.mac, 18) + padR(a.ip, 16) + padR(a.ip, 26) + padR(a.iface, 20) + ' none');
+        n++;
       }
     }
+    out.push('Total entries: ' + n);
     return out;
   }
 
@@ -2803,23 +2835,22 @@
     if (key === 'show configuration' && pipeToks.length) {
       var p0 = String(pipeToks[0] || '').toLowerCase();
       if (p0.length && 'compare'.indexOf(p0) === 0 && 'count'.indexOf(p0) !== 0) {
-        var hasRoll = false;
+        var cbase = rt.committed, cused = 1;
         for (var hq = 1; hq < pipeToks.length; hq++) {
-          if ('rollback'.indexOf(String(pipeToks[hq]).toLowerCase()) === 0) { hasRoll = true; break; }
-        }
-        if (hasRoll) {
-          var pt2 = 1, rbase = rt.committed;
-          if (pipeToks[1] && /^(ro|rol|roll|rollb|rollba|rollbac|rollback)$/.test(String(pipeToks[1]).toLowerCase())) {
-            var rn = parseInt(pipeToks[2], 10);
-            rbase = (rt.revisions && rt.revisions[rn]) || rbase;
+          if ('rollback'.indexOf(String(pipeToks[hq]).toLowerCase()) === 0) {
+            cbase = revisionBase(rt, parseInt(pipeToks[hq + 1], 10));
+            cused = hq + 2;
+            break;
           }
-          return { lines: compareAt(sess, rbase) };
         }
-        // plain `| compare` in op mode diffs the pending candidate against committed
-        return { lines: compareAt(sess, rt.candidate) };
+        var cdiff = compareAt(sess, cbase, rt.candidate);
+        var cafter = pipeToks.slice(cused);
+        return { lines: cafter.length ? applyPipes(cdiff, cafter, sess) : cdiff };
       }
       if (p0.length && 'display'.indexOf(p0) === 0 && pipeToks[1] && 'set'.indexOf(String(pipeToks[1]).toLowerCase()) === 0) {
-        return { lines: displaySetLines(rt.committed) };
+        var dset = displaySetLines(rt.committed);
+        var dafter = pipeToks.slice(2);
+        return { lines: dafter.length ? applyPipes(dset, dafter, sess) : dset };
       }
     }
 
@@ -3138,6 +3169,7 @@
         return { lines: [], msgType: 'mode', mode: 'login' };
       case 'configure': case 'edit':
         sess.mode = 'cli-cfg';
+        sess.editPath = [];
         return { lines: [], msgType: 'mode', mode: 'cli-cfg' };
       case 'pipe':
         return { lines: [] };
@@ -3256,7 +3288,7 @@
         outb.push('\tMetric: ' + (r2.metric != null ? r2.metric : '0'));
         if (r2.proto === 'OSPF') outb.push('\tArea: 0.0.0.0');
         if (r2.mode === 'discard' || r2.mode === 'reject') outb.push('\tDiscard');
-        else if (r2.proto === 'Local') outb.push('\tLocal via ' + (r2.local ? r2.local : r2.dest.split('/')[0]));
+        else if (r2.proto === 'Local') outb.push('\tLocal via ' + (r2.via || r2.local || r2.dest.split('/')[0]));
         else if (r2.to) outb.push('\tNext hop: ' + r2.to + ', via ' + r2.via);
         else if (r2.via) outb.push('\tvia ' + r2.via);
         outb.push('');
@@ -3360,22 +3392,57 @@
 
   function cfgEditPath(sess, rt, root, line, rest, abs) {
     if (!rest.length) return errCaret(sess, line, 1, 'error: incomplete command');
-    var path = abs(rest);
-    var end = db.nodeAt(root, path, false);
-    if (!end) {
-      var missing = cfgMissingName(root, path);
-      return { lines: ['warning: statement not found: ' + (missing || path[path.length - 1])] };
-    }
-    sess.editPath = path;
+    // Junos never refuses an `edit` into a hierarchy that is not in the
+    // candidate yet; the nodes appear when the first statement is set.
+    sess.editPath = abs(rest);
     return { lines: [] };
+  }
+
+  function cfgUncommitted(rt) {
+    if (!rt) return false;
+    try { return !db.equal(rt.candidate, rt.committed); } catch (e) { return true; }
+  }
+
+  function cfgLeave(sess) {
+    sess.mode = 'cli-op';
+    sess.editPath = [];
+    return { lines: [], msgType: 'mode', mode: 'cli-op' };
+  }
+
+  function popEditLevel(ep) {
+    // `unit 0` / `address 1.2.3.4/24` are one visible level even though the
+    // tree stores the keyword and its value as separate nodes.
+    var p = (ep || []).slice();
+    if (!p.length) return p;
+    p.pop();
+    while (p.length && db.isIdentParent(p[p.length - 1])) p.pop();
+    return p;
+  }
+
+  function cfgExit(sess) {
+    var ep = sess.editPath || [];
+    if (ep.length) {
+      sess.editPath = popEditLevel(ep);
+      return { lines: [] };
+    }
+    if (cfgUncommitted(sess.rt)) {
+      sess.pend = { kind: 'exit-confirm', step: 0 };
+      return {
+        lines: [
+          'The configuration has been changed but not committed',
+          'Exit with uncommitted changes? [yes,no] (yes)'
+        ],
+        prompt: ''
+      };
+    }
+    return cfgLeave(sess);
   }
 
   function cfgUp(sess, rest) {
     var n = parseInt(rest[0], 10);
     if (!n || n < 1) n = 1;
-    var ep = sess.editPath || [];
-    if (ep.length === 0) return { lines: ['error: already at the top level of the hierarchy'] };
-    sess.editPath = ep.slice(0, Math.max(0, ep.length - n));
+    if (!(sess.editPath || []).length) return { lines: ['error: already at the top level of the hierarchy'] };
+    for (var i = 0; i < n && sess.editPath.length; i++) sess.editPath = popEditLevel(sess.editPath);
     return { lines: [] };
   }
 
@@ -3764,12 +3831,15 @@
     }
     if (flags.check) return { lines: ['configuration check succeeds'] };
 
+    var previous = rt.committed;
+    if (!rt.revisions) rt.revisions = [];
+    if (previous) {
+      rt.revisions.unshift(db.clone(previous));
+      if (rt.revisions.length > 50) rt.revisions.length = 50;
+    }
     var committedNew = db.clone(rt.candidate);
     rt.committed = committedNew;
     rt.config = committedNew;
-    if (!rt.revisions) rt.revisions = [];
-    rt.revisions.unshift(db.clone(committedNew));
-    if (rt.revisions.length > 50) rt.revisions.length = 50;
     if (!rt.commitLog) rt.commitLog = [];
     rt.commitLog.unshift({ time: now(), by: sess.user || 'root', comment: flags.comment });
     rt.commitCount = (rt.commitCount || 0) + 1;
@@ -3801,11 +3871,17 @@
     var n = parseInt(rest[0], 10);
     if (isNaN(n)) n = 0;
     var revs = rt.revisions || [];
-    if (n < 0 || n >= revs.length) {
+    if (n === 0) {
+      // rollback 0 discards the candidate and reloads the running config
+      if (rt.confirmed) rt.confirmed = null;
+      rt.candidate = db.clone(rt.committed);
+      return { lines: ['load complete'] };
+    }
+    if (n < 0 || !revs[n - 1]) {
       return { lines: ['error: rollback ' + n + ' exceeds available revision history'] };
     }
     if (rt.confirmed) rt.confirmed = null;
-    rt.candidate = db.clone(revs[n]);
+    rt.candidate = db.clone(revs[n - 1]);
     return { lines: ['load complete'] };
   }
 
@@ -3832,9 +3908,15 @@
     return true;
   }
 
-  function compareAt(sess, base) {
+  function revisionBase(rt, n) {
+    if (!n) return rt.committed;
+    var revs = rt.revisions || [];
+    return revs[n - 1] || rt.committed;
+  }
+
+  function compareAt(sess, base, isNewOverride) {
     var rt = sess.rt;
-    var isNew = (sess.mode === 'cli-cfg') ? rt.candidate : rt.committed;
+    var isNew = isNewOverride || ((sess.mode === 'cli-cfg') ? rt.candidate : rt.committed);
     var out = db.compareTrees(base || rt.committed, isNew);
     var ep = sess.editPath || [];
     if (ep.length) {
@@ -3864,18 +3946,23 @@
 
     if (pk === 'compare') {
       var base = rt.committed;
+      var used = 1;
       var pipeArgs = pipe.slice(1);
       for (var q = 0; q < pipeArgs.length; q++) {
         if ('rollback'.indexOf(String(pipeArgs[q]).toLowerCase()) === 0) {
-          var rn = parseInt(pipeArgs[q + 1], 10);
-          base = (rt.revisions && rt.revisions[rn]) ? rt.revisions[rn] : rt.committed;
+          base = revisionBase(rt, parseInt(pipeArgs[q + 1], 10));
+          used = q + 3;
           break;
         }
       }
-      return { lines: compareAt(sess, base) };
+      var diff = compareAt(sess, base);
+      var after = pipe.slice(used);
+      return { lines: after.length ? applyPipes(diff, after, sess) : diff };
     }
     if (pk === 'display' && pipe[1] && 'set'.indexOf(String(pipe[1]).toLowerCase()) === 0) {
-      return { lines: displaySetLines(root) };
+      var setOut = displaySetLines(root);
+      var restPipe = pipe.slice(2);
+      return { lines: restPipe.length ? applyPipes(setOut, restPipe, sess) : setOut };
     }
 
     var absP = (sess.editPath || []).concat(parts);
@@ -3925,9 +4012,8 @@
       case 'rollback': return cfgRollback(sess, rest);
       case 'run': return runOp(sess, rest.join(' '));
       case 'status': return { lines: cfgStatus(sess) };
-      case 'exit':
-        sess.mode = 'cli-op';
-        return { lines: [], msgType: 'mode', mode: 'cli-op' };
+      case 'exit': return cfgExit(sess);
+      case 'quit': return cfgLeave(sess);
       case 'copy': return cfgCopy(sess, rt, root, line, rest, abs);
       case 'rename': return cfgRename(sess, rt, root, line, rest, abs);
       case 'load': return cfgLoad(sess, rt, line, rest);
@@ -4050,6 +4136,12 @@
     if (!p) return { lines: [] };
     var val = String(line == null ? '' : String(line));
     var trim = val.trim();
+    if (p.kind === 'exit-confirm') {
+      sess.pend = null;
+      var ans = trim.toLowerCase();
+      if (ans === 'n' || ans === 'no') return { lines: [] };
+      return cfgLeave(sess);
+    }
     if (p.kind === 'load-set') {
       var eof = trim === 'ctrl-d' || trim === 'ctl-d' || trim === '^d' || (val.length === 1 && val.charCodeAt(0) === 4);
       if (!trim.length && p.buffered.length) eof = true;

@@ -147,11 +147,12 @@ npm test
 | Probe | Command | What it covers | Result |
 |:--|:--|:--|--:|
 | Engine suite | `npm test` | Loads the engine into a Node VM and checks prompts, session flow, config semantics, derived state, `show \| compare`, `commit check`, `commit confirmed` | 13 / 13 |
+| CLI fidelity | `npm run test:cli` | Hierarchy navigation, `edit`/`up`/`exit`/`quit`, commit and rollback history, exact `show \| compare` diffs, terse/detail/route/ARP formats, chained pipes | 63 / 63 |
 | Smoke run | `npm run test:smoke` | Boot to login, CLI entry, routing, switching, ping and trace across the default lab | all pass |
 | Command coverage | `npm run test:coverage` | Every command named in the reference guide must dispatch without an unknown or syntax error | 68 / 68 |
 | BGP probe | `npm run test:bgp` | EBGP preset configs produce the expected session, route and policy output on both peers | 0 failures |
 
-All four run without a browser and exit non-zero on failure, so they work as a pre-commit gate.
+All five run without a browser and exit non-zero on failure, so they work as a pre-commit gate.
 
 ## How the engine works
 
@@ -184,7 +185,7 @@ SHARKSJunosLabspractice/
       js/junos/                    engine: util, db, model, derive, schema, machine
       js/ui/                       shell: core, interactions, console, terminal, modals, boot, vpcs
     server/server.js               zero dependency static server
-    tests/                         run-tests.js plus the smoke, coverage and BGP probes
+    tests/                         run-tests.js, cli-fidelity.js plus the smoke, coverage and BGP probes
     docs/                          requirement reference and feature coverage
   DESIGN.md                        palette, type and motion rules
   vercel.json                      deploy configuration

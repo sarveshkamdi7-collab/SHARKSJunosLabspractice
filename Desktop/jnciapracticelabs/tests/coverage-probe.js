@@ -18,15 +18,15 @@ function runOne(name, rtKey, setup, cmd, mode) {
   total++;
   const rt = rtKey === 'R1' ? rtR1 : (rtKey === 'SW1' ? rtSW1 : rtR2);
   const sess = rtKey === 'R1' ? s1 : (rtKey === 'SW1' ? s2 : s3);
-  if (sess.mode === 'cli-cfg') JJ.machine.feed(sess, 'exit');
+  if (sess.mode === 'cli-cfg') JJ.machine.feed(sess, 'quit');
   if (setup && sess.mode !== 'cli-cfg') JJ.machine.feed(sess, 'configure');
   JJ.machine.feed(sess, 'configure');
   if (setup) { for (const l of setup) { const o = JJ.machine.feed(sess, l); const e = isErr(o.lines); if (e) { fails++; console.log('SETUP-FAIL ' + name + ' :: ' + l); return; } } }
-  if (mode === 'op') { if (sess.mode === 'cli-cfg') JJ.machine.feed(sess, 'exit'); }
+  if (mode === 'op') { if (sess.mode === 'cli-cfg') JJ.machine.feed(sess, 'quit'); }
   const out = JJ.machine.feed(sess, cmd);
   const bad = isErr(out.lines);
   if (bad) { fails++; console.log('FAIL: ' + name + ' [' + rtKey + ']\n   ' + (out.lines || []).join('\n   ')); }
-  if (sess.mode === 'cli-cfg') JJ.machine.feed(sess, 'exit');
+  if (sess.mode === 'cli-cfg') JJ.machine.feed(sess, 'quit');
 }
 
 // build the three device runtimes
