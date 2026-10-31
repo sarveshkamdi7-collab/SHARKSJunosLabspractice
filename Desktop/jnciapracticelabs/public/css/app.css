@@ -387,18 +387,34 @@ kbd {
 .node-layer { position: absolute; inset: 0; pointer-events: none; }
 
 /* links */
+.link-group { --link: var(--teal); }
 .link-hit { stroke: transparent; stroke-width: 16; fill: none; cursor: pointer; pointer-events: stroke; }
+.link-glow { fill: none; stroke: var(--link); stroke-width: 9; opacity: .17; filter: blur(5px); pointer-events: none; }
+.link-flow {
+  fill: none; stroke: var(--link); stroke: color-mix(in srgb, var(--link) 42%, #ffffff); stroke-width: 2.2; stroke-linecap: round;
+  stroke-dasharray: 11 89; opacity: .92; pointer-events: none; animation: linkFlow 1.9s linear infinite;
+}
+@keyframes linkFlow { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -100; } }
 .link-cable { fill: none; stroke: #4a4a47; stroke-width: 2; stroke-linecap: round; }
-.link-cable.up { stroke: #8e8e8b; }
+.link-cable.up { stroke: color-mix(in srgb, var(--link) 34%, #8e8e8b); }
 .link-cable.down { stroke: #3c3c3a; stroke-dasharray: 6 5; }
 .link-cable.selected { stroke: var(--accent); stroke-width: 2.6; }
 .link-under { fill: none; stroke: rgba(0, 0, 0, .55); stroke-width: 5.5; stroke-linecap: round; }
 .link-ring { fill: #7d7d7a; stroke-width: 0; }
-.link-ring.up { fill: var(--teal); }
+.link-ring.up { fill: var(--link); filter: drop-shadow(0 0 3px var(--link)); }
 .link-ring.down { fill: var(--led-off); }
 .link-dot { pointer-events: none; }
-.link-dot.up { fill: var(--teal); }
+.link-dot.up { fill: color-mix(in srgb, var(--link) 55%, #ffffff); }
 .link-dot.down { fill: var(--led-off); }
+.wire-preview { fill: none; stroke: #f4f4f5; stroke-width: 2; stroke-linecap: round; opacity: .92; pointer-events: none; }
+.node.wire-target .node-card { border-color: var(--teal); box-shadow: 0 0 0 2px rgba(93, 184, 166, .55), 0 0 22px -2px rgba(93, 184, 166, .6); }
+.wire-spark path { fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; animation: sparkFade .5s ease-out forwards; }
+.wire-spark circle { animation: sparkFly .62s cubic-bezier(.2, .7, .3, 1) forwards; }
+@keyframes sparkFade { to { opacity: 0; } }
+@keyframes sparkFly { from { transform: translate(0, 0); opacity: 1; } to { transform: translate(var(--dx), var(--dy)); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .link-flow { animation: none; opacity: .4; }
+}
 .link-port-label { font-family: var(--mono); font-size: 10px; fill: var(--text-2); }
 .link-port-bg { fill: rgba(29, 29, 27, .96); stroke: var(--border); stroke-width: .6; }
 .link-label-bg { fill: rgba(29, 29, 27, .93); stroke: var(--border); stroke-width: .5; }

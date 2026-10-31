@@ -323,13 +323,14 @@
     linkMode = { from: fromId || null };
     var banner = $('#placementBanner'), txt = $('#placementText');
     if (banner) banner.classList.remove('hidden');
-    if (txt) txt.textContent = fromId ? 'Select the second device to complete the link, Esc to cancel' : 'Ethernet link: select the first device';
+    if (txt) txt.textContent = fromId ? 'Select the second device to complete the link, Esc to cancel' : 'Ethernet link: drag between devices, Esc to cancel';
     $('#canvas').classList.add('linking');
     $$('.palette-item').forEach(function (i) { i.classList.toggle('active', i.dataset.device === 'link'); });
-    APP.setStatus('Link mode active, click two devices');
+    APP.setStatus('Link mode active, drag between devices');
   }
   function cancelLinkMode() {
     linkMode = null;
+    if (APP.cancelWireDrag) APP.cancelWireDrag();
     if (!placement) { if ($('#placementBanner')) $('#placementBanner').classList.add('hidden'); }
     $('#canvas').classList.remove('linking');
     $$('.palette-item').forEach(function (i) { i.classList.remove('active'); });

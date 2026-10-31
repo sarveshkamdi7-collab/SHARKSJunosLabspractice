@@ -752,23 +752,42 @@
     return 30;
   }
 
+  var LINK_HUES = ['#5db8a6', '#8b7cf6', '#d9a441', '#4fb3d9', '#cf6b8f'];
+  var FLOW_MS = 1900;
+
+  function linkHash(id) {
+    var h = J.hash ? J.hash(id) : 0;
+    return Math.abs(h) || 1;
+  }
+
+  function linkHue(l) {
+    return LINK_HUES[linkHash(l.id) % LINK_HUES.length];
+  }
+
   function renderLinks() {
     var layer = $('#linkLayer');
     if (!layer) return;
     var html = '';
     var showLabels = !!(state.settings && state.settings.labels);
+    // rebuilt markup restarts the flow animation, so rewind it to the current phase
+    var phase = (typeof performance !== 'undefined' ? performance.now() : Date.now()) % FLOW_MS;
     state.links.forEach(function (l) {
       var a = nodeById(l.a), b = nodeById(l.b);
       if (!a || !b) return;
       var up = a.status !== 'stopped' && b.status !== 'stopped';
       l.status = up ? 'up' : 'down';
       var geo = linkGeometry(a, b, l);
-      html += '<g class="link-group" data-link-id="' + esc(l.id) + '"><path class="link-hit" d="' + geo.d + '"></path><path class="link-under" d="' + geo.d + '"></path><path class="link-cable ' + (up ? 'up' : 'down') + (selectedLinkId === l.id ? ' selected' : '') + '" d="' + geo.d + '"></path>' +
+      var delay = Math.round(phase + linkHash(l.id) % 620);
+      html += '<g class="link-group" data-link-id="' + esc(l.id) + '" style="--link:' + linkHue(l) + '"><path class="link-hit" d="' + geo.d + '"></path><path class="link-under" d="' + geo.d + '"></path>' +
+        (up ? '<path class="link-glow" d="' + geo.d + '"></path>' : '') +
+        '<path class="link-cable ' + (up ? 'up' : 'down') + (selectedLinkId === l.id ? ' selected' : '') + '" d="' + geo.d + '"></path>' +
+        (up ? '<path class="link-flow" d="' + geo.d + '" style="animation-delay:-' + delay + 'ms"></path>' : '') +
         endpoint(geo.x1, geo.y1, up) + endpoint(geo.x2, geo.y2, up) +
         (showLabels ? portLabel(geo.x1, geo.y1, l.aPort, geo.px1, geo.py1) + portLabel(geo.x2, geo.y2, l.bPort, geo.px2, geo.py2) : '') +
         (showLabels && l.label ? '<rect class="link-label-bg" x="' + (geo.cx - Math.max(36, String(l.label).length * 5.6 + 14) / 2) + '" y="' + (geo.cy + 10) + '" width="' + Math.max(36, String(l.label).length * 5.6 + 14) + '" height="14" rx="7"></rect><text class="link-label-text" x="' + geo.cx + '" y="' + (geo.cy + 20.4) + '" text-anchor="middle">' + esc(l.label) + '</text>' : '') + '</g>';
     });
     layer.innerHTML = html;
+    $$('.link-flow', layer).forEach(function (p) { p.setAttribute('pathLength', 100); });
     $$('.link-hit', layer).forEach(function (el) {
       el.addEventListener('click', function (e) { e.stopPropagation(); selectLink(el.parentNode.dataset.linkId); });
       el.addEventListener('contextmenu', function (e) {
@@ -787,6 +806,14 @@
     return '<g class="link-port-label"><rect class="link-port-bg" x="' + (x + px * 14 - w / 2) + '" y="' + (y + py * 15 - 6.5) + '" width="' + w + '" height="13" rx="4"></rect><text x="' + (x + px * 14) + '" y="' + (y + py * 15 + 3.2) + '" text-anchor="middle">' + esc(text) + '</text></g>';
   }
 
+  function curveD(x1, y1, x2, y2, bend, nx, ny) {
+    var c1x = x1 + (x2 - x1) * .34 + nx * bend;
+    var c1y = y1 + (y2 - y1) * .34 + ny * bend;
+    var c2x = x1 + (x2 - x1) * .68 + nx * bend;
+    var c2y = y1 + (y2 - y1) * .68 + ny * bend;
+    return 'M ' + x1.toFixed(2) + ' ' + y1.toFixed(2) + ' C ' + c1x.toFixed(2) + ' ' + c1y.toFixed(2) + ', ' + c2x.toFixed(2) + ' ' + c2y.toFixed(2) + ', ' + x2.toFixed(2) + ' ' + y2.toFixed(2);
+  }
+
   function linkGeometry(a, b, l) {
     var dx = b.x - a.x, dy = b.y - a.y;
     var dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
@@ -796,12 +823,10 @@
     var x2 = b.x - ux * rb, y2 = b.y - uy * rb;
     var bend = ((J.hash ? J.hash(l.id) : 3) % 9) - 4;
     var nx = -uy, ny = ux;
-    var c1x = x1 + (x2 - x1) * .34 + nx * bend, c1y = y1 + (y2 - y1) * .34 + ny * bend;
-    var c2x = x1 + (x2 - x1) * .68 + nx * bend, c2y = y1 + (y2 - y1) * .68 + ny * bend;
     return {
       x1: x1, y1: y1, x2: x2, y2: y2, px1: -nx, py1: -ny, px2: nx, py2: ny,
       cx: (x1 + x2) / 2 + nx * bend * .65, cy: (y1 + y2) / 2 + ny * bend * .65,
-      d: 'M ' + x1.toFixed(2) + ' ' + y1.toFixed(2) + ' C ' + c1x.toFixed(2) + ' ' + c1y.toFixed(2) + ', ' + c2x.toFixed(2) + ' ' + c2y.toFixed(2) + ', ' + x2.toFixed(2) + ' ' + y2.toFixed(2)
+      d: curveD(x1, y1, x2, y2, bend, nx, ny)
     };
   }
 
@@ -990,6 +1015,111 @@
 
   // ------------------------------------------------------------ node events
   var drag = null;
+  // ------------------------------------------------------------- wire drag
+  var wireDrag = null;
+  var wireTargetId = null;
+  var wirePreviewEl = null;
+
+  function nodeEl(id) { return document.querySelector('.node[data-node-id="' + id + '"]'); }
+
+  function wireTargetAt(x, y, fromId) {
+    var best = null, bestDist = Infinity;
+    state.nodes.forEach(function (n) {
+      if (n.id === fromId) return;
+      var dx = n.x - x, dy = n.y - y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= nodeRadius(n) + 28 && dist < bestDist) { bestDist = dist; best = n; }
+    });
+    return best;
+  }
+
+  function setWireTarget(node) {
+    var id = node ? node.id : null;
+    if (wireTargetId === id) return;
+    if (wireTargetId) {
+      var prev = nodeEl(wireTargetId);
+      if (prev) prev.classList.remove('wire-target');
+    }
+    wireTargetId = id;
+    if (id) {
+      var el = nodeEl(id);
+      if (el) el.classList.add('wire-target');
+    }
+  }
+
+  function showWirePreview(fromId, wx, wy) {
+    var a = nodeById(fromId);
+    var layer = $('#linkLayer');
+    if (!a || !layer) return;
+    if (!wirePreviewEl) {
+      wirePreviewEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      wirePreviewEl.id = 'wirePreview';
+      wirePreviewEl.setAttribute('class', 'wire-preview');
+    }
+    if (wirePreviewEl.parentNode !== layer) layer.appendChild(wirePreviewEl);
+    var dx = wx - a.x, dy = wy - a.y;
+    var dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+    var ux = dx / dist, uy = dy / dist;
+    wirePreviewEl.setAttribute('d', curveD(a.x + ux * nodeRadius(a), a.y + uy * nodeRadius(a), wx, wy, 0, -uy, ux));
+  }
+
+  function clearWirePreview() {
+    if (wirePreviewEl && wirePreviewEl.parentNode) wirePreviewEl.parentNode.removeChild(wirePreviewEl);
+    wirePreviewEl = null;
+  }
+
+  function cancelWireDrag() {
+    wireDrag = null;
+    setWireTarget(null);
+    clearWirePreview();
+  }
+  APP.cancelWireDrag = cancelWireDrag;
+
+  function startWireDrag(id, e, el) {
+    wireDrag = { from: id, sx: e.clientX, sy: e.clientY, moved: false, pointerId: e.pointerId };
+    linkHint('Release on a device to connect, Esc to cancel');
+    if (el.setPointerCapture) { try { el.setPointerCapture(e.pointerId); } catch (err) { /* synthetic pointer */ } }
+  }
+
+  function linkHint(text) {
+    var t = $('#placementText');
+    if (t && APP.isLinkMode && APP.isLinkMode()) t.textContent = text;
+  }
+
+  function sparkAt(x, y, color) {
+    var layer = $('#linkLayer');
+    if (!layer) return;
+    var ns = 'http://www.w3.org/2000/svg';
+    var g = document.createElementNS(ns, 'g');
+    g.setAttribute('class', 'wire-spark');
+    var d = 'M ' + (x - 15).toFixed(1) + ' ' + (y - 9).toFixed(1);
+    var px = x - 15, py = y - 9;
+    for (var i = 0; i < 4; i++) {
+      px += 3 + Math.random() * 4;
+      py -= 2 + Math.random() * 4;
+      d += ' L ' + px.toFixed(1) + ' ' + py.toFixed(1);
+    }
+    var squiggle = document.createElementNS(ns, 'path');
+    squiggle.setAttribute('d', d);
+    squiggle.setAttribute('stroke', color);
+    g.appendChild(squiggle);
+    for (var j = 0; j < 6; j++) {
+      var angle = Math.random() * Math.PI * 2;
+      var dist = 9 + Math.random() * 15;
+      var dot = document.createElementNS(ns, 'circle');
+      dot.setAttribute('cx', x.toFixed(1));
+      dot.setAttribute('cy', y.toFixed(1));
+      dot.setAttribute('r', (1 + Math.random() * 1.2).toFixed(1));
+      dot.setAttribute('fill', color);
+      dot.style.setProperty('--dx', (Math.cos(angle) * dist).toFixed(1) + 'px');
+      dot.style.setProperty('--dy', (Math.sin(angle) * dist).toFixed(1) + 'px');
+      g.appendChild(dot);
+    }
+    layer.appendChild(g);
+    window.setTimeout(function () { if (g.parentNode) g.parentNode.removeChild(g); }, 640);
+  }
+  APP.sparkAt = sparkAt;
+
   function bindNodeEvents(el) {
     var id = el.dataset.nodeId;
     el.addEventListener('pointerdown', function (e) {
@@ -997,13 +1127,26 @@
       e.stopPropagation();
       var node = nodeById(id);
       if (!node) return;
-      if (APP.isLinkMode && APP.isLinkMode()) { APP.handleLinkNodeClick(id); return; }
+      if (APP.isLinkMode && APP.isLinkMode()) {
+        e.preventDefault();
+        startWireDrag(id, e, el);
+        return;
+      }
       selectNode(id);
       APP.captureHistory();
       drag = { id: id, pointerId: e.pointerId, sx: e.clientX, sy: e.clientY, nx: node.x, ny: node.y, moved: false, el: el };
       if (el.setPointerCapture) el.setPointerCapture(e.pointerId);
     });
     el.addEventListener('pointermove', function (e) {
+      if (wireDrag && wireDrag.from === id) {
+        var wdx = e.clientX - wireDrag.sx, wdy = e.clientY - wireDrag.sy;
+        if (!wireDrag.moved && Math.abs(wdx) + Math.abs(wdy) < 4) return;
+        wireDrag.moved = true;
+        var p = APP.screenToWorld(e.clientX, e.clientY);
+        showWirePreview(id, p.x, p.y);
+        setWireTarget(wireTargetAt(p.x, p.y, id));
+        return;
+      }
       if (!drag || drag.id !== id) return;
       var dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
       if (!drag.moved && Math.abs(dx) + Math.abs(dy) < 3) return;
@@ -1015,9 +1158,25 @@
       renderLinks(); APP.updateSelectionStatus(e.clientX, e.clientY);
     });
     el.addEventListener('pointerup', function () {
+      if (wireDrag && wireDrag.from === id) {
+        var moved = wireDrag.moved;
+        var targetId = wireTargetId;
+        wireDrag = null;
+        setWireTarget(null);
+        clearWirePreview();
+        if (!moved) { APP.handleLinkNodeClick(id); return; }
+        if (targetId && targetId !== id) {
+          APP.createLinkBetween(id, targetId);
+          linkHint('Ethernet link: drag between devices, Esc to cancel');
+        }
+        return;
+      }
       if (!drag || drag.id !== id) return;
       if (drag.moved) { scheduleSave(); renderTopologyTree(); }
       drag = null;
+    });
+    el.addEventListener('pointercancel', function () {
+      if (wireDrag && wireDrag.from === id) cancelWireDrag();
     });
     el.addEventListener('contextmenu', function (e) {
       e.preventDefault(); e.stopPropagation(); selectNode(id);
@@ -1178,6 +1337,9 @@
     var l = makeLink(uid('l'), a.id, ports.aPort, b.id, ports.bPort, ports.label);
     state.links.push(l);
     renderLinks(); updateCounts(); scheduleSave();
+    var geo = linkGeometry(a, b, l);
+    sparkAt(geo.x1, geo.y1, linkHue(l));
+    sparkAt(geo.x2, geo.y2, linkHue(l));
     toast(a.name + ' ' + ports.aPort + ' ↔ ' + b.name + ' ' + ports.bPort + ' connected', 'success', 'cable');
     return l;
   };
