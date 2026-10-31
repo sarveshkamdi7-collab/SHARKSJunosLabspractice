@@ -798,12 +798,12 @@
   }
 
   function endpoint(x, y, up) {
-    return '<circle class="link-ring ' + (up ? 'up' : 'down') + '" cx="' + x + '" cy="' + y + '" r="3.3"></circle><circle class="link-dot ' + (up ? 'up' : 'down') + '" cx="' + x + '" cy="' + y + '" r="1.65"></circle>';
+    return '<circle class="link-ring ' + (up ? 'up' : 'down') + '" cx="' + x + '" cy="' + y + '" r="6"></circle><circle class="link-dot ' + (up ? 'up' : 'down') + '" cx="' + x + '" cy="' + y + '" r="2.4"></circle>';
   }
 
   function portLabel(x, y, text, px, py) {
     var w = Math.max(26, String(text).length * 6 + 10);
-    return '<g class="link-port-label"><rect class="link-port-bg" x="' + (x + px * 14 - w / 2) + '" y="' + (y + py * 15 - 6.5) + '" width="' + w + '" height="13" rx="4"></rect><text x="' + (x + px * 14) + '" y="' + (y + py * 15 + 3.2) + '" text-anchor="middle">' + esc(text) + '</text></g>';
+    return '<g class="link-port-label"><rect class="link-port-bg" x="' + (x + px * 17 - w / 2) + '" y="' + (y + py * 18 - 6.5) + '" width="' + w + '" height="13" rx="4"></rect><text x="' + (x + px * 17) + '" y="' + (y + py * 18 + 3.2) + '" text-anchor="middle">' + esc(text) + '</text></g>';
   }
 
   function curveD(x1, y1, x2, y2, bend, nx, ny) {
@@ -1135,7 +1135,7 @@
       selectNode(id);
       APP.captureHistory();
       drag = { id: id, pointerId: e.pointerId, sx: e.clientX, sy: e.clientY, nx: node.x, ny: node.y, moved: false, el: el };
-      if (el.setPointerCapture) el.setPointerCapture(e.pointerId);
+      if (el.setPointerCapture) { try { el.setPointerCapture(e.pointerId); } catch (err) { /* synthetic pointer */ } }
     });
     el.addEventListener('pointermove', function (e) {
       if (wireDrag && wireDrag.from === id) {

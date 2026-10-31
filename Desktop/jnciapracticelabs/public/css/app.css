@@ -389,22 +389,22 @@ kbd {
 /* links */
 .link-group { --link: var(--teal); }
 .link-hit { stroke: transparent; stroke-width: 16; fill: none; cursor: pointer; pointer-events: stroke; }
-.link-glow { fill: none; stroke: var(--link); stroke-width: 9; opacity: .17; filter: blur(5px); pointer-events: none; }
+.link-glow { fill: none; stroke: var(--link); stroke-width: 18; opacity: .42; filter: blur(8px); pointer-events: none; }
 .link-flow {
-  fill: none; stroke: var(--link); stroke: color-mix(in srgb, var(--link) 42%, #ffffff); stroke-width: 2.2; stroke-linecap: round;
-  stroke-dasharray: 11 89; opacity: .92; pointer-events: none; animation: linkFlow 1.9s linear infinite;
+  fill: none; stroke: var(--link); stroke: color-mix(in srgb, var(--link) 35%, #ffffff); stroke-width: 3.6; stroke-linecap: round;
+  stroke-dasharray: 18 82; opacity: 1; pointer-events: none; animation: linkFlow 2.1s linear infinite;
 }
 @keyframes linkFlow { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -100; } }
-.link-cable { fill: none; stroke: #4a4a47; stroke-width: 2; stroke-linecap: round; }
-.link-cable.up { stroke: color-mix(in srgb, var(--link) 34%, #8e8e8b); }
-.link-cable.down { stroke: #3c3c3a; stroke-dasharray: 6 5; }
-.link-cable.selected { stroke: var(--accent); stroke-width: 2.6; }
-.link-under { fill: none; stroke: rgba(0, 0, 0, .55); stroke-width: 5.5; stroke-linecap: round; }
+.link-cable { fill: none; stroke: #4a4a47; stroke-width: 3; stroke-linecap: round; }
+.link-cable.up { stroke: var(--link); }
+.link-cable.down { stroke: #3c3c3a; stroke-width: 2; stroke-dasharray: 6 5; }
+.link-cable.selected { stroke: var(--accent); stroke-width: 3.6; }
+.link-under { fill: none; stroke: rgba(0, 0, 0, .55); stroke-width: 7; stroke-linecap: round; }
 .link-ring { fill: #7d7d7a; stroke-width: 0; }
-.link-ring.up { fill: var(--link); filter: drop-shadow(0 0 3px var(--link)); }
+.link-ring.up { fill: var(--link); filter: drop-shadow(0 0 6px var(--link)); }
 .link-ring.down { fill: var(--led-off); }
 .link-dot { pointer-events: none; }
-.link-dot.up { fill: color-mix(in srgb, var(--link) 55%, #ffffff); }
+.link-dot.up { fill: color-mix(in srgb, var(--link) 24%, #ffffff); }
 .link-dot.down { fill: var(--led-off); }
 .wire-preview { fill: none; stroke: #f4f4f5; stroke-width: 2; stroke-linecap: round; opacity: .92; pointer-events: none; }
 .node.wire-target .node-card { border-color: var(--teal); box-shadow: 0 0 0 2px rgba(93, 184, 166, .55), 0 0 22px -2px rgba(93, 184, 166, .6); }
