@@ -98,6 +98,14 @@
         APP.getState().settings.grid = !APP.getState().settings.grid;
         APP.renderCanvasSettings(); APP.scheduleSave();
         break;
+      case 'toggle-cards': {
+        var s = APP.getState();
+        s.settings.cards = !(s.settings.cards !== false);
+        // cards are much wider than the icon nodes, so reflow a layout that would overlap
+        if (s.settings.cards && cardsOverlap(s.nodes)) autoLayout();
+        else { APP.renderAll(); APP.scheduleSave(); }
+        break;
+      }
       case 'toggle-labels':
         APP.getState().settings.labels = !APP.getState().settings.labels;
         APP.renderCanvasSettings(); APP.scheduleSave();
@@ -610,10 +618,22 @@
       // full rebuild: fresh nodes + links + runtime configs from the preset spec
       var nodes = [];
       var byName = {};
+      // authored coordinates, opened up around their centre so card nodes get room
+      var spread = (!s.settings || s.settings.cards !== false) ? 1.4 : 1;
+      var authored = preset.positions || {};
+      var midX = 0, midY = 0, seen = 0;
+      Object.keys(authored).forEach(function (k) { midX += authored[k].x; midY += authored[k].y; seen++; });
+      if (seen) { midX /= seen; midY /= seen; } else { midX = 400; midY = 260; }
+      var place = function (name, idx) {
+        var p = authored[name];
+        if (!p) return { x: 120 + idx * 160, y: 140 };
+        return { x: Math.round(midX + (p.x - midX) * spread), y: Math.round(midY + (p.y - midY) * spread) };
+      };
       for (var i = 0; i < preset.nodes.length; i++) {
         var spec = preset.nodes[i];
         var tplKey = spec.template || 'router';
-        var n = APP.makeNode('n-' + key + '-' + String(spec.name).toLowerCase(), spec.name, tplKey, 120 + i * 160, 140, 'running', 5001 + i);
+        var at = place(spec.name, i);
+        var n = APP.makeNode('n-' + key + '-' + String(spec.name).toLowerCase(), spec.name, tplKey, at.x, at.y, 'running', 5001 + i);
         if (spec.model) n.model = spec.model;
         var hspec = null;
         if (preset.hosts) {
@@ -639,9 +659,14 @@
       APP.setSelectedNodeId(null);
     } else {
       // legacy path: reposition the existing canvas only
+      var lspread = (!s.settings || s.settings.cards !== false) ? 1.4 : 1;
+      var lpos = preset.positions || {};
+      var lx = 0, ly = 0, ln = 0;
+      Object.keys(lpos).forEach(function (k) { lx += lpos[k].x; ly += lpos[k].y; ln++; });
+      if (ln) { lx /= ln; ly /= ln; } else { lx = 400; ly = 260; }
       s.nodes.forEach(function (n) {
-        var p = preset.positions[n.name];
-        if (p) { n.x = p.x; n.y = p.y; }
+        var p = lpos[n.name];
+        if (p) { n.x = Math.round(lx + (p.x - lx) * lspread); n.y = Math.round(ly + (p.y - ly) * lspread); }
         else { var idx = s.nodes.indexOf(n); n.x = 120 + (idx % 4) * 180; n.y = 120 + Math.floor(idx / 4) * 160; }
       });
       s.annotations = [];
@@ -653,10 +678,26 @@
   }
   APP.applyPreset = applyPreset;
 
+  // card footprint used for spacing decisions (208 wide, tall enough for a few port rows)
+  var CARD_BOX_W = 208, CARD_BOX_H = 190;
+
+  function cardsOverlap(nodes) {
+    for (var i = 0; i < nodes.length; i++) {
+      for (var j = i + 1; j < nodes.length; j++) {
+        if (Math.abs(nodes[i].x - nodes[j].x) < CARD_BOX_W + 10 &&
+            Math.abs(nodes[i].y - nodes[j].y) < CARD_BOX_H + 10) return true;
+      }
+    }
+    return false;
+  }
+
   function autoLayout() {
     var s = APP.getState();
     if (!s.nodes.length) return;
     APP.captureHistory();
+    var cards = !s.settings || s.settings.cards !== false;
+    var colW = cards ? 300 : 220;
+    var rowH = cards ? 250 : 190;
     var routers = s.nodes.filter(function (n) { return n.type === 'router'; });
     var switches = s.nodes.filter(function (n) { return n.type === 'switch'; });
     var hosts = s.nodes.filter(function (n) { return n.type === 'host'; });
@@ -665,15 +706,21 @@
     var maxCols = Math.max(1, Math.min(4, Math.ceil(Math.sqrt(top.length))));
     top.forEach(function (n, i) {
       var col = i % maxCols, row = Math.floor(i / maxCols);
-      n.x = 170 + col * 220 + row * 30;
-      n.y = 120 + row * 190;
+      n.x = 180 + col * colW + row * 30;
+      n.y = 140 + row * rowH;
     });
-    switches.forEach(function (n, i) { n.x = 390 + i * 220; n.y = 330; });
-    hosts.forEach(function (n, i) { n.x = 270 + i * 210; n.y = 480 + Math.floor(i / 4) * 140; });
+    var topRows = Math.max(1, Math.ceil(top.length / maxCols));
+    var bandY = 140 + (top.length ? topRows * rowH : 0);
+    switches.forEach(function (n, i) { n.x = 300 + i * colW; n.y = bandY; });
+    hosts.forEach(function (n, i) {
+      n.x = 240 + i * (cards ? 268 : 210);
+      n.y = bandY + (cards ? 250 : 150) + Math.floor(i / 4) * (cards ? 240 : 140);
+    });
     APP.renderAll(true); APP.scheduleSave();
     APP.toast('Topology arranged automatically', 'success', 'fit');
   }
   APP.autoLayout = autoLayout;
+  APP.cardsOverlap = cardsOverlap;
 
   // ---------------------------------------------------------------- export
   function exportProject() {
