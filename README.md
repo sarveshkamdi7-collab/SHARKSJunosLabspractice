@@ -49,7 +49,7 @@ input to the same engine.
 | <img src="assets/icons/signpost-split.svg" width="16" height="16" alt=""> | **Derived state** | Interfaces with SNMP ifIndex, route tables with protocol tags and preferences (`Direct/0`, `Local/8`, `Static/5`, `OSPF/10`), OSPF adjacencies, LSAs and SPF routes, ARP, LLDP, MAC learning, RSTP roles |
 | <img src="assets/icons/stack.svg" width="16" height="16" alt=""> | **Commit workflow** | Candidate configuration, `show \| compare` diffs with `+` and `-` markers, `commit check`, `commit comment`, `commit confirmed` auto-rollback, `rollback [n]`, `activate`, `deactivate`, `rename`, `copy`, `annotate` |
 | <img src="assets/icons/arrow-left-right.svg" width="16" height="16" alt=""> | **Sessions and peering** | `ssh` or `telnet` from one console into another device, reciprocal BGP session states, end to end ping and traceroute with the real next hop chain |
-| <img src="assets/icons/diagram-3.svg" width="16" height="16" alt=""> | **Workbench** | Device palette, zoomable dark canvas, link tools with interface labels, annotations (text, rectangle, ellipse, line), topology tree, console manager, status bar |
+| <img src="assets/icons/diagram-3.svg" width="16" height="16" alt=""> | **Workbench** | Device palette, zoomable dark canvas, drag-to-connect links with animated flow, double-click a cable to break it, interface labels, annotations (text, rectangle, ellipse, line), topology tree, console manager, status bar |
 | <img src="assets/icons/shield-lock.svg" width="16" height="16" alt=""> | **Security practice** | SRX zone pairs, policies, source NAT and a two node chassis cluster, all through the same CLI surface |
 | <img src="assets/icons/display.svg" width="16" height="16" alt=""> | **Host consoles** | VPCS-style end devices with their own prompt, address, gateway and host-side ping and trace |
 | <img src="assets/icons/box-seam.svg" width="16" height="16" alt=""> | **Projects** | Create, save, open, import and export projects, snapshots, six quick lab presets, all persisted in localStorage and fully usable offline |
@@ -147,11 +147,12 @@ npm test
 | Probe | Command | What it covers | Result |
 |:--|:--|:--|--:|
 | Engine suite | `npm test` | Loads the engine into a Node VM and checks prompts, session flow, config semantics, derived state, `show \| compare`, `commit check`, `commit confirmed` | 13 / 13 |
+| CLI fidelity | `npm run test:cli` | Hierarchy navigation, `edit`/`up`/`exit`/`quit`, commit and rollback history, exact `show \| compare` diffs, terse/detail/route/ARP formats, chained pipes | 63 / 63 |
 | Smoke run | `npm run test:smoke` | Boot to login, CLI entry, routing, switching, ping and trace across the default lab | all pass |
 | Command coverage | `npm run test:coverage` | Every command named in the reference guide must dispatch without an unknown or syntax error | 68 / 68 |
 | BGP probe | `npm run test:bgp` | EBGP preset configs produce the expected session, route and policy output on both peers | 0 failures |
 
-All four run without a browser and exit non-zero on failure, so they work as a pre-commit gate.
+All five run without a browser and exit non-zero on failure, so they work as a pre-commit gate.
 
 ## How the engine works
 
@@ -184,7 +185,7 @@ SHARKSJunosLabspractice/
       js/junos/                    engine: util, db, model, derive, schema, machine
       js/ui/                       shell: core, interactions, console, terminal, modals, boot, vpcs
     server/server.js               zero dependency static server
-    tests/                         run-tests.js plus the smoke, coverage and BGP probes
+    tests/                         run-tests.js, cli-fidelity.js plus the smoke, coverage and BGP probes
     docs/                          requirement reference and feature coverage
   DESIGN.md                        palette, type and motion rules
   vercel.json                      deploy configuration

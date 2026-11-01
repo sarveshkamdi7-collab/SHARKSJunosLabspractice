@@ -387,18 +387,34 @@ kbd {
 .node-layer { position: absolute; inset: 0; pointer-events: none; }
 
 /* links */
+.link-group { --link: var(--teal); }
 .link-hit { stroke: transparent; stroke-width: 16; fill: none; cursor: pointer; pointer-events: stroke; }
-.link-cable { fill: none; stroke: #4a4a47; stroke-width: 2; stroke-linecap: round; }
-.link-cable.up { stroke: #8e8e8b; }
-.link-cable.down { stroke: #3c3c3a; stroke-dasharray: 6 5; }
-.link-cable.selected { stroke: var(--accent); stroke-width: 2.6; }
-.link-under { fill: none; stroke: rgba(0, 0, 0, .55); stroke-width: 5.5; stroke-linecap: round; }
+.link-glow { fill: none; stroke: var(--link); stroke-width: 18; opacity: .42; filter: blur(8px); pointer-events: none; }
+.link-flow {
+  fill: none; stroke: var(--link); stroke: color-mix(in srgb, var(--link) 35%, #ffffff); stroke-width: 3.6; stroke-linecap: round;
+  stroke-dasharray: 18 82; opacity: 1; pointer-events: none; animation: linkFlow 2.1s linear infinite;
+}
+@keyframes linkFlow { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -100; } }
+.link-cable { fill: none; stroke: #4a4a47; stroke-width: 3; stroke-linecap: round; }
+.link-cable.up { stroke: var(--link); }
+.link-cable.down { stroke: #3c3c3a; stroke-width: 2; stroke-dasharray: 6 5; }
+.link-cable.selected { stroke: var(--accent); stroke-width: 3.6; }
+.link-under { fill: none; stroke: rgba(0, 0, 0, .55); stroke-width: 7; stroke-linecap: round; }
 .link-ring { fill: #7d7d7a; stroke-width: 0; }
-.link-ring.up { fill: var(--teal); }
+.link-ring.up { fill: var(--link); filter: drop-shadow(0 0 6px var(--link)); }
 .link-ring.down { fill: var(--led-off); }
 .link-dot { pointer-events: none; }
-.link-dot.up { fill: var(--teal); }
+.link-dot.up { fill: color-mix(in srgb, var(--link) 24%, #ffffff); }
 .link-dot.down { fill: var(--led-off); }
+.wire-preview { fill: none; stroke: #f4f4f5; stroke-width: 2; stroke-linecap: round; opacity: .92; pointer-events: none; }
+.node.wire-target .node-card { border-color: var(--teal); box-shadow: 0 0 0 2px rgba(93, 184, 166, .55), 0 0 22px -2px rgba(93, 184, 166, .6); }
+.wire-spark path { fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; animation: sparkFade .5s ease-out forwards; }
+.wire-spark circle { animation: sparkFly .62s cubic-bezier(.2, .7, .3, 1) forwards; }
+@keyframes sparkFade { to { opacity: 0; } }
+@keyframes sparkFly { from { transform: translate(0, 0); opacity: 1; } to { transform: translate(var(--dx), var(--dy)); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .link-flow { animation: none; opacity: .4; }
+}
 .link-port-label { font-family: var(--mono); font-size: 10px; fill: var(--text-2); }
 .link-port-bg { fill: rgba(29, 29, 27, .96); stroke: var(--border); stroke-width: .6; }
 .link-label-bg { fill: rgba(29, 29, 27, .93); stroke: var(--border); stroke-width: .5; }
@@ -444,6 +460,55 @@ kbd {
   padding: 0 2px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .node.booting .node-icon { opacity: .72; }
+
+/* graph cards: header, inset panel, port rows with edge dots, status line */
+.node.card-node { width: 208px; min-height: 0; }
+.node-card.graph {
+  width: 208px; height: auto; padding: 0; display: block; text-align: left;
+  background: #161614; border: 1px solid rgba(255, 255, 255, .085); border-radius: 16px;
+  box-shadow: 0 18px 32px -22px rgba(0, 0, 0, .95), 0 2px 6px rgba(0, 0, 0, .38);
+}
+.node:hover .node-card.graph { background: #1b1b19; border-color: rgba(255, 255, 255, .17); }
+.node.selected .node-card.graph {
+  background: #1b1b19; border-color: var(--accent-border);
+  box-shadow: 0 0 0 1px var(--accent-border), 0 18px 32px -22px rgba(0, 0, 0, .95);
+}
+.node.paused .node-card.graph .node-status,
+.node.stopped .node-card.graph .node-status,
+.node.booting .node-card.graph .node-status { display: none; }
+.node.stopped .node-card.graph { opacity: .62; }
+.card-head { display: flex; align-items: center; gap: 8px; padding: 12px 13px 9px; }
+.card-glyph { display: inline-flex; flex: 0 0 auto; width: 16px; height: 16px; color: var(--text-2); }
+.card-glyph svg { width: 100%; height: 100%; }
+.card-name {
+  flex: 1 1 auto; font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: -.012em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-grip { display: grid; grid-template-columns: repeat(2, 2px); grid-auto-rows: 2px; gap: 2px; flex: 0 0 auto; opacity: .32; }
+.card-grip i { width: 2px; height: 2px; border-radius: 50%; background: currentColor; }
+.card-body {
+  margin: 0 11px; padding: 8px 10px; border-radius: 10px;
+  background: #0d0d0c; border: 1px solid rgba(255, 255, 255, .062);
+}
+.card-model { font-size: 12px; font-weight: 500; color: var(--text-2); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-meta { font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-ports { padding: 7px 0 3px; min-height: 51px; }
+.card-port { position: relative; display: flex; align-items: center; height: 24px; padding: 0 14px; }
+.card-port.left { justify-content: flex-start; }
+.card-port.right { justify-content: flex-end; }
+.card-port.empty { justify-content: flex-start; height: 20px; }
+.port-name { font-family: var(--mono); font-size: 11.5px; color: var(--text-muted); letter-spacing: .005em; }
+.card-port.empty .port-name { font-family: var(--ui); font-style: italic; opacity: .8; }
+.port-dot {
+  position: absolute; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%;
+  background: var(--link, var(--teal));
+  box-shadow: 0 0 0 2px #161614, 0 0 11px -1px var(--link, var(--teal));
+}
+.port-dot.left { left: -5px; }
+.port-dot.right { right: -5px; }
+.card-foot { display: flex; align-items: center; gap: 7px; padding: 3px 14px 11px; font-size: 11px; color: var(--text-muted); }
+.foot-dot { flex: 0 0 auto; width: 5px; height: 5px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 6px var(--teal); }
+.foot-dot.off { background: #5a5a54; box-shadow: none; }
 .viewport { position: absolute; left: 0; top: 0; width: 100%; height: 100%; transform-origin: 0 0; will-change: transform; }
 .placement-banner {
   position: absolute; left: 50%; top: var(--s-3); transform: translateX(-50%); display: flex; align-items: center; gap: var(--s-3);

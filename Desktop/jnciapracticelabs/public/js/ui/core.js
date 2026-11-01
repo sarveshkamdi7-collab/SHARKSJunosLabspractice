@@ -331,7 +331,7 @@
       ],
       annotations: [{ id: 'note-1', type: 'text', text: 'JNCIA LAB 01\nOSPF area 0.0.0.0\nR1, R2, R3', x: 64, y: 335, w: 136, h: 68 }],
       view: { zoom: 1, panX: 24, panY: 16 },
-      settings: { grid: true, labels: false, leftDock: true, rightDock: true },
+      settings: { grid: true, labels: false, cards: false, leftDock: true, rightDock: true },
       savedAt: null
     };
   }
@@ -345,7 +345,7 @@
       links: [],
       annotations: [],
       view: { zoom: 1, panX: 24, panY: 16 },
-      settings: { grid: true, labels: false, leftDock: true, rightDock: true },
+      settings: { grid: true, labels: false, cards: false, leftDock: true, rightDock: true },
       savedAt: null
     };
   }
@@ -389,10 +389,12 @@
     s.view.zoom = clamp(Number(s.view.zoom) || 1, .28, 2.4);
     s.view.panX = Number(s.view.panX) || 0;
     s.view.panY = Number(s.view.panY) || 0;
-    s.settings = Object.assign({ grid: true, labels: false, leftDock: true, rightDock: true }, s.settings || {});
+    s.settings = Object.assign({ grid: true, labels: false, cards: false, leftDock: true, rightDock: true }, s.settings || {});
     // one-time migration: interface labels used to default on; retire the noise once
     if (!s.meta) s.meta = {};
     if (!s.meta.labelsMigrated) { s.settings.labels = false; s.meta.labelsMigrated = true; }
+    // one-time migration: card nodes were tried and lost to the compact icon look
+    if (!s.meta.cardsMigrated) { s.settings.cards = false; s.meta.cardsMigrated = true; }
     return s;
   }
   APP.normalizeState = normalizeState;
@@ -638,7 +640,7 @@
         rt.committed = committed;
         rt.config = committed;
         rt.candidate = J.db ? J.db.clone(fresh) : JSON.parse(JSON.stringify(fresh));
-        rt.revisions = [J.db ? J.db.clone(fresh) : JSON.parse(JSON.stringify(fresh))];
+        rt.revisions = [];
         rt.files = {};
         rt.protectedPaths = [];
       } catch (e) {}
@@ -720,6 +722,7 @@
     APP.render.links();
     var gridItem = document.querySelector('[data-check="grid"]'); if (gridItem) gridItem.classList.toggle('checked', !!state.settings.grid);
     var labelItem = document.querySelector('[data-check="labels"]'); if (labelItem) labelItem.classList.toggle('checked', !!state.settings.labels);
+    var cardItem = document.querySelector('[data-check="cards"]'); if (cardItem) cardItem.classList.toggle('checked', cardMode());
     applyView();
   }
   APP.renderCanvasSettings = renderCanvasSettings;
@@ -733,13 +736,86 @@
   APP.deviceGlyph = deviceGlyph;
   APP.glyph = function (id) { return '<svg><use href="#' + id + '"></use></svg>'; };
 
+  // ------------------------------------------------------------------ cards
+  // Node cards follow the node-graph reference: a header with the device glyph,
+  // its name and a grip, an inset panel with the model, one row per linked port
+  // with a coloured dot sitting on the card edge, and a link-status line.
+  var CARD_W = 208;
+  var MAX_PORT_ROWS = 6;
+
+  function cardMode() { return !(state.settings && state.settings.cards === false); }
+
+  function nodePortRows(node) {
+    var rows = [];
+    state.links.forEach(function (l) {
+      var port = null, peerId = null;
+      if (l.a === node.id) { port = l.aPort; peerId = l.b; }
+      else if (l.b === node.id) { port = l.bPort; peerId = l.a; }
+      if (!port) return;
+      var peer = nodeById(peerId);
+      rows.push({
+        port: port,
+        link: l,
+        side: peer && peer.x < node.x ? 'left' : 'right',
+        py: peer ? peer.y : 0
+      });
+    });
+    rows.sort(function (a, b) {
+      if (a.side !== b.side) return a.side === 'left' ? -1 : 1;
+      if (a.py !== b.py) return a.py - b.py;
+      return String(a.port).localeCompare(String(b.port));
+    });
+    return rows;
+  }
+  APP.nodePortRows = nodePortRows;
+
+  function cardMeta(n) {
+    if (n.ip) return n.ip + (n.gateway ? ' via ' + n.gateway : '');
+    return (n.vendor || 'Device') + ' ' + (n.type || 'device');
+  }
+
+  function cardFoot(n, rows, upCount) {
+    if (n.status === 'stopped') return 'Stopped';
+    if (n.status === 'paused') return 'Paused';
+    if (!rows.length) return 'No links';
+    if (upCount === rows.length) return upCount === 1 ? '1 link up' : upCount + ' links up';
+    return upCount + ' of ' + rows.length + ' links up';
+  }
+
+  function cardMarkup(n) {
+    var rows = nodePortRows(n);
+    var shown = rows.slice(0, MAX_PORT_ROWS);
+    var hidden = rows.length - shown.length;
+    var upCount = 0;
+    shown.forEach(function (r) { if (r.link.status === 'up') upCount++; });
+    var html = '<div class="node-card graph">' +
+      '<div class="node-status"></div>' +
+      '<div class="card-head"><span class="card-glyph">' + APP.glyph(deviceGlyph(n)) + '</span>' +
+      '<span class="card-name">' + esc(n.name) + '</span>' +
+      '<span class="card-grip">' + new Array(7).join('<i></i>') + '</span></div>' +
+      '<div class="card-body"><div class="card-model">' + esc(n.model || n.type) + '</div>' +
+      '<div class="card-meta">' + esc(cardMeta(n)) + '</div></div>' +
+      '<div class="card-ports">';
+    shown.forEach(function (r) {
+      html += '<div class="card-port ' + r.side + '"><span class="port-dot ' + r.side + '" data-port="' + esc(r.port) + '" style="--link:' + linkHue(r.link) + '"></span><span class="port-name">' + esc(r.port) + '</span></div>';
+    });
+    if (!shown.length) html += '<div class="card-port empty"><span class="port-name">no interfaces linked</span></div>';
+    if (hidden > 0) html += '<div class="card-port empty"><span class="port-name">+' + hidden + ' more</span></div>';
+    html += '</div><div class="card-foot"><span class="foot-dot ' + (n.status === 'running' ? 'up' : 'off') + '"></span><span>' + esc(cardFoot(n, rows, upCount)) + '</span></div></div>';
+    return html;
+  }
+
   function renderNodes() {
     var layer = $('#nodeLayer');
     if (!layer) return;
+    var cards = cardMode();
     var html = '';
     state.nodes.forEach(function (n) {
-      html += '<div class="node ' + esc(n.status) + (selectedNodeId === n.id ? ' selected' : '') + (n.booting ? ' booting' : '') + '" data-node-id="' + esc(n.id) + '" style="left:' + n.x + 'px;top:' + n.y + 'px" title="' + esc(n.name + ', ' + n.model + ', ' + n.status) + '">' +
-        '<div class="node-card"><div class="node-status"></div><div class="node-icon ' + esc(nodeIconBase(n)) + '">' + icon(nodeIconId(n)) + '</div><div class="node-label">' + esc(n.name) + '</div><div class="node-sub">' + esc(n.model || n.type) + '</div></div></div>';
+      var cls = 'node ' + esc(n.status) + (cards ? ' card-node' : '') + (selectedNodeId === n.id ? ' selected' : '') + (n.booting ? ' booting' : '');
+      var title = esc(n.name + ', ' + n.model + ', ' + n.status);
+      var body = cards ? cardMarkup(n) :
+        '<div class="node-card"><div class="node-status"></div><div class="node-icon ' + esc(nodeIconBase(n)) + '">' + icon(nodeIconId(n)) + '</div><div class="node-label">' + esc(n.name) + '</div><div class="node-sub">' + esc(n.model || n.type) + '</div></div>';
+      html += '<div class="' + cls + '" data-node-id="' + esc(n.id) + '" style="left:' + n.x + 'px;top:' + n.y + 'px" title="' + title + '">' + body + '</div>';
     });
     layer.innerHTML = html;
     $$('.node', layer).forEach(bindNodeEvents);
@@ -752,25 +828,51 @@
     return 30;
   }
 
+  var LINK_HUES = ['#5db8a6', '#8b7cf6', '#d9a441', '#4fb3d9', '#cf6b8f'];
+  var FLOW_MS = 1900;
+
+  function linkHash(id) {
+    var h = J.hash ? J.hash(id) : 0;
+    return Math.abs(h) || 1;
+  }
+
+  function linkHue(l) {
+    return LINK_HUES[linkHash(l.id) % LINK_HUES.length];
+  }
+
   function renderLinks() {
     var layer = $('#linkLayer');
     if (!layer) return;
     var html = '';
+    var cards = cardMode();
     var showLabels = !!(state.settings && state.settings.labels);
+    // card rows already name their ports, so the floating port chips would repeat them
+    var portLabels = showLabels && !cards;
+    // rebuilt markup restarts the flow animation, so rewind it to the current phase
+    var phase = (typeof performance !== 'undefined' ? performance.now() : Date.now()) % FLOW_MS;
     state.links.forEach(function (l) {
       var a = nodeById(l.a), b = nodeById(l.b);
       if (!a || !b) return;
       var up = a.status !== 'stopped' && b.status !== 'stopped';
       l.status = up ? 'up' : 'down';
       var geo = linkGeometry(a, b, l);
-      html += '<g class="link-group" data-link-id="' + esc(l.id) + '"><path class="link-hit" d="' + geo.d + '"></path><path class="link-under" d="' + geo.d + '"></path><path class="link-cable ' + (up ? 'up' : 'down') + (selectedLinkId === l.id ? ' selected' : '') + '" d="' + geo.d + '"></path>' +
-        endpoint(geo.x1, geo.y1, up) + endpoint(geo.x2, geo.y2, up) +
-        (showLabels ? portLabel(geo.x1, geo.y1, l.aPort, geo.px1, geo.py1) + portLabel(geo.x2, geo.y2, l.bPort, geo.px2, geo.py2) : '') +
+      var delay = Math.round(phase + linkHash(l.id) % 620);
+      html += '<g class="link-group" data-link-id="' + esc(l.id) + '" style="--link:' + linkHue(l) + '"><path class="link-hit" d="' + geo.d + '"></path><path class="link-under" d="' + geo.d + '"></path>' +
+        (up ? '<path class="link-glow" d="' + geo.d + '"></path>' : '') +
+        '<path class="link-cable ' + (up ? 'up' : 'down') + (selectedLinkId === l.id ? ' selected' : '') + '" d="' + geo.d + '"></path>' +
+        (up ? '<path class="link-flow" d="' + geo.d + '" style="animation-delay:-' + delay + 'ms"></path>' : '') +
+        (cards ? '' : endpoint(geo.x1, geo.y1, up) + endpoint(geo.x2, geo.y2, up)) +
+        (portLabels ? portLabel(geo.x1, geo.y1, l.aPort, geo.px1, geo.py1) + portLabel(geo.x2, geo.y2, l.bPort, geo.px2, geo.py2) : '') +
         (showLabels && l.label ? '<rect class="link-label-bg" x="' + (geo.cx - Math.max(36, String(l.label).length * 5.6 + 14) / 2) + '" y="' + (geo.cy + 10) + '" width="' + Math.max(36, String(l.label).length * 5.6 + 14) + '" height="14" rx="7"></rect><text class="link-label-text" x="' + geo.cx + '" y="' + (geo.cy + 20.4) + '" text-anchor="middle">' + esc(l.label) + '</text>' : '') + '</g>';
     });
     layer.innerHTML = html;
+    $$('.link-flow', layer).forEach(function (p) { p.setAttribute('pathLength', 100); });
     $$('.link-hit', layer).forEach(function (el) {
       el.addEventListener('click', function (e) { e.stopPropagation(); selectLink(el.parentNode.dataset.linkId); });
+      el.addEventListener('dblclick', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        breakLink(el.parentNode.dataset.linkId);
+      });
       el.addEventListener('contextmenu', function (e) {
         e.preventDefault(); e.stopPropagation();
         if (APP.showLinkMenu) APP.showLinkMenu(el.parentNode.dataset.linkId, e.clientX, e.clientY);
@@ -779,29 +881,97 @@
   }
 
   function endpoint(x, y, up) {
-    return '<circle class="link-ring ' + (up ? 'up' : 'down') + '" cx="' + x + '" cy="' + y + '" r="3.3"></circle><circle class="link-dot ' + (up ? 'up' : 'down') + '" cx="' + x + '" cy="' + y + '" r="1.65"></circle>';
+    return '<circle class="link-ring ' + (up ? 'up' : 'down') + '" cx="' + x + '" cy="' + y + '" r="6"></circle><circle class="link-dot ' + (up ? 'up' : 'down') + '" cx="' + x + '" cy="' + y + '" r="2.4"></circle>';
   }
 
   function portLabel(x, y, text, px, py) {
     var w = Math.max(26, String(text).length * 6 + 10);
-    return '<g class="link-port-label"><rect class="link-port-bg" x="' + (x + px * 14 - w / 2) + '" y="' + (y + py * 15 - 6.5) + '" width="' + w + '" height="13" rx="4"></rect><text x="' + (x + px * 14) + '" y="' + (y + py * 15 + 3.2) + '" text-anchor="middle">' + esc(text) + '</text></g>';
+    return '<g class="link-port-label"><rect class="link-port-bg" x="' + (x + px * 17 - w / 2) + '" y="' + (y + py * 18 - 6.5) + '" width="' + w + '" height="13" rx="4"></rect><text x="' + (x + px * 17) + '" y="' + (y + py * 18 + 3.2) + '" text-anchor="middle">' + esc(text) + '</text></g>';
+  }
+
+  function cD(x1, y1, c1x, c1y, c2x, c2y, x2, y2) {
+    return 'M ' + x1.toFixed(2) + ' ' + y1.toFixed(2) + ' C ' + c1x.toFixed(2) + ' ' + c1y.toFixed(2) + ', ' + c2x.toFixed(2) + ' ' + c2y.toFixed(2) + ', ' + x2.toFixed(2) + ' ' + y2.toFixed(2);
+  }
+
+  // Leaves each end along the line between the nodes, then bows sideways, so a
+  // cable flows out of one device and into the other instead of cutting a corner.
+  function flowCurve(x1, y1, x2, y2, ux, uy, bow) {
+    var dx = x2 - x1, dy = y2 - y1;
+    var span = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+    var pull = Math.max(22, Math.min(140, span * .58));
+    var nx = -uy, ny = ux;
+    var c1x = x1 + ux * pull + nx * bow;
+    var c1y = y1 + uy * pull + ny * bow;
+    var c2x = x2 - ux * pull + nx * bow;
+    var c2y = y2 - uy * pull + ny * bow;
+    return {
+      d: cD(x1, y1, c1x, c1y, c2x, c2y, x2, y2),
+      cx: (x1 + 3 * c1x + 3 * c2x + x2) / 8,
+      cy: (y1 + 3 * c1y + 3 * c2y + y2) / 8
+    };
+  }
+
+  // reads the port dot of a card and returns its centre in world coordinates
+  function portDotWorld(node, port) {
+    if (!port) return null;
+    var el = document.querySelector('.node[data-node-id="' + node.id + '"]');
+    if (!el) return null;
+    var dot = el.querySelector('.port-dot[data-port="' + String(port).replace(/["\\]/g, '\\$&') + '"]');
+    if (!dot) return null;
+    var nr = el.getBoundingClientRect(), dr = dot.getBoundingClientRect();
+    if (!nr.width || !dr.width) return null;
+    var zoom = state.view.zoom || 1;
+    return {
+      x: node.x + (dr.left + dr.width / 2 - (nr.left + nr.width / 2)) / zoom,
+      y: node.y + (dr.top + dr.height / 2 - (nr.top + nr.height / 2)) / zoom,
+      side: dot.classList.contains('left') ? -1 : 1
+    };
+  }
+  APP.portDotWorld = portDotWorld;
+
+  function hCurveD(x1, y1, s1, x2, y2, s2, pull) {
+    var c1x = x1 + s1 * pull, c2x = x2 + s2 * pull;
+    return 'M ' + x1.toFixed(2) + ' ' + y1.toFixed(2) + ' C ' + c1x.toFixed(2) + ' ' + y1.toFixed(2) + ', ' + c2x.toFixed(2) + ' ' + y2.toFixed(2) + ', ' + x2.toFixed(2) + ' ' + y2.toFixed(2);
   }
 
   function linkGeometry(a, b, l) {
+    if (cardMode()) {
+      var pa = portDotWorld(a, l.aPort), pb = portDotWorld(b, l.bPort);
+      if (pa && pb) {
+        var span = Math.abs(pb.x - pa.x);
+        var pull = Math.max(26, Math.min(110, span * .42));
+        return {
+          x1: pa.x, y1: pa.y, x2: pb.x, y2: pb.y, px1: pa.side, py1: 0, px2: pb.side, py2: 0,
+          cx: (pa.x + pb.x) / 2, cy: (pa.y + pb.y) / 2,
+          d: hCurveD(pa.x, pa.y, pa.side, pb.x, pb.y, pb.side, pull)
+        };
+      }
+      // no dots yet (first paint, or the port row is capped): leave from the card edge
+      var half = CARD_W / 2;
+      var sa = b.x < a.x ? -1 : 1, sb = a.x < b.x ? -1 : 1;
+      var ax = a.x + sa * half, bx = b.x + sb * half;
+      var p2 = Math.max(26, Math.min(110, Math.abs(bx - ax) * .42));
+      return {
+        x1: ax, y1: a.y, x2: bx, y2: b.y, px1: sa, py1: 0, px2: sb, py2: 0,
+        cx: (ax + bx) / 2, cy: (a.y + b.y) / 2,
+        d: hCurveD(ax, a.y, sa, bx, b.y, sb, p2)
+      };
+    }
     var dx = b.x - a.x, dy = b.y - a.y;
     var dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
     var ux = dx / dist, uy = dy / dist;
     var ra = nodeRadius(a), rb = nodeRadius(b);
     var x1 = a.x + ux * ra, y1 = a.y + uy * ra;
     var x2 = b.x - ux * rb, y2 = b.y - uy * rb;
-    var bend = ((J.hash ? J.hash(l.id) : 3) % 9) - 4;
+    // a small stable bow per link keeps parallel cables from stacking on one line
+    var h = (J.hash ? J.hash(l.id) : 3) % 11;
+    var bow = (h - 5) * Math.min(3.1, Math.max(.8, dist * .022));
     var nx = -uy, ny = ux;
-    var c1x = x1 + (x2 - x1) * .34 + nx * bend, c1y = y1 + (y2 - y1) * .34 + ny * bend;
-    var c2x = x1 + (x2 - x1) * .68 + nx * bend, c2y = y1 + (y2 - y1) * .68 + ny * bend;
+    var curve = flowCurve(x1, y1, x2, y2, ux, uy, bow);
     return {
       x1: x1, y1: y1, x2: x2, y2: y2, px1: -nx, py1: -ny, px2: nx, py2: ny,
-      cx: (x1 + x2) / 2 + nx * bend * .65, cy: (y1 + y2) / 2 + ny * bend * .65,
-      d: 'M ' + x1.toFixed(2) + ' ' + y1.toFixed(2) + ' C ' + c1x.toFixed(2) + ' ' + c1y.toFixed(2) + ', ' + c2x.toFixed(2) + ' ' + c2y.toFixed(2) + ', ' + x2.toFixed(2) + ' ' + y2.toFixed(2)
+      cx: curve.cx, cy: curve.cy,
+      d: curve.d
     };
   }
 
@@ -861,7 +1031,7 @@
           return;
         }
         selectNode(id);
-        focusNode(id);
+        APP.focusNode(id);
       });
     });
   }
@@ -924,9 +1094,12 @@
     if (!cv) return;
     var cw = cv.clientWidth, ch = cv.clientHeight;
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    var cards = cardMode();
+    var halfW = cards ? CARD_W / 2 : 68;
     state.nodes.forEach(function (n) {
-      minX = Math.min(minX, n.x - 68); maxX = Math.max(maxX, n.x + 68);
-      minY = Math.min(minY, n.y - 62); maxY = Math.max(maxY, n.y + 62);
+      var halfH = cards ? Math.max(70, 62 + nodePortRows(n).length * 12) : 62;
+      minX = Math.min(minX, n.x - halfW); maxX = Math.max(maxX, n.x + halfW);
+      minY = Math.min(minY, n.y - halfH); maxY = Math.max(maxY, n.y + halfH);
     });
     state.annotations.forEach(function (a) {
       minX = Math.min(minX, a.x - 20); maxX = Math.max(maxX, a.x + (a.w || 130) + 20);
@@ -990,6 +1163,121 @@
 
   // ------------------------------------------------------------ node events
   var drag = null;
+  // ------------------------------------------------------------- wire drag
+  var wireDrag = null;
+  var wireTargetId = null;
+  var wirePreviewEl = null;
+
+  function nodeEl(id) { return document.querySelector('.node[data-node-id="' + id + '"]'); }
+
+  function wireTargetAt(x, y, fromId) {
+    var best = null, bestDist = Infinity;
+    var reach = cardMode() ? CARD_W / 2 : 0;
+    state.nodes.forEach(function (n) {
+      if (n.id === fromId) return;
+      var dx = n.x - x, dy = n.y - y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= Math.max(reach, nodeRadius(n)) + 28 && dist < bestDist) { bestDist = dist; best = n; }
+    });
+    return best;
+  }
+
+  function setWireTarget(node) {
+    var id = node ? node.id : null;
+    if (wireTargetId === id) return;
+    if (wireTargetId) {
+      var prev = nodeEl(wireTargetId);
+      if (prev) prev.classList.remove('wire-target');
+    }
+    wireTargetId = id;
+    if (id) {
+      var el = nodeEl(id);
+      if (el) el.classList.add('wire-target');
+    }
+  }
+
+  function showWirePreview(fromId, wx, wy) {
+    var a = nodeById(fromId);
+    var layer = $('#linkLayer');
+    if (!a || !layer) return;
+    if (!wirePreviewEl) {
+      wirePreviewEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      wirePreviewEl.id = 'wirePreview';
+      wirePreviewEl.setAttribute('class', 'wire-preview');
+    }
+    if (wirePreviewEl.parentNode !== layer) layer.appendChild(wirePreviewEl);
+    var dx = wx - a.x, dy = wy - a.y;
+    var dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+    var ux = dx / dist, uy = dy / dist;
+    var d;
+    if (cardMode()) {
+      var side = wx < a.x ? -1 : 1;
+      var sx = a.x + side * CARD_W / 2;
+      var pull = Math.max(26, Math.min(110, Math.abs(wx - sx) * .42));
+      d = hCurveD(sx, a.y, side, wx, wy, side, pull);
+    } else {
+      d = flowCurve(a.x + ux * nodeRadius(a), a.y + uy * nodeRadius(a), wx, wy, ux, uy, 0).d;
+    }
+    wirePreviewEl.setAttribute('d', d);
+  }
+
+  function clearWirePreview() {
+    if (wirePreviewEl && wirePreviewEl.parentNode) wirePreviewEl.parentNode.removeChild(wirePreviewEl);
+    wirePreviewEl = null;
+  }
+
+  function cancelWireDrag() {
+    wireDrag = null;
+    setWireTarget(null);
+    clearWirePreview();
+  }
+  APP.cancelWireDrag = cancelWireDrag;
+
+  function startWireDrag(id, e, el) {
+    wireDrag = { from: id, sx: e.clientX, sy: e.clientY, moved: false, pointerId: e.pointerId };
+    linkHint('Release on a device to connect, Esc to cancel');
+    if (el.setPointerCapture) { try { el.setPointerCapture(e.pointerId); } catch (err) { /* synthetic pointer */ } }
+  }
+
+  function linkHint(text) {
+    var t = $('#placementText');
+    if (t && APP.isLinkMode && APP.isLinkMode()) t.textContent = text;
+  }
+
+  function sparkAt(x, y, color) {
+    var layer = $('#linkLayer');
+    if (!layer) return;
+    var ns = 'http://www.w3.org/2000/svg';
+    var g = document.createElementNS(ns, 'g');
+    g.setAttribute('class', 'wire-spark');
+    var d = 'M ' + (x - 15).toFixed(1) + ' ' + (y - 9).toFixed(1);
+    var px = x - 15, py = y - 9;
+    for (var i = 0; i < 4; i++) {
+      px += 3 + Math.random() * 4;
+      py -= 2 + Math.random() * 4;
+      d += ' L ' + px.toFixed(1) + ' ' + py.toFixed(1);
+    }
+    var squiggle = document.createElementNS(ns, 'path');
+    squiggle.setAttribute('d', d);
+    squiggle.setAttribute('stroke', color);
+    g.appendChild(squiggle);
+    for (var j = 0; j < 6; j++) {
+      var angle = Math.random() * Math.PI * 2;
+      var dist = 9 + Math.random() * 15;
+      var dot = document.createElementNS(ns, 'circle');
+      dot.setAttribute('cx', x.toFixed(1));
+      dot.setAttribute('cy', y.toFixed(1));
+      dot.setAttribute('r', (1 + Math.random() * 1.2).toFixed(1));
+      dot.setAttribute('fill', color);
+      dot.style.setProperty('--dx', (Math.cos(angle) * dist).toFixed(1) + 'px');
+      dot.style.setProperty('--dy', (Math.sin(angle) * dist).toFixed(1) + 'px');
+      g.appendChild(dot);
+    }
+    layer.appendChild(g);
+    window.setTimeout(function () { if (g.parentNode) g.parentNode.removeChild(g); }, 640);
+  }
+  APP.sparkAt = sparkAt;
+
   function bindNodeEvents(el) {
     var id = el.dataset.nodeId;
     el.addEventListener('pointerdown', function (e) {
@@ -997,13 +1285,26 @@
       e.stopPropagation();
       var node = nodeById(id);
       if (!node) return;
-      if (APP.isLinkMode && APP.isLinkMode()) { APP.handleLinkNodeClick(id); return; }
+      if (APP.isLinkMode && APP.isLinkMode()) {
+        e.preventDefault();
+        startWireDrag(id, e, el);
+        return;
+      }
       selectNode(id);
       APP.captureHistory();
       drag = { id: id, pointerId: e.pointerId, sx: e.clientX, sy: e.clientY, nx: node.x, ny: node.y, moved: false, el: el };
-      if (el.setPointerCapture) el.setPointerCapture(e.pointerId);
+      if (el.setPointerCapture) { try { el.setPointerCapture(e.pointerId); } catch (err) { /* synthetic pointer */ } }
     });
     el.addEventListener('pointermove', function (e) {
+      if (wireDrag && wireDrag.from === id) {
+        var wdx = e.clientX - wireDrag.sx, wdy = e.clientY - wireDrag.sy;
+        if (!wireDrag.moved && Math.abs(wdx) + Math.abs(wdy) < 4) return;
+        wireDrag.moved = true;
+        var p = APP.screenToWorld(e.clientX, e.clientY);
+        showWirePreview(id, p.x, p.y);
+        setWireTarget(wireTargetAt(p.x, p.y, id));
+        return;
+      }
       if (!drag || drag.id !== id) return;
       var dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
       if (!drag.moved && Math.abs(dx) + Math.abs(dy) < 3) return;
@@ -1015,9 +1316,25 @@
       renderLinks(); APP.updateSelectionStatus(e.clientX, e.clientY);
     });
     el.addEventListener('pointerup', function () {
+      if (wireDrag && wireDrag.from === id) {
+        var moved = wireDrag.moved;
+        var targetId = wireTargetId;
+        wireDrag = null;
+        setWireTarget(null);
+        clearWirePreview();
+        if (!moved) { APP.handleLinkNodeClick(id); return; }
+        if (targetId && targetId !== id) {
+          APP.createLinkBetween(id, targetId);
+          linkHint('Ethernet link: drag between devices, Esc to cancel');
+        }
+        return;
+      }
       if (!drag || drag.id !== id) return;
       if (drag.moved) { scheduleSave(); renderTopologyTree(); }
       drag = null;
+    });
+    el.addEventListener('pointercancel', function () {
+      if (wireDrag && wireDrag.from === id) cancelWireDrag();
     });
     el.addEventListener('contextmenu', function (e) {
       e.preventDefault(); e.stopPropagation(); selectNode(id);
@@ -1178,16 +1495,31 @@
     var l = makeLink(uid('l'), a.id, ports.aPort, b.id, ports.bPort, ports.label);
     state.links.push(l);
     renderLinks(); updateCounts(); scheduleSave();
+    var geo = linkGeometry(a, b, l);
+    sparkAt(geo.x1, geo.y1, linkHue(l));
+    sparkAt(geo.x2, geo.y2, linkHue(l));
     toast(a.name + ' ' + ports.aPort + ' ↔ ' + b.name + ' ' + ports.bPort + ' connected', 'success', 'cable');
     return l;
   };
-  APP.deleteLink = function (id) {
+  APP.deleteLink = function (id, quiet) {
     APP.captureHistory();
     state.links = state.links.filter(function (l) { return l.id !== id; });
     if (selectedLinkId === id) selectedLinkId = null;
     renderLinks(); renderNodes(); updateCounts(); scheduleSave();
-    toast('Link deleted', 'info', 'trash');
+    if (!quiet) toast('Link deleted', 'info', 'trash');
   };
+
+  // double-clicking a cable pulls it out of both devices; Ctrl+Z puts it back
+  function breakLink(id) {
+    var l = linkById(id);
+    if (!l) return;
+    var a = nodeById(l.a), b = nodeById(l.b);
+    var from = a ? a.name + ' ' + l.aPort : l.aPort;
+    var to = b ? b.name + ' ' + l.bPort : l.bPort;
+    APP.deleteLink(id, true);
+    toast(from + ' ↔ ' + to + ' broken', 'info', 'cable');
+  }
+  APP.breakLink = breakLink;
 
   // ------------------------------------------------------------- annotations
   APP.addAnnotation = function (a) {
