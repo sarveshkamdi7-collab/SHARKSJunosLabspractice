@@ -931,7 +931,7 @@
           var os = od.subnets[m];
           if (os.kind === 'lo' || os.kind === 'mgmt') continue;
           if (!sameNet(sn.cidr, os.cidr)) continue;
-          ds.arp.push({ ip: os.ip, mac: od.interfaces[os.iface].mac, iface: sn.ukey, created: ds.derivedAt });
+          ds.arp.push({ ip: os.ip, mac: od.interfaces[os.iface].mac, name: od.name || od.key, iface: sn.ukey, created: ds.derivedAt });
         }
       }
       // host endpoints on same l2 (bridged)
@@ -939,7 +939,7 @@
         var host = world.hosts[h];
         if (!J.inNet(host.ip, sn.cidr)) continue;
         if (hostOnSameL2(world, ds, host, sn)) {
-          ds.arp.push({ ip: host.ip, mac: vpcsMacForHost(host), iface: sn.ukey, created: ds.derivedAt });
+          ds.arp.push({ ip: host.ip, mac: vpcsMacForHost(host), name: host.name, iface: sn.ukey, created: ds.derivedAt });
         }
       }
     }

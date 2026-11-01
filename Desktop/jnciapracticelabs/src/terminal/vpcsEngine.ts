@@ -320,7 +320,7 @@ export class VPCSEngine {
     const target = tokens[0];
     if (ipv4ToInt(target) === null) return this.invalid(raw);
 
-    let count = 4;
+    let count = 5;
     for (let index = 1; index < tokens.length; index += 1) {
       const token = tokens[index].toLowerCase();
       if (token === '-c' || token === 'count') {
@@ -343,21 +343,31 @@ export class VPCSEngine {
     const viaGateway = this.gatewayValue !== '0.0.0.0';
     const reachable = direct || viaGateway;
 
-    const lines: string[] = [];
-    if (!reachable) {
-      lines.push(`Ping to ${target} failed: no route to host`);
-      lines.push(`1 packets transmitted, 0 received, 100% packet loss`);
-      return lines.join(CRLF) + CRLF;
-    }
-
+    const lines: string[] = [`PING ${target} (${target}): 56 data bytes`];
     const times: number[] = [];
     for (let sequence = 1; sequence <= count; sequence += 1) {
-      const time = 0.412 + sequence * 0.037;
-      times.push(time);
-      lines.push(`84 bytes from ${target} icmp_seq=${sequence} ttl=64 time=${time.toFixed(3)} ms`);
+      if (reachable) {
+        const time = 0.412 + sequence * 0.037;
+        times.push(time);
+        lines.push(`84 bytes from ${target} icmp_seq=${sequence} ttl=64 time=${time.toFixed(3)} ms`);
+      } else {
+        lines.push(`Request timeout for icmp_seq ${sequence}`);
+      }
     }
     lines.push('');
-    lines.push(`${count} packets transmitted, ${count} received, 0% packet loss`);
+    lines.push(`--- ${target} ping statistics ---`);
+    if (!reachable) {
+      lines.push(`${count} packets transmitted, 0 packets received, 100% packet loss`);
+      return lines.join(CRLF) + CRLF;
+    }
+    const min = Math.min(...times);
+    const max = Math.max(...times);
+    const avg = times.reduce((sum, value) => sum + value, 0) / times.length;
+    const variance = times.reduce((sum, value) => sum + (value - avg) ** 2, 0) / times.length;
+    lines.push(`${count} packets transmitted, ${count} packets received, 0% packet loss`);
+    lines.push(
+      `round-trip min/avg/max/stddev = ${min.toFixed(3)}/${avg.toFixed(3)}/${max.toFixed(3)}/${Math.sqrt(variance).toFixed(3)} ms`,
+    );
     return lines.join(CRLF) + CRLF;
   }
 

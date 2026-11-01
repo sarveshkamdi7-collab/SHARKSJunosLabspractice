@@ -111,6 +111,7 @@
     for (var i = 0; i < tabs.length; i++) if (tabs[i].name === name) { idx = i; break; }
     if (idx < 0) return;
     var tab = tabs[idx];
+    try { if (tab.term && tab.term.dispose) tab.term.dispose(); } catch (e) {}
     try { tab.pane.remove(); } catch (e) {}
     tabs.splice(idx, 1);
     if (active === name) active = tabs.length ? tabs[Math.max(0, idx - 1)].name : null;

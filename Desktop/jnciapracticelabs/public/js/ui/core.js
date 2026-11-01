@@ -814,7 +814,7 @@
       var cls = 'node ' + esc(n.status) + (cards ? ' card-node' : '') + (selectedNodeId === n.id ? ' selected' : '') + (n.booting ? ' booting' : '');
       var title = esc(n.name + ', ' + n.model + ', ' + n.status);
       var body = cards ? cardMarkup(n) :
-        '<div class="node-card"><div class="node-status"></div><div class="node-icon ' + esc(nodeIconBase(n)) + '">' + icon(nodeIconId(n)) + '</div><div class="node-label">' + esc(n.name) + '</div><div class="node-sub">' + esc(n.model || n.type) + '</div></div>';
+        '<div class="node-card"><div class="node-status"></div><div class="node-label">' + esc(n.name) + '</div><div class="node-icon ' + esc(nodeIconBase(n)) + '">' + icon(nodeIconId(n)) + '</div><div class="node-sub">' + esc(n.model || n.type) + '</div></div>';
       html += '<div class="' + cls + '" data-node-id="' + esc(n.id) + '" style="left:' + n.x + 'px;top:' + n.y + 'px" title="' + title + '">' + body + '</div>';
     });
     layer.innerHTML = html;
@@ -862,7 +862,7 @@
         '<path class="link-cable ' + (up ? 'up' : 'down') + (selectedLinkId === l.id ? ' selected' : '') + '" d="' + geo.d + '"></path>' +
         (up ? '<path class="link-flow" d="' + geo.d + '" style="animation-delay:-' + delay + 'ms"></path>' : '') +
         (cards ? '' : endpoint(geo.x1, geo.y1, up) + endpoint(geo.x2, geo.y2, up)) +
-        (portLabels ? portLabel(geo.x1, geo.y1, l.aPort, geo.px1, geo.py1) + portLabel(geo.x2, geo.y2, l.bPort, geo.px2, geo.py2) : '') +
+        (portLabels ? portLabel(geo, l.aPort, 1) + portLabel(geo, l.bPort, 2) : '') +
         (showLabels && l.label ? '<rect class="link-label-bg" x="' + (geo.cx - Math.max(36, String(l.label).length * 5.6 + 14) / 2) + '" y="' + (geo.cy + 10) + '" width="' + Math.max(36, String(l.label).length * 5.6 + 14) + '" height="14" rx="7"></rect><text class="link-label-text" x="' + geo.cx + '" y="' + (geo.cy + 20.4) + '" text-anchor="middle">' + esc(l.label) + '</text>' : '') + '</g>';
     });
     layer.innerHTML = html;
@@ -884,9 +884,18 @@
     return '<circle class="link-ring ' + (up ? 'up' : 'down') + '" cx="' + x + '" cy="' + y + '" r="6"></circle><circle class="link-dot ' + (up ? 'up' : 'down') + '" cx="' + x + '" cy="' + y + '" r="2.4"></circle>';
   }
 
-  function portLabel(x, y, text, px, py) {
+  function portLabel(geo, text, end) {
+    var dx = geo.x2 - geo.x1, dy = geo.y2 - geo.y1;
+    var len = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+    var ux = dx / len, uy = dy / len;
+    var nx = -uy, ny = ux;
+    var t = end === 1 ? 0.2 : 0.8;
+    var side = end === 1 ? 1 : -1;
+    var lx = geo.x1 + dx * t + nx * 10 * side;
+    var ly = geo.y1 + dy * t + ny * 10 * side;
     var w = Math.max(26, String(text).length * 6 + 10);
-    return '<g class="link-port-label"><rect class="link-port-bg" x="' + (x + px * 17 - w / 2) + '" y="' + (y + py * 18 - 6.5) + '" width="' + w + '" height="13" rx="4"></rect><text x="' + (x + px * 17) + '" y="' + (y + py * 18 + 3.2) + '" text-anchor="middle">' + esc(text) + '</text></g>';
+    var h = 14;
+    return '<g class="link-port-label"><rect class="link-port-bg" x="' + (lx - w / 2) + '" y="' + (ly - h / 2) + '" width="' + w + '" height="' + h + '" rx="4"></rect><text x="' + lx + '" y="' + (ly + 3.4) + '" text-anchor="middle">' + esc(text) + '</text></g>';
   }
 
   function cD(x1, y1, c1x, c1y, c2x, c2y, x2, y2) {

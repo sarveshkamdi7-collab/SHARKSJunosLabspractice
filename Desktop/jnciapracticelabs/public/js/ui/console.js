@@ -28,6 +28,10 @@
     return String(line).split(/\s+/).filter(function (x) { return /\S/.test(x); });
   }
 
+  function splitLines(text) {
+    return String(text == null ? '' : text).replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  }
+
   function createConsole(host, opts) {
     opts = opts || {};
     var node = opts.node || opts;
@@ -38,6 +42,30 @@
     var hidx = history.length;
     var maxLines = opts.maxLines || 2200;
     var started = false;
+    var timers = {};
+    var disposed = false;
+    var vpcs = isHost && J.vpcs ? J.vpcs.createEngine({
+      id: node.id || node.name,
+      name: node.name || 'Host-A',
+      ip: node.ip,
+      gateway: node.gateway
+    }) : null;
+
+    function abortTimers() {
+      Object.keys(timers).forEach(function (key) {
+        try { clearTimeout(Number(key)); } catch (e) {}
+        delete timers[key];
+      });
+    }
+    function hasTimers() { return Object.keys(timers).length > 0; }
+    function schedule(fn, ms) {
+      var handle = setTimeout(function () {
+        delete timers[String(handle)];
+        if (!disposed) fn();
+      }, ms);
+      timers[String(handle)] = handle;
+      return handle;
+    }
 
     host.innerHTML = '';
     host.classList.add('term-surface');
@@ -76,12 +104,17 @@
       renderInput();
     }
     function writeLine(line, cls) {
-      var d = el('div', 'term-line' + (cls ? ' ' + cls : ''));
-      d.textContent = line == null ? '' : String(line);
-      out.appendChild(d);
+      var parts = splitLines(line);
+      var last = null;
+      for (var i = 0; i < parts.length; i++) {
+        var d = el('div', 'term-line' + (cls ? ' ' + cls : ''));
+        d.textContent = parts[i];
+        out.appendChild(d);
+        last = d;
+      }
       while (out.children.length > maxLines) out.removeChild(out.firstChild);
       scroll.scrollTop = scroll.scrollHeight;
-      return d;
+      return last;
     }
     function writeLines(lines, cls) {
       if (!lines) return;
@@ -96,7 +129,11 @@
       out.appendChild(d);
       scroll.scrollTop = scroll.scrollHeight;
     }
-    function clear() { out.innerHTML = ''; }
+    function clear() {
+      abortTimers();
+      out.innerHTML = '';
+      setPrompt(currentPrompt());
+    }
     function focusCapture() {
       try { capture.focus({ preventScroll: true }); } catch (e) { try { capture.focus(); } catch (_) {} }
     }
@@ -109,7 +146,7 @@
       if (!session) return (node.name || 'R1') + '> ';
       return J.machine.promptFor(session);
     }
-    function hostPrompt() { return (node.name || 'Host-A') + '> '; }
+    function hostPrompt() { return vpcs ? vpcs.prompt() : ((node.name || 'Host-A') + '> '); }
 
     // ---------- output pager (set cli screen-length N) ----------
 
@@ -209,7 +246,7 @@
         if (showBanner !== false) {
           writeLines([
             'VPCS v0.8.3, Virtual PC Simulator',
-            node.name + ', eth0 ' + (node.ip || '10.0.3.20') + '/24, gateway ' + (node.gateway || '10.0.3.2'),
+            node.name + ', eth0 ' + (vpcs ? vpcs.addr() : ((node.ip || '10.0.3.20') + '/24')) + ', gateway ' + (vpcs ? vpcs.gateway : (node.gateway || '10.0.3.2')),
             'Type "help" for available commands.',
             ''
           ]);
@@ -236,74 +273,83 @@
       setTimeout(focus, 50);
     }
 
+    function syncHostNode() {
+      if (!vpcs) return;
+      node.ip = vpcs.ip;
+      node.gateway = vpcs.gateway;
+    }
+
+    function startPing(plan) {
+      writeLine('PING ' + plan.target + ' (' + plan.target + '): 56 data bytes');
+      var seq = 1;
+      function tick() {
+        if (seq > plan.count) {
+          writeLines(vpcs.pingSummary(plan));
+          setPrompt(hostPrompt());
+          focus();
+          return;
+        }
+        writeLine(vpcs.pingLines(plan, seq), plan.reachable ? null : 'term-error');
+        seq++;
+        schedule(tick, 260);
+      }
+      schedule(tick, 260);
+    }
+
+    function hostTrace(dst) {
+      if (!dst) { writeLine('traceroute: missing address', 'term-error'); return; }
+      var w = APP.getWorld ? APP.getWorld() : null;
+      var tr = { ok: false, hops: [] };
+      if (w && J.net && J.net.tracePath) {
+        try { tr = J.net.tracePath(w, node.name, dst); } catch (e) { tr = { ok: false }; }
+      }
+      writeLines(['traceroute to ' + dst + ' (' + dst + '), 30 hops max, 40 byte packets']);
+      if (tr && tr.ok && tr.hops && tr.hops.length) {
+        tr.hops.forEach(function (h, i) {
+          var hip = i === 0 ? (vpcs && vpcs.gateway !== '0.0.0.0' ? vpcs.gateway : (h.to || h.dev)) : (h.to || h.via || h.dev);
+          var t1 = (1.024 + i * 0.073).toFixed(3);
+          var t2 = (0.982 + i * 0.061).toFixed(3);
+          var t3 = (0.941 + i * 0.052).toFixed(3);
+          writeLine(' ' + (i + 1) + '  ' + hip + '  ' + t1 + ' ms  ' + t2 + ' ms  ' + t3 + ' ms');
+        });
+      } else if (tr && tr.ok) {
+        writeLine(' 1  ' + dst + '  1.126 ms  1.044 ms  0.982 ms');
+      } else {
+        writeLine('traceroute: sendto: No route to host', 'term-error');
+      }
+    }
+
     function hostCommand(line) {
-      var toks = line.trim().split(/\s+/);
-      var cmd = (toks[0] || '').toLowerCase();
-      var ip = node.ip || '10.0.3.20';
-      var gw = node.gateway || '10.0.3.2';
-      if (!cmd) return;
-      if (cmd === 'help' || cmd === '?') {
-        writeLines(['', '  ping <ip>          ping an address', '  trace <ip>         traceroute an address', '  show ip            show IPv4 address', '  show arp           show ARP table', '  ip <addr>/<len> <gw>  configure address', '  clear              clear the screen', '  quit               close this console', '']);
+      var trimmed = line.trim();
+      if (!trimmed) return;
+      var toks = trimmed.split(/\s+/);
+      var cmd = toks[0].toLowerCase();
+      if (cmd === 'trace' || cmd === 'traceroute') { hostTrace(toks[1]); return; }
+      if (!vpcs) { writeLine(trimmed + ': command not found', 'term-error'); return; }
+      var res;
+      try { res = vpcs.execute(trimmed); }
+      catch (e) { res = { error: 'error: ' + e.message }; }
+      if (res.clear) { clear(); return; }
+      if (res.error) { writeLine(res.error, 'term-error'); return; }
+      if (res.ping) {
+        if (res.ping.error) { writeLine(res.ping.error, 'term-error'); return; }
+        startPing(res.ping);
         return;
       }
-      if (cmd === 'clear') { clear(); return; }
-      if (cmd === 'quit' || cmd === 'exit') { writeLine('Goodbye'); if (opts.onClose) opts.onClose(); return; }
-      if (cmd === 'show' && toks[1] === 'ip') { writeLine(node.name + ': ip ' + ip + '/24 gateway ' + gw); return; }
-      if (cmd === 'show' && toks[1] === 'arp') {
-        writeLines(['IP              MAC                Iface', gw + '      02:00:00:00:00:01      eth0']);
-        return;
+      if (res.lines) writeLines(res.lines);
+      syncHostNode();
+      if (cmd === 'ip' || cmd === 'gateway' || cmd === 'gw') {
+        if (APP.scheduleSave) APP.scheduleSave();
       }
-      if (cmd === 'show') {
-        writeLines(['NAME        IP/MASK              GATEWAY           MAC', (node.name + '        ' + ip + '/24' + Array(Math.max(1, 22 - (ip.length + 4))).join(' ') + gw + '         00:50:79:66:68:0' + (node.name === 'Host-B' ? '2' : '1'))]);
-        return;
-      }
-      if (cmd === 'ip' && toks[1]) {
-        node.ip = toks[1].split('/')[0];
-        if (toks[2]) node.gateway = toks[2];
-        writeLine('IP address configured: ' + node.ip + '/24' + (node.gateway ? ' gateway ' + node.gateway : ''));
-        APP.scheduleSave();
-        return;
-      }
-      if (cmd === 'ping') {
-        var dst = toks[1];
-        if (!dst) { writeLine('ping: missing address'); return; }
-        var world = APP.getWorld ? APP.getWorld() : null;
-        var result = { ok: false, hops: [] };
-        if (world && J.net && J.net.pingDev) {
-          try { result = J.net.pingDev(world, node.name, dst, null); } catch (e) { result = { ok: false }; }
-        }
-        writeLines(['PING ' + dst + ' (' + dst + '): 56 data bytes']);
-        if (result && result.ok) {
-          for (var i = 0; i < 5; i++) writeLine('64 bytes from ' + dst + ': icmp_seq=' + i + ' ttl=64 time=' + (0.8 + Math.random() * 1.2).toFixed(3) + ' ms');
-          writeLines(['', '--- ' + dst + ' ping statistics ---', '5 packets transmitted, 5 packets received, 0% packet loss', 'round-trip min/avg/max/stddev = 0.814/1.046/1.327/0.102 ms']);
-        } else {
-          writeLines(['Request timeout for icmp_seq 0', 'Request timeout for icmp_seq 1', 'Request timeout for icmp_seq 2', 'Request timeout for icmp_seq 3', 'Request timeout for icmp_seq 4', '', '--- ' + dst + ' ping statistics ---', '5 packets transmitted, 0 packets received, 100.0% packet loss']);
-        }
-        return;
-      }
-      if (cmd === 'trace' || cmd === 'traceroute') {
-        var dst2 = toks[1];
-        if (!dst2) { writeLine('traceroute: missing address'); return; }
-        var w = APP.getWorld ? APP.getWorld() : null;
-        var tr = { ok: false, hops: [] };
-        if (w && J.net && J.net.tracePath) {
-          try { tr = J.net.tracePath(w, node.name, dst2); } catch (e) { tr = { ok: false }; }
-        }
-        writeLines(['traceroute to ' + dst2 + ' (' + dst2 + '), 30 hops max, 40 byte packets']);
-        if (tr && tr.ok && tr.hops && tr.hops.length) {
-          tr.hops.forEach(function (h, i) { var hip = (i === 0) ? (node.gateway || h.to || h.dev) : (h.to || h.via || h.dev); writeLine(' ' + (i + 1) + '  ' + hip + '  ' + (0.9 + Math.random()).toFixed(3) + ' ms  ' + (0.8 + Math.random()).toFixed(3) + ' ms  ' + (0.7 + Math.random()).toFixed(3) + ' ms'); });
-        } else if (tr && tr.ok) {
-          writeLine(' 1  ' + dst2 + '  1.126 ms  1.044 ms  0.982 ms');
-        } else {
-          writeLine('traceroute: sendto: No route to host');
-        }
-        return;
-      }
-      writeLine(toks[0] + ': command not found');
+      if (res.quit && opts.onClose) opts.onClose();
     }
 
     function submit() {
       var line = input;
+      if (hasTimers()) {
+        abortTimers();
+        writeLine('^C');
+      }
       var promptText = currentPrompt();
       echo(promptText, line);
       input = '';
@@ -397,7 +443,9 @@
       }
       if (e.ctrlKey && e.key.toLowerCase() === 'c') {
         e.preventDefault(); e.stopPropagation();
-        writeLine(currentPrompt() + input + '^C'); input = ''; renderInput(); focus(); return;
+        abortTimers();
+        writeLine(currentPrompt() + input + '^C'); input = '';
+        setPrompt(currentPrompt()); renderInput(); focus(); return;
       }
       if (e.ctrlKey && e.key.toLowerCase() === 'l') {
         e.preventDefault(); e.stopPropagation(); clear(); renderInput(); focus(); return;
@@ -461,7 +509,14 @@
         if (quiet) { input = cmd; submit(); }
         else { input = cmd; focus(); }
       },
-      reset: function (newSession) { session = newSession; started = false; clear(); boot(true); },
+      reset: function (newSession) {
+        abortTimers();
+        session = newSession;
+        started = false;
+        clear();
+        boot(true);
+      },
+      dispose: function () { disposed = true; abortTimers(); },
       getSession: function () { return session; },
       submit: submit,
       type: function (text) { input += text; renderInput(); }

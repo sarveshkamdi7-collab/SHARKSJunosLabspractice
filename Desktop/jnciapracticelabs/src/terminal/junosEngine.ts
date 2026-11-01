@@ -1,3 +1,26 @@
+import { JunosFallbackOptions, requestJunosFallback } from './junosFallback';
+import { ConfigNode } from './junosConfig';
+import { parseJunosCommand, ParsedJunosCommand, parseRollbackIndex } from './junosParser';
+import {
+  applyPipes,
+  collectInterfaces,
+  ConfigShape,
+  renderArp,
+  renderConfig,
+  renderHelp,
+  renderInterfacesDetail,
+  renderInterfacesTerse,
+  renderRouteSummary,
+  renderRoutes,
+  renderShowCompare,
+  renderUptime,
+  renderVersion,
+  JunosRenderContext,
+} from './junosRenderers';
+import { JunosStateStore } from './junosStateStore';
+import { findJunosTemplate } from './junosTemplates';
+import { tokensToSegments } from './junosTokenizer';
+
 export type JunosMode = 'operational' | 'configuration';
 
 export interface JunosEngineOptions {
@@ -8,7 +31,9 @@ export interface JunosEngineOptions {
   version?: string;
   serialNumber?: string;
   setLines?: string[];
+  maxRollbacks?: number;
   now?: () => Date;
+  fallback?: JunosFallbackOptions;
 }
 
 export interface JunosSessionState {
@@ -19,95 +44,9 @@ export interface JunosSessionState {
   hostname: string;
 }
 
-interface ConfigNode {
-  children: Map<string, ConfigNode>;
-  value?: string;
-}
-
-interface InterfaceEntry {
-  ifname: string;
-  unit?: string;
-  address?: string;
-  vlanId?: string;
-  etherSwitching?: boolean;
-  description?: string;
-}
-
-interface RouteEntry {
-  destination: string;
-  protocol: string;
-  preference: string;
-  nextHop: string;
-  age: string;
-}
-
 type CompletionRow = [word: string, description?: string];
 
 const CRLF = '\r\n';
-const COMPOUND_HEADS = new Set([
-  'area',
-  'family',
-  'group',
-  'interface',
-  'policy-statement',
-  'route',
-  'rule',
-  'rule-set',
-  'term',
-  'unit',
-]);
-
-const VALUE_KEYWORDS = new Set([
-  'address',
-  'autonomous-system',
-  'community',
-  'connection-limit',
-  'cost',
-  'count',
-  'dead-interval',
-  'description',
-  'destination',
-  'domain-name',
-  'domain-search',
-  'export',
-  'facility',
-  'filter',
-  'from',
-  'hello-interval',
-  'host-name',
-  'import',
-  'input',
-  'interface',
-  'interval',
-  'level',
-  'local-address',
-  'log',
-  'match',
-  'maximum-prefix',
-  'members',
-  'metric',
-  'mtu',
-  'name-server',
-  'next-hop',
-  'output',
-  'peer-as',
-  'port-mode',
-  'preference',
-  'priority',
-  'protocol',
-  'protocol-version',
-  'rate-limit',
-  'route-filter',
-  'router-id',
-  'size',
-  'source',
-  'source-address',
-  'then',
-  'time-zone',
-  'timeout',
-  'type',
-  'vlan-id',
-]);
 
 const OPERATIONAL_COMMANDS: CompletionRow[] = [
   ['configure', 'Enter configuration mode'],
@@ -119,6 +58,7 @@ const OPERATIONAL_COMMANDS: CompletionRow[] = [
 ];
 
 const SHOW_COMMANDS: CompletionRow[] = [
+  ['arp', 'Show ARP entries'],
   ['configuration', 'Show the configuration'],
   ['interfaces', 'Show interface information'],
   ['ospf', 'Show OSPF information'],
@@ -176,10 +116,10 @@ const CONFIG_DESCRIPTIONS: Record<string, string> = {
   'ge-0/0/1': 'LAN/trunk interface',
   'host-name': 'System hostname',
   interfaces: 'Interface configuration',
-  'lo0': 'Loopback interface',
+  lo0: 'Loopback interface',
   'lo0.0': 'Loopback unit',
   ospf: 'OSPF routing process',
-  'passive': 'Do not send hellos',
+  passive: 'Do not send hellos',
   'policy-options': 'Routing policy',
   protocols: 'Routing protocols',
   'routing-options': 'Routing options',
@@ -192,25 +132,6 @@ const CONFIG_DESCRIPTIONS: Record<string, string> = {
   vlans: 'VLAN definitions',
 };
 
-function createNode(): ConfigNode {
-  return { children: new Map<string, ConfigNode>() };
-}
-
-function stripQuotes(value: string | undefined): string | undefined {
-  if (value === undefined) return undefined;
-  return value.replace(/^"|"$/g, '');
-}
-
-function tokenize(input: string): string[] {
-  const tokens: string[] = [];
-  const re = /"((?:\\.|[^"\\])*)"|'([^']*)'|(\S+)/g;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(input)) !== null) {
-    tokens.push(match[1] ?? match[2] ?? match[3] ?? '');
-  }
-  return tokens;
-}
-
 function ipv4ToInt(value: string): number | null {
   const parts = value.split('.');
   if (parts.length !== 4) return null;
@@ -222,173 +143,6 @@ function ipv4ToInt(value: string): number | null {
     result = result * 256 + octet;
   }
   return result >>> 0;
-}
-
-function intToIpv4(value: number): string {
-  return [24, 16, 8, 0].map((shift) => Math.floor(value / 2 ** shift) % 256).join('.');
-}
-
-function networkAddress(address: string, cidr: number): string {
-  const value = ipv4ToInt(address);
-  if (value === null) return address;
-  const mask = cidr === 0 ? 0 : (0xffffffff << (32 - cidr)) >>> 0;
-  return intToIpv4((value & mask) >>> 0);
-}
-
-function looksLikeValue(token: string): boolean {
-  return (
-    /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/.test(token) ||
-    /^[0-9a-f]{2}(:[0-9a-f]{2}){5}$/i.test(token)
-  );
-}
-
-function formatConfigValue(keyword: string, value: string): string {
-  if (keyword === 'description' || keyword === 'community') {
-    return `"${stripQuotes(value) ?? ''}"`;
-  }
-  return value;
-}
-
-function ensureTokenPath(root: ConfigNode, tokens: string[]): ConfigNode {
-  let node = root;
-  let index = 0;
-  while (index < tokens.length) {
-    let segment = tokens[index];
-    let consumed = 1;
-    if (COMPOUND_HEADS.has(segment) && index + 1 < tokens.length) {
-      segment = `${segment} ${tokens[index + 1]}`;
-      consumed = 2;
-    }
-    let child = node.children.get(segment);
-    if (!child) {
-      child = createNode();
-      node.children.set(segment, child);
-    }
-    node = child;
-    index += consumed;
-  }
-  return node;
-}
-
-function ensureSegments(root: ConfigNode, segments: string[]): ConfigNode {
-  let node = root;
-  for (const segment of segments) {
-    let child = node.children.get(segment);
-    if (!child) {
-      child = createNode();
-      node.children.set(segment, child);
-    }
-    node = child;
-  }
-  return node;
-}
-
-function resolveSegments(root: ConfigNode, segments: string[]): ConfigNode | null {
-  let node = root;
-  for (const segment of segments) {
-    const child = node.children.get(segment);
-    if (!child) return null;
-    node = child;
-  }
-  return node;
-}
-
-function tokensToSegments(tokens: string[]): string[] {
-  const segments: string[] = [];
-  for (let index = 0; index < tokens.length; index += 1) {
-    const token = tokens[index];
-    if (COMPOUND_HEADS.has(token) && index + 1 < tokens.length) {
-      segments.push(`${token} ${tokens[index + 1]}`);
-      index += 1;
-    } else {
-      segments.push(token);
-    }
-  }
-  return segments;
-}
-
-function setLeaf(parent: ConfigNode, name: string, value?: string): ConfigNode {
-  let node = parent.children.get(name);
-  if (!node) {
-    node = createNode();
-    parent.children.set(name, node);
-  }
-  if (value === undefined) {
-    delete node.value;
-  } else {
-    node.value = value;
-  }
-  return node;
-}
-
-function setUnder(node: ConfigNode, tokens: string[]): void {
-  if (tokens.length === 0) return;
-  const last = tokens[tokens.length - 1];
-  const previous = tokens.length >= 2 ? tokens[tokens.length - 2] : '';
-  const isValue =
-    (VALUE_KEYWORDS.has(previous) && !COMPOUND_HEADS.has(previous)) || looksLikeValue(last);
-
-  if (isValue && tokens.length >= 2) {
-    const parent = ensureTokenPath(node, tokens.slice(0, -1));
-    parent.value = formatConfigValue(previous, last);
-    return;
-  }
-
-  ensureTokenPath(node, tokens);
-}
-
-function deleteUnder(node: ConfigNode, tokens: string[]): boolean {
-  if (tokens.length === 0) return false;
-  const segments = tokensToSegments(tokens);
-  if (segments.length === 0) return false;
-  const parentSegments = segments.slice(0, -1);
-  const parent = resolveSegments(node, parentSegments);
-  if (!parent) return false;
-  return parent.children.delete(segments[segments.length - 1]);
-}
-
-function renderChildren(node: ConfigNode, indent: number): string[] {
-  const lines: string[] = [];
-  const prefix = ' '.repeat(indent * 4);
-  node.children.forEach((child, name) => {
-    if (child.children.size === 0) {
-      lines.push(`${prefix}${name}${child.value !== undefined ? ` ${child.value}` : ''};`);
-      return;
-    }
-    lines.push(`${prefix}${name} {`);
-    lines.push(...renderChildren(child, indent + 1));
-    lines.push(`${prefix}}`);
-  });
-  return lines;
-}
-
-function renderBlock(segment: string, node: ConfigNode): string[] {
-  return [`${segment} {`, ...renderChildren(node, 1), '}'];
-}
-
-function renderSetLines(node: ConfigNode, prefixSegments: string[] = []): string[] {
-  const lines: string[] = [];
-  const walk = (current: ConfigNode, path: string[]): void => {
-    current.children.forEach((child, segment) => {
-      const next = [...path, segment];
-      if (child.children.size > 0) {
-        walk(child, next);
-      } else {
-        lines.push(`set ${next.join(' ')}${child.value !== undefined ? ` ${child.value}` : ''}`);
-      }
-    });
-  };
-  walk(node, prefixSegments);
-  return lines;
-}
-
-function table(headers: string[], rows: string[][]): string[] {
-  const widths = headers.map((header, column) =>
-    Math.max(header.length, ...rows.map((row) => (row[column] ?? '').length)),
-  );
-  const render = (row: string[]): string =>
-    row.map((cell, column) => (cell ?? '').padEnd(widths[column])).join('  ').trimEnd();
-  return [render(headers), ...rows.map(render)];
 }
 
 function formatCompletions(rows: CompletionRow[]): string {
@@ -406,132 +160,67 @@ function formatCompletions(rows: CompletionRow[]): string {
   return lines.join(CRLF) + CRLF;
 }
 
-function formatUtc(date: Date): string {
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(date.getUTCDate()).padStart(2, '0');
-  const hours = String(date.getUTCHours()).padStart(2, '0');
-  const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-  const seconds = String(date.getUTCSeconds()).padStart(2, '0');
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} UTC`;
-}
-
-function formatDuration(totalSeconds: number): string {
-  const days = Math.floor(totalSeconds / 86400);
-  const hours = Math.floor((totalSeconds % 86400) / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  if (days > 0) {
-    return `${days}d ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  }
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
-function addUnit(
-  iface: ConfigNode,
-  unitId: string,
-  address: string,
-  vlanId?: string,
-  description?: string,
-): ConfigNode {
-  const unit = ensureSegments(iface, [`unit ${unitId}`]);
-  if (vlanId !== undefined) setLeaf(unit, 'vlan-id', vlanId);
-  if (description !== undefined) setLeaf(unit, 'description', `"${description}"`);
-  const family = ensureSegments(unit, ['family inet']);
-  setLeaf(family, 'address', address);
-  return unit;
-}
-
-function seedConfig(hostname: string): ConfigNode {
-  const root = createNode();
-  const system = ensureSegments(root, ['system']);
-  setLeaf(system, 'host-name', hostname);
-  setLeaf(system, 'time-zone', 'UTC');
-  const services = ensureSegments(system, ['services']);
-  setLeaf(services, 'ssh');
-
-  const interfaces = ensureSegments(root, ['interfaces']);
-  const loopback = ensureSegments(interfaces, ['lo0']);
-  addUnit(loopback, '0', '1.1.1.1/32');
-
-  const wan = ensureSegments(interfaces, ['ge-0/0/0']);
-  setLeaf(wan, 'description', '"LINK-TO-R2"');
-  addUnit(wan, '0', '10.0.12.1/30');
-
-  const lan = ensureSegments(interfaces, ['ge-0/0/1']);
-  setLeaf(lan, 'description', '"TRUNK-TO-SW1"');
-  setLeaf(lan, 'vlan-tagging');
-  addUnit(lan, '0', '10.0.10.1/24', '10', 'STAFF-VLAN');
-  addUnit(lan, '20', '10.0.20.1/24', '20', 'GUEST-VLAN');
-
-  const protocols = ensureSegments(root, ['protocols']);
-  const ospf = ensureSegments(protocols, ['ospf']);
-  const area = ensureSegments(ospf, ['area 0.0.0.0']);
-  ensureSegments(area, ['interface ge-0/0/0.0']);
-  ensureSegments(area, ['interface ge-0/0/1.0']);
-  ensureSegments(area, ['interface ge-0/0/1.20']);
-  setLeaf(ensureSegments(area, ['interface lo0.0']), 'passive');
-
-  return root;
-}
-
 export class JunosEngine {
   readonly nodeId: string;
-  private config: ConfigNode;
-  private modeValue: JunosMode = 'operational';
-  private editPathValue: string[] = [];
-  private readonly hostnameValue: string;
+  private readonly store: JunosStateStore;
   private readonly username: string;
   private readonly model: string;
   private readonly version: string;
   private readonly serialNumber: string;
   private readonly clock: () => Date;
+  private readonly fallback: JunosFallbackOptions;
 
   constructor(options: JunosEngineOptions | string) {
     const normalized = typeof options === 'string' ? { nodeId: options } : options;
     this.nodeId = normalized.nodeId;
-    this.hostnameValue = normalized.hostname ?? 'R1';
     this.username = normalized.username ?? 'user';
     this.model = normalized.model ?? 'vsrx';
     this.version = normalized.version ?? '21.4R3.15';
     this.serialNumber = normalized.serialNumber ?? 'JN1234567890';
     this.clock = normalized.now ?? (() => new Date());
-
-    const setLines = normalized.setLines;
-    this.config = setLines !== undefined ? createNode() : seedConfig(this.hostnameValue);
-    for (const line of setLines ?? []) {
-      setUnder(this.config, tokenize(line.replace(/^\s*set\s+/i, '')));
-    }
+    this.fallback = normalized.fallback ?? {};
+    this.store = new JunosStateStore({
+      nodeId: normalized.nodeId,
+      hostname: normalized.hostname,
+      username: this.username,
+      setLines: normalized.setLines,
+      maxRollbacks: normalized.maxRollbacks,
+      now: this.clock,
+    });
   }
 
   get mode(): JunosMode {
-    return this.modeValue;
+    return this.store.mode;
   }
 
   get editPath(): string[] {
-    return [...this.editPathValue];
+    return this.store.editPath;
   }
 
   get hostname(): string {
-    const configured = stripQuotes(this.config.children.get('system')?.children.get('host-name')?.value);
-    return configured ?? this.hostnameValue;
+    return this.store.hostname;
   }
 
   get prompt(): string {
-    const identity = `${this.username}@${this.hostname}`;
-    if (this.modeValue === 'operational') return `${identity}> `;
-    const path = this.editPathValue.length > 0 ? ` ${this.editPathValue.join(' ')}` : '';
-    return `[edit${path}]${CRLF}${identity}# `;
+    return this.store.prompt;
   }
 
   get state(): JunosSessionState {
     return {
       nodeId: this.nodeId,
-      mode: this.modeValue,
-      editPath: [...this.editPathValue],
+      mode: this.store.mode,
+      editPath: this.store.editPath,
       prompt: this.prompt,
       hostname: this.hostname,
     };
+  }
+
+  get activeConfig(): unknown {
+    return this.store.activeConfig;
+  }
+
+  get candidateConfig(): unknown {
+    return this.store.candidateConfig;
   }
 
   renderPrompt(clearLine = true): string {
@@ -539,523 +228,349 @@ export class JunosEngine {
   }
 
   reset(): void {
-    this.config = seedConfig(this.hostnameValue);
-    this.modeValue = 'operational';
-    this.editPathValue = [];
+    this.store.reset();
   }
 
   getRunningConfig(): string {
-    return renderChildren(this.config, 0).join(CRLF) + CRLF;
+    const lines = this.store.activeRender();
+    return lines.length > 0 ? lines.join(CRLF) + CRLF : '';
   }
 
   getSetCommands(): string {
-    return renderSetLines(this.config).join(CRLF) + CRLF;
+    const lines = this.store.activeSetLines();
+    return lines.length > 0 ? lines.join(CRLF) + CRLF : '';
+  }
+
+  getActiveConfig(): string {
+    return this.getRunningConfig();
+  }
+
+  getActiveSetCommands(): string {
+    return this.getSetCommands();
+  }
+
+  getCandidateConfig(): string {
+    const lines = this.store.candidateRender();
+    return lines.length > 0 ? lines.join(CRLF) + CRLF : '';
+  }
+
+  getCandidateSetCommands(): string {
+    const lines = this.store.candidateSetLines();
+    return lines.length > 0 ? lines.join(CRLF) + CRLF : '';
+  }
+
+  showCompare(): string {
+    const diff = this.store.diff();
+    return diff.length > 0 ? diff.join(CRLF) + CRLF : '';
   }
 
   executeCommand(rawCmd: string): string {
-    const raw = String(rawCmd ?? '').replace(/[\r\n]+/g, ' ').trim();
-    if (raw.length === 0) return '';
+    const parsed = parseJunosCommand(rawCmd);
+    if (parsed.raw.length === 0) return '';
 
-    if (raw.includes('?')) {
-      const before = raw.slice(0, raw.indexOf('?')).trim();
-      const tokens = tokenize(before);
-      return this.modeValue === 'configuration'
-        ? this.completeConfiguration(tokens)
-        : this.completeOperational(tokens);
+    if (parsed.completion) {
+      return this.store.mode === 'configuration'
+        ? this.completeConfiguration(parsed.tokens)
+        : this.completeOperational(parsed.tokens);
     }
 
-    const tokens = tokenize(raw);
-    if (tokens.length === 0) return '';
-    const command = tokens[0].toLowerCase();
-    const lower = tokens.map((token) => token.toLowerCase());
+    if (this.store.mode === 'configuration') return this.executeConfiguration(parsed);
 
-    if (this.modeValue === 'configuration') {
-      if (lower[0] === 'top' && lower[1] === 'show') {
-        const displaySet =
-          lower.includes('|') && lower.includes('display') && lower.includes('set');
-        return displaySet
-          ? renderSetLines(this.config).join(CRLF) + CRLF
-          : renderChildren(this.config, 0).join(CRLF) + CRLF;
-      }
+    const output = this.executeOperational(parsed, this.store.activeRoot);
+    if (output !== null) return this.finish(output, parsed);
 
-      switch (command) {
-        case 'set':
-          return this.configSet(tokens.slice(1));
-        case 'delete':
-          return this.configDelete(tokens.slice(1));
-        case 'edit':
-          return this.configEdit(tokens.slice(1));
-        case 'up':
-          return this.configUp(tokens.slice(1));
-        case 'top':
-          this.editPathValue = [];
-          return '';
-        case 'show':
-          return this.configShow(tokens.slice(1));
-        case 'run':
-          return this.configRun(tokens.slice(1));
-        case 'commit':
-          return `commit complete${CRLF}`;
-        case 'rollback':
-          return `load complete${CRLF}`;
-        case 'exit':
-        case 'quit':
-          return this.configExit();
-        case 'help':
-          return this.helpConfiguration();
-        case 'configure':
-          return `% Not in operational mode.${CRLF}`;
-        default:
-          return `% Unknown command: ${tokens.join(' ')}${CRLF}`;
-      }
-    }
+    const template = findJunosTemplate({
+      store: this.store,
+      command: parsed.command,
+      args: parsed.args,
+    });
+    if (template) return this.finish(template, parsed);
 
-    switch (command) {
-      case 'configure':
-        if (tokens.length > 1 && tokens[1].toLowerCase() !== 'exclusive') {
-          return `% Unknown command: ${tokens.join(' ')}${CRLF}`;
-        }
-        this.modeValue = 'configuration';
-        this.editPathValue = [];
-        return `Entering configuration mode${CRLF}`;
-      case 'show':
-        return this.showOperational(tokens.slice(1));
-      case 'ping':
-        return this.ping(tokens.slice(1));
-      case 'help':
-        return this.helpOperational();
-      case 'clear':
-        return '\x1b[2J\x1b[H';
-      case 'exit':
-      case 'quit':
-        return `Connection closed by foreign host.${CRLF}`;
-      default:
-        return `% Unknown command: ${tokens.join(' ')}${CRLF}`;
-    }
+    return `% Unknown command: ${parsed.tokens.join(' ')}${CRLF}`;
+  }
+
+  async executeCommandAsync(rawCmd: string): Promise<string> {
+    const local = this.executeCommand(rawCmd);
+    if (!local.startsWith('% Unknown command:')) return local;
+
+    const lines = await requestJunosFallback(String(rawCmd ?? '').trim(), this.store, this.fallback);
+    if (!lines) return local;
+
+    const parsed = parseJunosCommand(rawCmd);
+    return this.finish(lines, parsed);
   }
 
   execute(rawCmd: string): string {
     return this.executeCommand(rawCmd);
   }
 
-  private currentNode(): ConfigNode | null {
-    return resolveSegments(this.config, this.editPathValue);
+  executeAsync(rawCmd: string): Promise<string> {
+    return this.executeCommandAsync(rawCmd);
   }
 
-  private configSet(tokens: string[]): string {
-    if (tokens.length === 0) return `% Incomplete command.${CRLF}`;
-    const node = this.currentNode();
-    if (!node) return `% Unknown command: set ${tokens.join(' ')}${CRLF}`;
-    setUnder(node, tokens);
-    return '';
+  private context(): JunosRenderContext {
+    return {
+      hostname: this.hostname,
+      lastConfigured: this.store.lastConfigured,
+      now: this.clock(),
+    };
   }
 
-  private configDelete(tokens: string[]): string {
-    if (tokens.length === 0) return `% Incomplete command.${CRLF}`;
-    const node = this.currentNode();
-    if (!node) return `% Unknown command: delete ${tokens.join(' ')}${CRLF}`;
-    if (!deleteUnder(node, tokens)) {
-      return `warning: statement not found: ${tokens[tokens.length - 1]}${CRLF}`;
+  private finish(lines: string[], parsed: ParsedJunosCommand): string {
+    const output = applyPipes(lines, parsed.pipes);
+    return output.length > 0 ? output.join(CRLF) + CRLF : '';
+  }
+
+  private executeConfiguration(parsed: ParsedJunosCommand): string {
+    const command = parsed.command;
+    const args = parsed.args;
+
+    if (command === 'top' && (args[0] ?? '').toLowerCase() === 'show') {
+      this.store.top();
+      const showCommand: ParsedJunosCommand = {
+        ...parsed,
+        command: 'show',
+        args: args.slice(1),
+      };
+      return this.configShow(showCommand);
     }
-    return '';
-  }
 
-  private configEdit(tokens: string[]): string {
-    if (tokens.length === 0) return `% Incomplete command.${CRLF}`;
-    const segments = tokensToSegments(tokens);
-    const next = [...this.editPathValue, ...segments];
-    ensureSegments(this.config, next);
-    this.editPathValue = next;
-    return '';
-  }
-
-  private configUp(tokens: string[]): string {
-    const count = tokens.length === 0 ? 1 : Number(tokens[0]);
-    if (!Number.isInteger(count) || count < 1) {
-      return `% Unknown command: up ${tokens.join(' ')}${CRLF}`;
-    }
-    this.editPathValue = this.editPathValue.slice(0, Math.max(0, this.editPathValue.length - count));
-    return '';
-  }
-
-  private configExit(): string {
-    if (this.editPathValue.length > 0) {
-      this.editPathValue = this.editPathValue.slice(0, -1);
-      return '';
-    }
-    this.modeValue = 'operational';
-    return `Exiting configuration mode${CRLF}`;
-  }
-
-  private configShow(tokens: string[]): string {
-    if (tokens.length > 0 && tokens[0] === '|') {
-      const displaySet = tokens.some((token) => token.toLowerCase() === 'display') &&
-        tokens.some((token) => token.toLowerCase() === 'set');
-      if (displaySet) {
-        const node = this.currentNode();
-        if (!node) return '';
-        return renderSetLines(node, this.editPathValue).join(CRLF) + CRLF;
+    switch (command) {
+      case 'set':
+        if (args.length === 0) return `% Incomplete command.${CRLF}`;
+        return this.store.set(args) ? '' : `% Unknown command: set ${args.join(' ')}${CRLF}`;
+      case 'delete':
+        if (args.length === 0) return `% Incomplete command.${CRLF}`;
+        if (!this.store.delete(args)) {
+          return `warning: statement not found: ${args[args.length - 1]}${CRLF}`;
+        }
+        return '';
+      case 'edit':
+        if (args.length === 0) return `% Incomplete command.${CRLF}`;
+        this.store.edit(args);
+        return '';
+      case 'up': {
+        const count = args.length === 0 ? 1 : Number(args[0]);
+        if (!Number.isInteger(count) || count < 1) {
+          return `% Unknown command: up ${args.join(' ')}${CRLF}`;
+        }
+        this.store.up(count);
+        return '';
       }
-    }
-
-    if (tokens.length === 0) {
-      const node = this.currentNode();
-      if (!node) return `% Unknown command: show${CRLF}`;
-      if (this.editPathValue.length === 0) {
-        return renderChildren(node, 0).join(CRLF) + CRLF;
+      case 'top':
+        this.store.top();
+        return '';
+      case 'show':
+        return this.configShow(parsed);
+      case 'run': {
+        if (args.length === 0) return `% Incomplete command.${CRLF}`;
+        const pipeText = parsed.pipes.map((pipe) => ` | ${pipe.join(' ')}`).join('');
+        return this.runOperational(args.join(' ') + pipeText);
       }
-      return renderBlock(this.editPathValue[this.editPathValue.length - 1], node).join(CRLF) + CRLF;
+      case 'commit':
+        return this.commit(args);
+      case 'rollback':
+        return this.rollback(args);
+      case 'exit':
+      case 'quit':
+        return this.store.exitConfiguration();
+      case 'help':
+        return this.helpConfiguration();
+      case 'configure':
+        return `% Not in operational mode.${CRLF}`;
+      default:
+        return `% Unknown command: ${parsed.tokens.join(' ')}${CRLF}`;
+    }
+  }
+
+  private configShow(parsed: ParsedJunosCommand): string {
+    if (parsed.pipes.some((pipe) => (pipe[0] ?? '').toLowerCase() === 'compare')) {
+      return this.showCompare();
     }
 
-    const segments = tokensToSegments(tokens);
-    const full = [...this.editPathValue, ...segments];
-    const node = resolveSegments(this.config, full);
-    if (!node) return `% Unknown command: show ${tokens.join(' ')}${CRLF}`;
-    return renderBlock(segments[segments.length - 1], node).join(CRLF) + CRLF;
+    const shape: ConfigShape = parsed.pipes.some(
+      (pipe) =>
+        (pipe[0] ?? '').toLowerCase() === 'display' &&
+        (pipe[1] ?? '').toLowerCase() === 'set',
+    )
+      ? 'set'
+      : 'default';
+
+    if (parsed.args.length === 0) {
+      const lines = renderConfig(
+        this.store.candidateRoot,
+        this.store.configPathSegments(),
+        this.context(),
+        shape,
+      );
+      return this.finish(lines, parsed);
+    }
+
+    const lowered = parsed.args.map((arg) => arg.toLowerCase());
+    let segments: string[];
+    if (lowered[0] === 'configuration') {
+      segments = tokensToSegments(parsed.args.slice(1));
+    } else {
+      segments = this.store.configPathSegments().concat(tokensToSegments(parsed.args));
+    }
+
+    const node = this.resolveConfig(this.store.candidateRoot, segments);
+    if (!node) {
+      const loweredArgs = parsed.args.map((arg) => arg.toLowerCase());
+      const operationalSections = new Set([
+        'arp',
+        'bgp',
+        'chassis',
+        'ethernet-switching',
+        'lldp',
+        'ospf',
+        'route',
+        'system',
+        'version',
+      ]);
+      const interfaceOperational =
+        (loweredArgs[0] === 'interfaces' || loweredArgs[0] === 'interface') &&
+        ['brief', 'detail', 'extensive', 'statistics', 'terse'].includes(loweredArgs[1] ?? '');
+      if (operationalSections.has(loweredArgs[0] ?? '') || interfaceOperational) {
+        const output = this.showOperational(parsed, this.store.candidateRoot);
+        if (output) return this.finish(output, parsed);
+      }
+      return `warning: statement not found: ${segments.join(' ')}${CRLF}`;
+    }
+
+    const lines = renderConfig(this.store.candidateRoot, segments, this.context(), shape);
+    return this.finish(lines, parsed);
   }
 
-  private configRun(tokens: string[]): string {
-    if (tokens.length === 0) return `% Incomplete command.${CRLF}`;
-    const savedMode = this.modeValue;
-    const savedPath = this.editPathValue;
-    this.modeValue = 'operational';
-    this.editPathValue = [];
-    const output = this.executeCommand(tokens.join(' '));
-    this.modeValue = savedMode;
-    this.editPathValue = savedPath;
-    return output;
+  private commit(args: string[]): string {
+    const first = (args[0] ?? '').toLowerCase();
+    if (first === 'check') return `configuration check succeeds${CRLF}`;
+    if (first === 'confirmed') {
+      this.store.commit();
+      return `commit confirmed${CRLF}`;
+    }
+    if (first === 'comment' || first === 'and-quit') {
+      this.store.commit();
+      return `commit complete${CRLF}`;
+    }
+    if (args.length > 0) return `% Unknown command: commit ${args.join(' ')}${CRLF}`;
+
+    this.store.commit();
+    return `commit complete${CRLF}`;
   }
 
-  private helpOperational(): string {
-    return [
-      'Operational commands:',
-      '  configure                    Enter configuration mode',
-      '  show system information      Show hardware and software information',
-      '  show system uptime           Show uptime and load averages',
-      '  show interfaces terse        Show interface status',
-      '  show route                   Show the routing table',
-      '  ping <host> [count <n>]      Ping a host',
-      '  exit                         Close the console',
-    ].join(CRLF) + CRLF;
+  private rollback(args: string[]): string {
+    const index = parseRollbackIndex(args);
+    if (index === null) return `% Unknown command: rollback ${args.join(' ')}${CRLF}`;
+    const result = this.store.rollback(index);
+    return result.ok ? `load complete${CRLF}` : result.message;
   }
 
-  private helpConfiguration(): string {
-    return [
-      'Configuration commands:',
-      '  set <statement>              Add a configuration statement',
-      '  delete <statement>           Remove a configuration statement',
-      '  edit <path>                  Enter a configuration hierarchy',
-      '  up [n]                       Move up one or more levels',
-      '  top                          Return to the top of the configuration',
-      '  show                         Show the current hierarchy',
-      '  show | display set           Show the configuration as set commands',
-      '  run <command>                Run an operational command',
-      '  commit                       Commit the configuration',
-      '  exit                         Leave configuration mode',
-    ].join(CRLF) + CRLF;
+  private executeOperational(parsed: ParsedJunosCommand, root: ConfigNode): string[] | null {
+    switch (parsed.command) {
+      case 'configure':
+        if (parsed.args.length > 0 && (parsed.args[0] ?? '').toLowerCase() !== 'exclusive') {
+          return null;
+        }
+        this.store.enterConfiguration();
+        return ['Entering configuration mode'];
+      case 'show':
+        return this.showOperational(parsed, root);
+      case 'ping':
+        return this.ping(parsed.args, root);
+      case 'help':
+        return renderHelp();
+      case 'clear':
+        return ['\x1b[2J\x1b[H'];
+      case 'exit':
+      case 'quit':
+        return ['Connection closed by foreign host.'];
+      default:
+        return null;
+    }
   }
 
-  private showOperational(tokens: string[]): string {
-    if (tokens.length === 0) return `% Incomplete command.${CRLF}`;
-    const section = tokens[0].toLowerCase();
-    const rest = tokens.slice(1);
+  private showOperational(parsed: ParsedJunosCommand, root: ConfigNode): string[] | null {
+    if (parsed.pipes.some((pipe) => (pipe[0] ?? '').toLowerCase() === 'compare')) {
+      const diff = renderShowCompare(this.store.diff());
+      return diff.length > 0 ? diff : null;
+    }
+
+    if (parsed.args.length === 0) return ['% Incomplete command.'];
+    const section = (parsed.args[0] ?? '').toLowerCase();
+    const rest = parsed.args.slice(1);
+    const lowered = rest.map((arg) => arg.toLowerCase());
+
+    if (section === 'configuration') {
+      const shape: ConfigShape = parsed.pipes.some(
+        (pipe) =>
+          (pipe[0] ?? '').toLowerCase() === 'display' &&
+          (pipe[1] ?? '').toLowerCase() === 'set',
+      )
+        ? 'set'
+        : 'default';
+      const segments = tokensToSegments(rest);
+      if (segments.length > 0 && !this.resolveConfig(root, segments)) {
+        return [`warning: statement not found: ${segments.join(' ')}`];
+      }
+      return renderConfig(root, segments, this.context(), shape);
+    }
+
+    if (section === 'interfaces' || section === 'interface') {
+      if (lowered[0] === 'terse') return renderInterfacesTerse(root);
+      const qualifies = ['brief', 'detail', 'extensive', 'statistics'].includes(lowered[0] ?? '');
+      const name = qualifies ? rest[1] : rest[0];
+      return renderInterfacesDetail(root, name);
+    }
+
+    if (section === 'route') {
+      if (lowered.includes('summary')) return renderRouteSummary(root);
+      return renderRoutes(root);
+    }
+
+    if (section === 'arp') return renderArp(root);
+
+    if (section === 'version') {
+      return renderVersion(this.context(), this.model, this.version);
+    }
 
     if (section === 'system') {
-      if (rest.length === 0) return `% Incomplete command.${CRLF}`;
-      const sub = rest[0].toLowerCase();
-      if (sub === 'uptime' && rest.length === 1) return this.showSystemUptime();
-      if (sub === 'information' && rest.length === 1) return this.showSystemInformation();
-      if (sub === 'services' && rest.length === 1) return `SSH service is enabled.${CRLF}`;
-      return `% Unknown command: show ${tokens.join(' ')}${CRLF}`;
-    }
-
-    if (section === 'interfaces') {
-      if (rest.length === 0) return this.showInterfacesSummary();
-      if (rest[0].toLowerCase() === 'terse') return this.showInterfacesTerse();
-      if (rest[0].toLowerCase() === 'detail') {
-        return this.showInterfaceDetail(rest[1]);
+      if (rest.length === 0) return ['% Incomplete command.'];
+      if (lowered[0] === 'uptime') return renderUptime(this.context());
+      if (lowered[0] === 'information') {
+        return [
+          `Model: ${this.model}`,
+          `Junos version: ${this.version}`,
+          `Hostname: ${this.hostname}`,
+          `Serial number: ${this.serialNumber}`,
+        ];
       }
-      return this.showInterfaceDetail(rest[0]);
+      if (lowered[0] === 'services') return ['SSH service is enabled.'];
+      return findJunosTemplate({
+        store: this.store,
+        command: parsed.command,
+        args: parsed.args,
+      });
     }
 
-    if (section === 'route') return this.showRoute();
-    if (section === 'ospf') return this.showOspf(rest);
-    if (section === 'version') return this.showVersion();
-    if (section === 'configuration') return this.showConfiguration(rest);
+    if (section === 'ospf' && rest.length === 0) {
+      const routerId =
+        this.hostname === 'R2' ? '2.2.2.2' : this.hostname === 'R3' ? '3.3.3.3' : '1.1.1.1';
+      return [`OSPF overview: Router ID ${routerId}`];
+    }
 
-    return `% Unknown command: show ${tokens.join(' ')}${CRLF}`;
-  }
-
-  private showSystemUptime(): string {
-    const now = this.clock();
-    const boot = new Date(now.getTime() - (1 * 86400 + 2 * 3600 + 47 * 60 + 12) * 1000);
-    const protocols = new Date(boot.getTime() + 30 * 1000);
-    const configured = new Date(now.getTime() - 2 * 60 * 1000);
-    const time = formatUtc(now).slice(11, 16);
-    return [
-      `Current time: ${formatUtc(now)}`,
-      `System booted: ${formatUtc(boot)} (${formatDuration(Math.floor((now.getTime() - boot.getTime()) / 1000))} ago)`,
-      `Protocols started: ${formatUtc(protocols)} (${formatDuration(Math.floor((now.getTime() - protocols.getTime()) / 1000))} ago)`,
-      `Last configured: ${formatUtc(configured)} (00:02:00 ago) by ${this.username}`,
-      ` ${time}  up 1 day,  2:47, 1 user, load averages: 0.05, 0.07, 0.09`,
-    ].join(CRLF) + CRLF;
-  }
-
-  private showSystemInformation(): string {
-    return [
-      `Model: ${this.model}`,
-      `Junos version: ${this.version}`,
-      `Hostname: ${this.hostname}`,
-      `Serial number: ${this.serialNumber}`,
-    ].join(CRLF) + CRLF;
-  }
-
-  private showVersion(): string {
-    return [
-      `Hostname: ${this.hostname}`,
-      `Model: ${this.model}`,
-      `Junos version: ${this.version}`,
-      `JUNOS Software Release [${this.version}]`,
-    ].join(CRLF) + CRLF;
-  }
-
-  private showConfiguration(tokens: string[]): string {
-    const displaySet = tokens.some((token) => token.toLowerCase() === 'display') &&
-      tokens.some((token) => token.toLowerCase() === 'set');
-    return displaySet
-      ? renderSetLines(this.config).join(CRLF) + CRLF
-      : renderChildren(this.config, 0).join(CRLF) + CRLF;
-  }
-
-  private interfaceEntries(): InterfaceEntry[] {
-    const interfaces = this.config.children.get('interfaces');
-    if (!interfaces) return [];
-    const entries: InterfaceEntry[] = [];
-
-    interfaces.children.forEach((iface, ifname) => {
-      const description = stripQuotes(iface.children.get('description')?.value);
-      let hasUnit = false;
-      iface.children.forEach((unit, segment) => {
-        if (!segment.startsWith('unit ')) return;
-        hasUnit = true;
-        const unitId = segment.slice('unit '.length).trim();
-        const address = unit.children.get('family inet')?.children.get('address')?.value;
-        entries.push({
-          ifname,
-          unit: unitId,
-          address,
-          vlanId: unit.children.get('vlan-id')?.value,
-          etherSwitching: unit.children.has('family ethernet-switching'),
-          description: stripQuotes(unit.children.get('description')?.value) ?? description,
-        });
-      });
-      if (!hasUnit) entries.push({ ifname, description });
+    return findJunosTemplate({
+      store: this.store,
+      command: parsed.command,
+      args: parsed.args,
     });
-
-    return entries;
   }
 
-  private showInterfacesTerse(): string {
-    const entries = this.interfaceEntries();
-    const rows: string[][] = [];
-    const physicalSeen = new Set<string>();
-
-    for (const entry of entries) {
-      if (!physicalSeen.has(entry.ifname)) {
-        physicalSeen.add(entry.ifname);
-        rows.push([entry.ifname, 'up', 'up', '', '', '']);
-      }
-      if (entry.unit === undefined) continue;
-      const logical = `${entry.ifname}.${entry.unit}`;
-      if (entry.vlanId !== undefined) rows.push([logical, 'up', 'up', 'vlan', entry.vlanId, '']);
-      if (entry.etherSwitching) rows.push([logical, 'up', 'up', 'eth-switch', '', '']);
-      if (entry.address !== undefined) rows.push([logical, 'up', 'up', 'inet', entry.address, '']);
-    }
-
-    return table(['Interface', 'Admin', 'Link', 'Proto', 'Local', 'Remote'], rows).join(CRLF) + CRLF;
-  }
-
-  private showInterfacesSummary(): string {
-    const entries = this.interfaceEntries();
-    const byPhysical = new Map<string, InterfaceEntry[]>();
-    for (const entry of entries) {
-      const list = byPhysical.get(entry.ifname) ?? [];
-      list.push(entry);
-      byPhysical.set(entry.ifname, list);
-    }
-
-    const lines: string[] = [];
-    let index = 128;
-    byPhysical.forEach((units, ifname) => {
-      lines.push(`Physical interface: ${ifname}, Enabled, Physical link is Up`);
-      lines.push(`  Description: ${units[0].description ?? 'Unconfigured'}`);
-      lines.push('  Type: Ethernet, Link-level type: Ethernet, MTU: 1500, Speed: 1000mbps');
-      for (const unit of units) {
-        if (unit.unit === undefined) continue;
-        index += 1;
-        lines.push(`  Logical interface ${ifname}.${unit.unit} (Index ${index})`);
-        if (unit.vlanId !== undefined) lines.push(`    Flags: Up VLAN-Tag [ 0x8100.${unit.vlanId} ]`);
-        if (unit.etherSwitching) lines.push('    Protocol ethernet-switching, MTU: 1514');
-        if (unit.address !== undefined) {
-          lines.push('    Protocol inet, MTU: 1500');
-          lines.push('      Addresses, Flags: Is-Preferred Is-Primary');
-          lines.push(`        Local: ${unit.address}`);
-        }
-      }
-      index += 1;
-      lines.push('');
-    });
-
-    return lines.length > 0 ? lines.slice(0, -1).join(CRLF) + CRLF : `No interfaces configured.${CRLF}`;
-  }
-
-  private showInterfaceDetail(name: string | undefined): string {
-    const entries = this.interfaceEntries().filter((entry) =>
-      name === undefined ? true : entry.ifname === name || `${entry.ifname}.${entry.unit}` === name,
-    );
-    if (entries.length === 0) {
-      return `error: interface ${name ?? ''} not found${CRLF}`;
-    }
-
-    const lines: string[] = [];
-    for (const entry of entries) {
-      const logical = entry.unit === undefined ? entry.ifname : `${entry.ifname}.${entry.unit}`;
-      lines.push(`Physical interface: ${entry.ifname}, Enabled, Physical link is Up`);
-      lines.push(`  Description: ${entry.description ?? 'Unconfigured'}`);
-      lines.push('  Type: Ethernet, Link-level type: Ethernet, MTU: 1500, Speed: 1000mbps');
-      if (entry.unit !== undefined) {
-        lines.push(`  Logical interface ${logical}`);
-        if (entry.vlanId !== undefined) lines.push(`    Flags: Up VLAN-Tag [ 0x8100.${entry.vlanId} ]`);
-        if (entry.etherSwitching) lines.push('    Protocol ethernet-switching, MTU: 1514');
-        if (entry.address !== undefined) {
-          lines.push('    Protocol inet, MTU: 1500');
-          lines.push('      Addresses, Flags: Is-Preferred Is-Primary');
-          lines.push(`        Local: ${entry.address}`);
-        }
-      }
-      lines.push('');
-    }
-
-    return lines.slice(0, -1).join(CRLF) + CRLF;
-  }
-
-  private routes(): RouteEntry[] {
-    const routes: RouteEntry[] = [];
-    const seen = new Set<string>();
-    const push = (route: RouteEntry): void => {
-      if (seen.has(route.destination)) return;
-      seen.add(route.destination);
-      routes.push(route);
-    };
-
-    for (const entry of this.interfaceEntries()) {
-      if (entry.address === undefined) continue;
-      const [address, prefixText] = entry.address.split('/');
-      const prefix = Number(prefixText);
-      if (!Number.isInteger(prefix)) continue;
-      const logical = entry.unit === undefined ? entry.ifname : `${entry.ifname}.${entry.unit}`;
-      push({
-        destination: `${networkAddress(address, prefix)}/${prefix}`,
-        protocol: 'Direct',
-        preference: '0',
-        nextHop: `via ${logical}`,
-        age: '00:02:14',
-      });
-      push({
-        destination: `${address}/32`,
-        protocol: 'Local',
-        preference: '0',
-        nextHop: `Local via ${logical}`,
-        age: '00:02:14',
-      });
-    }
-
-    if (this.config.children.get('protocols')?.children.get('ospf')) {
-      const samples: Record<string, string[]> = {
-        R1: ['2.2.2.2/32', '3.3.3.3/32', '10.0.23.0/30'],
-        R2: ['1.1.1.1/32', '3.3.3.3/32', '10.0.10.0/24', '10.0.20.0/24'],
-        R3: ['1.1.1.1/32', '2.2.2.2/32', '10.0.12.0/30', '10.0.10.0/24', '10.0.20.0/24'],
-      };
-      for (const destination of samples[this.hostname] ?? []) {
-        push({
-          destination,
-          protocol: 'OSPF',
-          preference: '10',
-          nextHop: '> to 10.0.12.1 via ge-0/0/0.0',
-          age: '00:01:03',
-        });
-      }
-    }
-
-    const staticRoutes = this.config.children.get('routing-options')?.children.get('static')?.children;
-    staticRoutes?.forEach((route, segment) => {
-      if (!segment.startsWith('route ')) return;
-      const destination = segment.slice('route '.length).trim();
-      const nextHop = route.children.get('next-hop')?.value ?? 'discard';
-      push({
-        destination,
-        protocol: 'Static',
-        preference: '5',
-        nextHop: nextHop === 'discard' ? 'Discard' : `> to ${nextHop}`,
-        age: '00:00:18',
-      });
-    });
-
-    if (this.config.children.get('protocols')?.children.get('bgp')) {
-      push({
-        destination: '203.0.113.0/24',
-        protocol: 'BGP',
-        preference: '170',
-        nextHop: '> to 10.0.12.2 via ge-0/0/0.0',
-        age: '00:03:22',
-      });
-    }
-
-    return routes;
-  }
-
-  private showRoute(): string {
-    const routes = this.routes();
-    const lines = [
-      `inet.0: ${routes.length} destinations, ${routes.length} routes (${routes.length} active, 0 holddown, 0 hidden)`,
-      '+ = Active Route, - = Last Active, * = Both',
-      '',
-    ];
-    for (const route of routes) {
-      lines.push(`${route.destination.padEnd(20)} *[${route.protocol}/${route.preference}] ${route.age}`);
-      lines.push(`                    ${route.nextHop}`);
-    }
-    return lines.join(CRLF) + CRLF;
-  }
-
-  private showOspf(tokens: string[]): string {
-    if (!this.config.children.get('protocols')?.children.get('ospf')) {
-      return `OSPF is not configured.${CRLF}`;
-    }
-    const sub = (tokens[0] ?? 'neighbor').toLowerCase();
-    if (sub === 'neighbor' || sub === 'neighbors') {
-      return table(
-        ['Address', 'Interface', 'State', 'ID', 'Pri', 'Dead'],
-        [['10.0.12.2', 'ge-0/0/0.0', 'Full', '2.2.2.2', '128', '39']],
-      ).join(CRLF) + CRLF;
-    }
-    if (sub === 'interface') {
-      return table(
-        ['Interface', 'State', 'Area', 'DR', 'BDR'],
-        [
-          ['ge-0/0/0.0', 'DR', '0.0.0.0', '10.0.12.1', '10.0.12.2'],
-          ['lo0.0', 'Passive', '0.0.0.0', '0.0.0.0', '0.0.0.0'],
-        ],
-      ).join(CRLF) + CRLF;
-    }
-    return `OSPF overview: Router ID ${this.hostname === 'R2' ? '2.2.2.2' : this.hostname === 'R3' ? '3.3.3.3' : '1.1.1.1'}${CRLF}`;
-  }
-
-  private ping(tokens: string[]): string {
-    if (tokens.length === 0) return `% Incomplete command.${CRLF}`;
+  private ping(tokens: string[], root: ConfigNode): string[] | null {
+    if (tokens.length === 0) return ['% Incomplete command.'];
     const target = tokens[0];
     if (ipv4ToInt(target) === null) {
-      return `ping: cannot resolve ${target}: Unknown host${CRLF}`;
+      return [`ping: cannot resolve ${target}: Unknown host`];
     }
 
     let count = 5;
@@ -1064,18 +579,18 @@ export class JunosEngine {
       if (token === 'count') {
         const parsed = Number(tokens[index + 1]);
         if (!Number.isInteger(parsed) || parsed < 1 || parsed > 100) {
-          return `% Incomplete command.${CRLF}`;
+          return ['% Incomplete command.'];
         }
         count = parsed;
         index += 1;
       } else if (token === 'rapid' || token === 'source') {
         if (token === 'source') index += 1;
       } else {
-        return `% Unknown command: ping ${tokens.slice(1).join(' ')}${CRLF}`;
+        return null;
       }
     }
 
-    const local = this.interfaceEntries()
+    const local = collectInterfaces(root)
       .map((entry) => entry.address?.split('/')[0])
       .find((address) => address !== undefined && address === target);
 
@@ -1095,7 +610,41 @@ export class JunosEngine {
     lines.push(
       `round-trip min/avg/max/stddev = ${min.toFixed(3)}/${avg.toFixed(3)}/${max.toFixed(3)}/0.000 ms`,
     );
-    return lines.join(CRLF) + CRLF;
+    return lines;
+  }
+
+  private runOperational(raw: string): string {
+    const parsed = parseJunosCommand(raw);
+    const output = this.executeOperational(parsed, this.store.candidateRoot);
+    if (output !== null) return this.finish(output, parsed);
+    return `% Unknown command: ${parsed.tokens.join(' ')}${CRLF}`;
+  }
+
+  private resolveConfig(root: ConfigNode, segments: string[]): ConfigNode | null {
+    let node = root;
+    for (const segment of segments) {
+      const child = node.children.get(segment);
+      if (!child) return null;
+      node = child;
+    }
+    return node;
+  }
+
+  private helpConfiguration(): string {
+    return [
+      'Configuration commands:',
+      '  set <statement>              Add a configuration statement',
+      '  delete <statement>           Remove a configuration statement',
+      '  edit <path>                  Enter a configuration hierarchy',
+      '  up [n]                       Move up one or more levels',
+      '  top                          Return to the top of the configuration',
+      '  show                         Show the current hierarchy',
+      '  show | display set           Show the configuration as set commands',
+      '  show | compare               Compare candidate with active configuration',
+      '  run <command>                Run an operational command',
+      '  commit                       Commit the configuration',
+      '  exit                         Leave configuration mode',
+    ].join(CRLF) + CRLF;
   }
 
   private completeOperational(tokens: string[]): string {
@@ -1109,9 +658,7 @@ export class JunosEngine {
         if ('system'.startsWith(second)) return formatCompletions(SYSTEM_COMMANDS);
         if ('interfaces'.startsWith(second)) return formatCompletions(INTERFACE_COMMANDS);
         if ('route'.startsWith(second)) return formatCompletions(ROUTE_COMMANDS);
-        if ('ospf'.startsWith(second)) {
-          return formatCompletions(OSPF_COMMANDS);
-        }
+        if ('ospf'.startsWith(second)) return formatCompletions(OSPF_COMMANDS);
         if ('configuration'.startsWith(second)) {
           return formatCompletions([['| display set', 'Show configuration as set commands']]);
         }
@@ -1154,7 +701,7 @@ export class JunosEngine {
   }
 
   private completeConfiguration(tokens: string[]): string {
-    const current = this.currentNode();
+    const current = this.store.candidateAtCurrentPath();
     if (!current) return '';
 
     let node = current;
@@ -1169,7 +716,8 @@ export class JunosEngine {
     while (index < working.length) {
       const token = working[index];
       const exact = node.children.get(token);
-      const compound = index + 1 < working.length ? node.children.get(`${token} ${working[index + 1]}`) : undefined;
+      const compound =
+        index + 1 < working.length ? node.children.get(`${token} ${working[index + 1]}`) : undefined;
       if (exact) {
         node = exact;
         index += 1;
@@ -1189,7 +737,8 @@ export class JunosEngine {
       rows.push([segment, CONFIG_DESCRIPTIONS[segment] ?? CONFIG_DESCRIPTIONS[segment.split(' ')[0]] ?? '']);
     });
 
-    const currentSegment = this.editPathValue[this.editPathValue.length - 1] ?? '';
+    const path = this.store.configPathSegments();
+    const currentSegment = path[path.length - 1] ?? '';
     if (currentSegment.startsWith('unit ')) {
       rows.push(['description', 'Interface description']);
       rows.push(['vlan-id', '802.1Q VLAN ID']);
@@ -1204,7 +753,7 @@ export class JunosEngine {
       rows.push(['ge-0/0/0', 'WAN interface']);
       rows.push(['ge-0/0/1', 'LAN/trunk interface']);
       rows.push(['lo0', 'Loopback interface']);
-    } else if (this.editPathValue.length === 0 && !hadCommand) {
+    } else if (path.length === 0 && !hadCommand) {
       rows.push(['interfaces', 'Interface configuration']);
       rows.push(['protocols', 'Routing protocols']);
       rows.push(['routing-options', 'Routing options']);
@@ -1243,6 +792,12 @@ export class JunosEngineRegistry {
     const engine = this.engines.get(nodeId);
     if (!engine) return `% Console session unavailable.${CRLF}`;
     return engine.executeCommand(rawCmd);
+  }
+
+  async executeAsync(nodeId: string, rawCmd: string): Promise<string> {
+    const engine = this.engines.get(nodeId);
+    if (!engine) return `% Console session unavailable.${CRLF}`;
+    return engine.executeCommandAsync(rawCmd);
   }
 
   resetAll(): void {

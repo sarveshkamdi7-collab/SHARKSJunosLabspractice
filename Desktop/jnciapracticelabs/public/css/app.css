@@ -415,9 +415,9 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   .link-flow { animation: none; opacity: .4; }
 }
-.link-port-label { font-family: var(--mono); font-size: 10px; fill: var(--text-2); }
-.link-port-bg { fill: rgba(29, 29, 27, .96); stroke: var(--border); stroke-width: .6; }
-.link-label-bg { fill: rgba(29, 29, 27, .93); stroke: var(--border); stroke-width: .5; }
+.link-port-label { font-family: var(--mono); font-size: 10px; fill: var(--text-2); pointer-events: none; }
+.link-port-bg { fill: rgba(20, 20, 25, .85); stroke: var(--border); stroke-width: .6; pointer-events: none; }
+.link-label-bg { fill: rgba(29, 29, 27, .93); stroke: var(--border); stroke-width: .5; pointer-events: none; }
 .link-label-text { font-size: 9.5px; fill: var(--text-2); font-weight: 500; }
 
 /* nodes */
@@ -458,6 +458,18 @@ kbd {
 .node-sub {
   flex: 0 0 auto; max-width: 92px; font-size: 11px; color: var(--text-muted);
   padding: 0 2px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.node:not(.card-node) .node-card { display: block; }
+.node:not(.card-node) .node-icon {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+}
+.node:not(.card-node) .node-label {
+  position: absolute; left: 50%; top: calc(50% - 43px); transform: translate(-50%, -50%);
+  max-width: 124px; background: transparent;
+}
+.node:not(.card-node) .node-sub {
+  position: absolute; left: 50%; top: calc(50% + 41px); transform: translate(-50%, -50%);
+  max-width: 124px; font-size: 10px; opacity: .68;
 }
 .node.booting .node-icon { opacity: .72; }
 

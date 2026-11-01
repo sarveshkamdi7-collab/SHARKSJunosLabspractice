@@ -73,7 +73,7 @@
     if (!J._rts) J._rts = {};
     if (J._rts[key]) return J._rts[key];
     var spec = (lab && lab.deviceSpec) ? lab.deviceSpec(key) : null;
-    var bootAt = now() - (180000 + (J.hash ? (J.hash('b:' + key) % 900000) : Math.floor(Math.random() * 900000)));
+    var bootAt = now() - (180000 + (J.hash ? (J.hash('b:' + key) % 900000) : 0));
     var root = db.create(null);
     if (spec && Array.isArray(spec.baseline)) {
       for (var i = 0; i < spec.baseline.length; i++) { try { db.set(root, spec.baseline[i]); } catch (e) {} }
@@ -745,7 +745,7 @@
     if (ds && ds.arp) {
       for (var i = 0; i < ds.arp.length; i++) {
         var a = ds.arp[i];
-        out.push(padR(a.mac, 18) + padR(a.ip, 16) + padR(a.ip, 26) + padR(a.iface, 20) + ' none');
+        out.push(padR(a.mac, 18) + padR(a.ip, 16) + padR(a.name || a.ip, 26) + padR(a.iface, 20) + ' none');
         n++;
       }
     }
