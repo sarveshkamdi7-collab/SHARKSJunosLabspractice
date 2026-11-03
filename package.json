@@ -1,0 +1,19 @@
+{
+  "name": "sharklab-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SharkLab Studio - client-side Junos CLI engine",
+  "scripts": {
+    "test": "vitest run",
+    "test:parser": "vitest run src/junos/parser/",
+    "test:config": "vitest run src/junos/config/",
+    "test:engine": "vitest run src/junos/engine/",
+    "test:protocols": "vitest run src/junos/protocols/",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}
