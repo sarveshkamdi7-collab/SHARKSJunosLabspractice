@@ -183,7 +183,7 @@
     var rt = sess.rt || {}; var h = rt.key || 'R1';
     var u = sess.user || 'user';
     if (sess.mode === 'login') return 'login: ';
-    if (sess.mode === 'shell') return u + '@' + h + ':~ # ';
+    if (sess.mode === 'shell') return u + '@' + h + ':~ ' + (u === 'root' ? '# ' : '% ');
     if (sess.mode === 'cli-cfg') {
       var p = (sess.editPath && sess.editPath.length) ? sess.editPath.join(' ') : '';
       if (p) return '[edit ' + p + ']\n' + u + '@' + h + '# ';
@@ -715,21 +715,39 @@
     return out;
   }
 
+  function bgpUpTime(seconds) {
+    var total = Math.max(0, parseInt(seconds, 10) || 0);
+    var hours = Math.floor(total / 3600);
+    var mins = Math.floor((total % 3600) / 60);
+    var secs = total % 60;
+    function two(n) { return (n < 10 ? '0' : '') + n; }
+    return two(hours) + ':' + two(mins) + ':' + two(secs);
+  }
+
   function showBgpSummary(ds) {
     var out = [];
     var peers = (ds && ds.bgp && ds.bgp.peers) ? ds.bgp.peers : [];
     var groups = (ds && ds.bgp && ds.bgp.groups) ? ds.bgp.groups : [];
-    out.push('Groups: ' + groups.length + ' Peers: ' + peers.length + ' Down peers: 0');
-    out.push('Unconfigured peers: 0');
+    var paths = 0;
+    var routes = (ds && ds.routes) ? ds.routes : [];
+    for (var r = 0; r < routes.length; r++) if (routes[r].proto === 'BGP') paths++;
+    var down = 0;
+    for (var d = 0; d < peers.length; d++) {
+      var dsState = String(peers[d].state || 'Establ');
+      if (dsState === 'Idle' || dsState === 'Active') down++;
+    }
+    out.push('Threading mode: BGP multi-threaded');
+    out.push('Groups: ' + groups.length + ' Peers: ' + peers.length + ' Down peers: ' + down);
     out.push('Table          Tot Paths  Act Paths Suppressed  History Damp State    Pending');
-    out.push('inet.0                    0           0          0        0          0        0');
-    out.push('Peer                     AS      InPkt     OutPkt    OutQ   Flaps Last Up/Dwn');
-    out.push('State|#Active/Received/Accepted/Damped');
+    out.push(padR('inet.0', 15) + padL(String(paths), 10) + padL(String(paths), 11) + padL('0', 11) + padL('0', 9) + padL('0', 11) + padL('0', 11));
+    out.push('Peer                     AS      InPkt     OutPkt    OutQ   Flaps Last Up/Dwn State|#Active/Received/Accepted/Damped...');
     for (var i = 0; i < peers.length; i++) {
       var p = peers[i];
-      var state = p.state || 'Establ';
-      if (state === 'Idle') state = '#Idle/0/0/0/0';
-      out.push(padR(p.ip, 25) + padL(String(p.peerAs || '65000'), 7) + padL(String(p.inPkt || '68'), 10) + padL(String(p.outPkt || '68'), 10) + padL('0', 7) + padL('0', 7) + padL(String(p.upFor || '53'), 8) + ' ' + state);
+      var state = String(p.state || 'Establ');
+      if (state === 'Idle' || state === 'Active') state = state;
+      else state = 'Establ';
+      out.push(padR(p.ip, 25) + padL(String(p.peerAs || '65000'), 7) + padL(String(p.inPkt || '68'), 10) + padL(String(p.outPkt || '68'), 10) + padL(String(p.outQ || '0'), 7) + padL(String(p.flap || '0'), 7) + padL(bgpUpTime(p.upFor || '0'), 9) + ' ' + state);
+      if (state === 'Establ') out.push('  inet.0: ' + paths + '/' + paths + '/' + paths + '/0');
     }
     return out;
   }
@@ -1008,27 +1026,50 @@
     return out;
   }
 
+  function bfdIfaceLabel(iface) {
+    var label = String(iface || '-');
+    if (label !== '-' && label.indexOf('.') < 0) return label + '.0';
+    return label;
+  }
+
+  function bfdSeconds(ms) {
+    return ((parseInt(ms, 10) || 0) / 1000).toFixed(3);
+  }
+
   function showBfdSession(ds, rt, wantDetail) {
     var ss = bfdSessions(ds, rt);
     if (!ss.length) return [];
     var out = [];
-    if (wantDetail) {
-      for (var i = 0; i < ss.length; i++) {
-        var s = ss[i];
-        var seed = detBig(rt.key + ':bfd:' + s.addr);
-        out.push('Address ' + s.addr + ', State ' + s.state + ', Interface ' + s.iface);
-        out.push('  Client: ' + s.client + ', Examined: 0, Sessions: 1');
-        out.push('  Local discr ' + (1000 + seed % 800) + ', Remote discr ' + (1000 + detBig(s.addr + ':r') % 800) + ', Min interval ' + s.min + 'ms, Multiplier ' + s.mult);
-        out.push('  Min Tx interval ' + s.min + 'ms, Min Rx interval ' + s.min + 'ms');
-        out.push('');
-      }
-      return out;
-    }
     out.push('                                               Detect   Transmit');
-    out.push('Address          State     Interface      Interval     Interval   Multiplier');
+    out.push('Address                  State     Interface      Time     Interval  Multiplier');
+    var rows = [];
     for (var j = 0; j < ss.length; j++) {
       var r = ss[j];
-      out.push(padR(r.addr, 17) + padR(r.state, 10) + padR(r.iface, 15) + padL(String(r.min), 9) + padL(String(r.min), 11) + padL(String(r.mult), 12));
+      var iface = bfdIfaceLabel(r.iface);
+      var tx = bfdSeconds(r.min);
+      var detect = bfdSeconds((parseInt(r.min, 10) || 0) * (parseInt(r.mult, 10) || 3));
+      rows.push({ session: r, iface: iface, tx: tx, detect: detect });
+      out.push(padR(r.addr, 25) + padR(r.state, 10) + padR(iface, 15) + padL(detect, 8) + padL(tx, 11) + padL(String(r.mult), 12));
+    }
+    if (!wantDetail) return out;
+
+    out.push('');
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      var s = row.session;
+      var seed = detBig(rt.key + ':bfd:' + s.addr);
+      out.push(' Client ' + s.client + ', TX interval ' + row.tx + ', RX interval ' + row.tx);
+      out.push(' Session up time 00:03:44');
+      out.push(' Local diagnostic None, remote diagnostic None');
+      out.push(' Remote state ' + s.state + ', version 1');
+      out.push(' Logical interface ' + row.iface);
+      out.push('  Session type: Single hop BFD');
+      out.push('  Min async interval ' + row.tx + ', min slow interval 1.000');
+      out.push('  Adaptive async TX interval ' + row.tx + ', RX interval ' + row.tx);
+      out.push('  Local async TX interval ' + row.tx + ', RX interval ' + row.tx);
+      out.push('  Local discriminator ' + (1000 + seed % 800) + ', remote discriminator ' + (1000 + detBig(s.addr + ':r') % 800));
+      out.push('  Multiplier ' + s.mult);
+      out.push('');
     }
     return out;
   }
@@ -2126,9 +2167,12 @@
     if (dst === null) {
       return { lines: ['ping: invalid destination address'] };
     }
+    if (String(dst).indexOf('/') >= 0) {
+      return { lines: ['ping: cannot resolve ' + dst + ': Host name lookup failure'] };
+    }
     var target = findTarget(world, dst);
     if (!target) {
-      return { lines: ['ping: unknown host ' + dst] };
+      return { lines: ['ping: cannot resolve ' + dst + ': Host name lookup failure'] };
     }
     var res = net.pingDev(world, rt.key, target.ip, src);
     var lines = ['PING ' + target.ip + ' (' + target.ip + '): 56 data bytes'];
@@ -2171,8 +2215,11 @@
       if (args[i] !== 'as-number-lookup' && dst === null) dst = args[i];
     }
     if (dst === null) return { lines: ['traceroute: invalid destination address'] };
+    if (String(dst).indexOf('/') >= 0) {
+      return { lines: ['traceroute: cannot resolve ' + dst + ': Host name lookup failure'] };
+    }
     var target = findTarget(world, dst);
-    if (!target) return { lines: ['traceroute: unknown host ' + dst] };
+    if (!target) return { lines: ['traceroute: cannot resolve ' + dst + ': Host name lookup failure'] };
     var res = net.tracePath(world, rt.key, target.ip);
     var lines = ['traceroute to ' + target.ip + ' (' + target.ip + '), 30 hops max, 40 byte packets'];
     if (res.ok) {
@@ -2516,7 +2563,7 @@
 
   function shellHelp(sess) {
     return ['Junos shell command simulation: commands available:',
-      '  cat, cd, cli, date, df, exit, help, hostname, logout, ls, ps, pwd, quit, reboot, uname, uptime, whoami'];
+      '  cat, cd, cli, date, df, exit, help, hostname, ifconfig, logout, ls, netstat, ping, ps, pwd, quit, reboot, traceroute, uname, uptime, whoami'];
   }
 
   var SHELL_LEAF = ['calendar', 'cli', 'help', 'logout', 'quit'];
@@ -2524,7 +2571,7 @@
   var HOME_FILES = ['.cshrc', '.history', 'README.md', 'robust-a.config', 'robust-b.config', 'var/'];
   var SHELL_TREE = {
     '/': ['bin/', 'boot/', 'config/', 'dev/', 'etc/', 'home/', 'kernel/', 'opt/', 'packages/', 'root/', 'tmp/', 'usr/', 'var/'],
-    '/bin': ['cat', 'csh', 'ls', 'ps', 'pwd', 'reboot', 'sh'],
+    '/bin': ['cat', 'csh', 'ifconfig', 'ls', 'netstat', 'ping', 'ps', 'pwd', 'reboot', 'sh', 'traceroute'],
     '/boot': ['kernel-010/'],
     '/config': ['juniper.conf', 'temporary.conf'],
     '/dev': ['ttyd0'],
@@ -2582,12 +2629,82 @@
     return null;
   }
 
+  function shellPingArgs(toks) {
+    var args = [];
+    for (var i = 1; i < toks.length; i++) {
+      var a = toks[i];
+      if (a === '-c' && toks[i + 1]) { args.push('count', toks[i + 1]); i++; continue; }
+      if (/^-\d+$/.test(a)) { args.push('count', a.slice(1)); continue; }
+      if (a.charAt(0) === '-') continue;
+      args.push(a);
+    }
+    return args;
+  }
+
+  function shellIfconfig(sess, toks) {
+    var ds = sess.world && sess.world.devices[sess.rt.key];
+    if (!ds) return { lines: ['ifconfig: no interfaces'] };
+    var only = null;
+    for (var a = 1; a < toks.length; a++) if (toks[a].charAt(0) !== '-') { only = toks[a]; break; }
+    var names = (ds.iflist || Object.keys(ds.interfaces || {})).slice();
+    if (only) {
+      var resolved = resolveIfname(ds, only);
+      if (!resolved) return { lines: ['ifconfig: interface ' + only + ' does not exist'] };
+      names = [resolved];
+    }
+    var out = [];
+    for (var n = 0; n < names.length; n++) {
+      var ifc = ds.interfaces[names[n]];
+      if (!ifc) continue;
+      var flags = ['UP', 'BROADCAST', 'RUNNING', 'SIMPLEX', 'MULTICAST'];
+      if (ifc.kind === 'lo') flags.push('LOOPBACK');
+      if (ifc.kind === 'mgmt') flags.push('NOARP');
+      out.push(ifc.name + ': flags=3c03<' + flags.join(',') + '> mtu ' + (ifc.mtu || 1514));
+      out.push('        ether ' + ifc.mac);
+      var units = ifc.unilist || [];
+      for (var u = 0; u < units.length; u++) {
+        for (var ad = 0; ad < units[u].addrs.length; ad++) {
+          out.push('        inet ' + units[u].addrs[ad]);
+        }
+      }
+    }
+    return { lines: out };
+  }
+
+  function shellNetstat(sess, toks) {
+    var ds = sess.world && sess.world.devices[sess.rt.key];
+    if (!ds) return { lines: ['netstat: no routing tables'] };
+    var flags = toks.slice(1).join(' ');
+    if (flags.indexOf('r') >= 0) {
+      var out = ['Routing tables', '', 'Internet:', 'Destination        Gateway            Flags      Netif Expire'];
+      var routes = ds.routes || [];
+      for (var i = 0; i < routes.length; i++) {
+        var r = routes[i];
+        var netif = String(r.via || '-').split('.')[0];
+        out.push(padR(r.dest, 19) + padR(r.to || String(r.via || '-').split('.')[0] || '-', 19) + padR('U' + (r.to ? 'GS' : 'c'), 11) + netif);
+      }
+      return { lines: out };
+    }
+    if (flags.indexOf('i') >= 0) {
+      var lines = ['Name    Mtu   Network       Address            Ipkts Ierrs    Opkts Oerrs  Coll'];
+      var names = ds.iflist || Object.keys(ds.interfaces || {});
+      for (var n = 0; n < names.length; n++) {
+        var ifc = ds.interfaces[names[n]];
+        if (!ifc) continue;
+        lines.push(padR(ifc.name, 8) + padL(String(ifc.mtu || 1514), 6) + '   <Link>        ' + padR(ifc.mac || '-', 19) + ' 0     0        0     0     0');
+      }
+      return { lines: lines };
+    }
+    return { lines: ['Active Internet connections', 'Proto Recv-Q Send-Q  Local Address          Foreign Address        (state)', 'tcp4       0      0  ' + (sess.rt.key.toLowerCase()) + '.ssh     *.*                    LISTEN'] };
+  }
+
   function shellCmd(sess, line) {
     var toks = tokenize(line);
     if (!toks.length) return { lines: [] };
     var w = toks[0];
     var rt = sess.rt;
     var cwd = sess.cwd || '/root';
+    if (w === 'start' && toks[1] === 'shell') return { lines: [] };
     if (w === 'cli') { sess.mode = 'cli-op'; return { lines: [], mode: 'cli-op' }; }
     if (w === 'pwd') return { lines: [cwd] };
     if (w === 'cd') {
@@ -2632,6 +2749,19 @@
     }
     if (w === 'ps') return { lines: showSystemProcess() };
     if (w === 'df') return { lines: showSystemStorage() };
+    if (w === 'ifconfig') return shellIfconfig(sess, toks);
+    if (w === 'netstat') return shellNetstat(sess, toks);
+    if (w === 'ping') {
+      var pingArgs = shellPingArgs(toks);
+      if (!pingArgs.length) return { lines: ['usage: ping [-c count] host'] };
+      return opPing(sess, pingArgs, sess.world);
+    }
+    if (w === 'traceroute') {
+      var trArgs = [];
+      for (var ta = 1; ta < toks.length; ta++) if (toks[ta].charAt(0) !== '-') trArgs.push(toks[ta]);
+      if (!trArgs.length) return { lines: ['usage: traceroute host'] };
+      return opTraceroute(sess, trArgs, sess.world);
+    }
     if (w === 'reboot') {
       syslogPush(rt, 'kernel: reboot initiated by ' + (sess.user || 'root'));
       return { lines: ['reboot: shutting down now'], reboot: true };
@@ -2707,7 +2837,7 @@
         continue;
       }
       if (/^(co|cou|coun|count)$/.test(f)) {
-        return [String(out.length)];
+        return ['Count: ' + out.length + ' lines'];
       }
       if (/^(la|las|last)$/.test(f)) {
         out = out.slice(-Math.max(0, parseInt(pipeToks[i + 1], 10) || 0));
@@ -2757,11 +2887,14 @@
 
   // ---------- operational dispatcher ----------
 
-  function runOp(sess, line) {    var world = sess.world;
+  function runOp(sess, line, fromConfig) {    var world = sess.world;
     var rt = sess.rt;
     var sp = splitPipe(tokenize(line));
     var main = sp.main, pipeToks = sp.pipe;
     if (!main.length) return { lines: [] };
+    if (!fromConfig && String(main[0]).toLowerCase() === 'run') {
+      return errCaret(sess, line, 0, '^ syntax error');
+    }
     var ds = world.devices[rt.key];
 
     var args = {};
@@ -4010,7 +4143,7 @@
       case 'show': return cfgShow(sess, rest, pipe);
       case 'commit': return cfgCommit(sess, rest);
       case 'rollback': return cfgRollback(sess, rest);
-      case 'run': return runOp(sess, rest.join(' '));
+      case 'run': return runOp(sess, rest.join(' '), true);
       case 'status': return { lines: cfgStatus(sess) };
       case 'exit': return cfgExit(sess);
       case 'quit': return cfgLeave(sess);
@@ -4057,7 +4190,7 @@
     var words = (parts || []).map(String);
 
     if (mode === 'shell') {
-      var sh = SHELL_LEAF.concat(['cat', 'cd', 'date', 'df', 'dir', 'exit', 'hostname', 'less', 'ls', 'more', 'ps', 'pwd', 'reboot', 'uname', 'uptime', 'whoami']);
+      var sh = SHELL_LEAF.concat(['cat', 'cd', 'date', 'df', 'dir', 'exit', 'hostname', 'ifconfig', 'less', 'ls', 'more', 'netstat', 'ping', 'ps', 'pwd', 'reboot', 'traceroute', 'uname', 'uptime', 'whoami']);
       sh = sh.filter(function (x, idx) { return sh.indexOf(x) === idx; });
       sh.sort(J.cmpTokens);
       if (!trailing && words.length) {

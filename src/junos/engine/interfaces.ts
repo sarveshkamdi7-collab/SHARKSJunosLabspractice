@@ -88,6 +88,9 @@ export class InterfaceEngine {
         if (!names.includes(name)) names.push(name);
       }
     }
+    if (this.profile.managementInterface && !names.includes(this.profile.managementInterface)) {
+      names.push(this.profile.managementInterface);
+    }
     if (!names.includes('lo0')) names.push('lo0');
 
     const interfaces: DeviceInterface[] = [];

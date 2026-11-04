@@ -161,7 +161,7 @@
         { name: 'Host-A', template: 'ubuntu' }, { name: 'Host-B', template: 'vpcs' }
       ],
       topology: [
-        { a: 'R1', ap: 'ge-0/0/0', b: 'R2', bp: 'ge-0/0/0', label: '10.0.12.0/30, AS65001 ↔ AS65002' },
+        { a: 'R1', ap: 'ge-0/0/0', b: 'R2', bp: 'ge-0/0/0', label: '192.168.12.0/30, AS65001 <-> AS65002' },
         { a: 'R1', ap: 'ge-0/0/1', b: 'Host-A', bp: 'eth0', label: '192.168.10.0/24' },
         { a: 'R2', ap: 'ge-0/0/1', b: 'Host-B', bp: 'eth0', label: '192.168.20.0/24' }
       ],
@@ -173,7 +173,7 @@
         R1: [
           'set system host-name R1',
           'set interfaces ge-0/0/0 description LINK-TO-R2-AS65002',
-          'set interfaces ge-0/0/0 unit 0 family inet address 10.0.12.1/30',
+          'set interfaces ge-0/0/0 unit 0 family inet address 192.168.12.1/30',
           'set interfaces ge-0/0/1 description HOST-LAN-A',
           'set interfaces ge-0/0/1 unit 0 family inet address 192.168.10.1/24',
           'set interfaces lo0 unit 0 family inet address 1.1.1.1/32',
@@ -182,7 +182,7 @@
           'set protocols bgp group EBGP type external',
           'set protocols bgp group EBGP bfd-liveness-detection minimum-interval 300',
           'set protocols bgp group EBGP bfd-liveness-detection multiplier 3',
-          'set protocols bgp group EBGP neighbor 10.0.12.2 peer-as 65002',
+          'set protocols bgp group EBGP neighbor 192.168.12.2 peer-as 65002',
           'set policy-options policy-statement EXPORT-CONNECTED term DIRECT from protocol direct',
           'set protocols bgp group EBGP export EXPORT-CONNECTED',
           'set policy-options policy-statement EXPORT-STATIC term ST1 from protocol static',
@@ -191,7 +191,7 @@
         R2: [
           'set system host-name R2',
           'set interfaces ge-0/0/0 description LINK-TO-R1-AS65001',
-          'set interfaces ge-0/0/0 unit 0 family inet address 10.0.12.2/30',
+          'set interfaces ge-0/0/0 unit 0 family inet address 192.168.12.2/30',
           'set interfaces ge-0/0/1 description HOST-LAN-B',
           'set interfaces ge-0/0/1 unit 0 family inet address 192.168.20.1/24',
           'set interfaces lo0 unit 0 family inet address 2.2.2.2/32',
@@ -200,7 +200,7 @@
           'set protocols bgp group EBGP type external',
           'set protocols bgp group EBGP bfd-liveness-detection minimum-interval 300',
           'set protocols bgp group EBGP bfd-liveness-detection multiplier 3',
-          'set protocols bgp group EBGP neighbor 10.0.12.1 peer-as 65001',
+          'set protocols bgp group EBGP neighbor 192.168.12.1 peer-as 65001',
           'set policy-options policy-statement EXPORT-CONNECTED term DIRECT from protocol direct',
           'set protocols bgp group EBGP export EXPORT-CONNECTED',
           'set policy-options policy-statement EXPORT-STATIC term ST1 from protocol static',

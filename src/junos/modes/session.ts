@@ -133,7 +133,9 @@ export class JunosSession {
   prompt(): string {
     const user = this.username || 'root';
     if (this.mode === 'login') return 'login: ';
-    if (this.mode === 'shell') return `${user}@${this.hostname}:~ # `;
+    if (this.mode === 'shell') {
+      return `${user}@${this.hostname}:~ ${user === 'root' ? '#' : '%'} `;
+    }
     if (this.mode === 'operational') return `${user}@${this.hostname}> `;
     const context = this.editPath.length ? this.editPath.join(' ') : '';
     return `[edit${context ? ` ${context}` : ''}]\n${user}@${this.hostname}# `;
@@ -176,6 +178,9 @@ export class JunosSession {
     }
 
     if (this.mode === 'operational') {
+      if (/^run(?:\s|$)/i.test(trimmed)) {
+        return formatCaretError(line, 0, ERRORS.syntax);
+      }
       if (trimmed === 'configure' || trimmed === 'edit') {
         this.setMode('configure');
         this.editPath = [];
@@ -188,6 +193,17 @@ export class JunosSession {
     }
 
     if (this.mode === 'configure' || this.mode === 'config-nested') {
+      if (/^run(?:\s|$)/i.test(trimmed)) {
+        const operational = trimmed.replace(/^run\s*/i, '');
+        if (!operational) return formatCaretError(line, line.length, ERRORS.syntax);
+        const savedMode = this.mode;
+        this.mode = 'operational';
+        try {
+          return this.dispatch(operational, operational);
+        } finally {
+          this.mode = savedMode;
+        }
+      }
       const handled = this.processConfigBuiltin(trimmed);
       if (handled !== undefined) return handled;
     }
@@ -196,6 +212,9 @@ export class JunosSession {
   }
 
   private processShell(line: string): string {
+    if (line === 'start shell') {
+      return '';
+    }
     if (line === 'cli') {
       this.setMode('operational');
       return '';

@@ -4,6 +4,6 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['src/junos/**/*.test.ts'],
+    include: ['src/junos/**/*.test.ts', 'tests/**/*.test.ts'],
   },
 });

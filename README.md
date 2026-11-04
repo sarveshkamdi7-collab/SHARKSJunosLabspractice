@@ -140,19 +140,21 @@ Then open <http://localhost:3000>.
 <p align="center"><img src="assets/tests.svg" width="520" alt="Engine tests 13 of 13, command coverage 68 of 68, BGP probe 0 failures"></p>
 
 ```bash
+npm test                       # TypeScript engine suite (repository root)
 cd Desktop/jnciapracticelabs
-npm test
+npm test                       # browser-engine probes
 ```
 
 | Probe | Command | What it covers | Result |
 |:--|:--|:--|--:|
-| Engine suite | `npm test` | Loads the engine into a Node VM and checks prompts, session flow, config semantics, derived state, `show \| compare`, `commit check`, `commit confirmed` | 13 / 13 |
+| TypeScript engine | `npm test` (repo root) | Lexer and prefix expansion, configuration tree, commit/rollback, interfaces, RIB, OSPF and the CLI audit suite | 118 / 118 |
+| Desktop engine | `npm test` (in `Desktop/jnciapracticelabs`) | Loads the browser engine into a Node VM and checks prompts, session flow, config semantics, derived state, `show \| compare`, `commit check`, `commit confirmed` | 13 / 13 |
 | CLI fidelity | `npm run test:cli` | Hierarchy navigation, `edit`/`up`/`exit`/`quit`, commit and rollback history, exact `show \| compare` diffs, terse/detail/route/ARP formats, chained pipes | 63 / 63 |
 | Smoke run | `npm run test:smoke` | Boot to login, CLI entry, routing, switching, ping and trace across the default lab | all pass |
 | Command coverage | `npm run test:coverage` | Every command named in the reference guide must dispatch without an unknown or syntax error | 68 / 68 |
 | BGP probe | `npm run test:bgp` | EBGP preset configs produce the expected session, route and policy output on both peers | 0 failures |
 
-All five run without a browser and exit non-zero on failure, so they work as a pre-commit gate.
+All probes run without a browser and exit non-zero on failure, so they work as a pre-commit gate.
 
 ## How the engine works
 

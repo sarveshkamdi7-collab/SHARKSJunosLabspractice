@@ -166,35 +166,34 @@ builder (perfect column alignment like Junos output).</p>
       <code>+/-/!</code> markers exactly like Junos diffs.</li>
 </ul>
 
-<h1>4. Work in progress &mdash; next delivery items</h1>
+<h1>4. Delivered browser lab items</h1>
 <table>
 <tr><th style="width:105px">Status</th><th>Item</th><th>Fulfills</th></tr>
-<tr><td><span class="tag wip">IN&nbsp;PROGRESS</span></td><td><b>Junos CLI machine</b> (<code>public/js/junos/machine.js</code>): per-device runtime (committed config + candidate + revisions + commit log), session lifecycle (boot messages, <code>login:</code>, root shell <code>root@R1:~ #</code>, <code>cli</code>), operational-mode grammar with exact Junos <code>show/ping/traceroute/monitor/request/.../</code> outputs from Section 4 of the Requirements doc, config-mode grammar (<code>set/delete/.../commit/rollback</code>) with schema validation, completions (<code>?</code>/Tab), pipes, error strings and <code>---(more)&#8203;---</code> pagination semantics.</td><td>R-01&ndash;R-07, R-15, R-16</td></tr>
-<tr><td><span class="tag wip">IN&nbsp;PROGRESS</span></td><td><b>Terminal widget</b> (<code>public/js/ui/console.js</code>): black-on-white GNS3 telnet-style rendering, char-level editing (arrows, backspace, insertion), history, <code>?</code>/Tab behavior identical to Junos, pager interaction (space / b / q / ?), Ctrl+C abort.</td><td>R-04, R-10</td></tr>
-<tr><td><span class="tag wip">IN&nbsp;PROGRESS</span></td><td><b>GNS3-like shell</b> (<code>public/js/ui/app.js</code> + <code>public/css/app.css</code> + <code>public/index.html</code>): menu bar, GNS3 toolbar, dark topology canvas with draggable router/switch/PC icons, link lines + optional subnet labels, node context menus (Start/Stop/Reload/Console), console windows titled like <code>R1 - telnet://127.0.0.1:5000</code>, Console Manager, right dock Topology Summary & Servers Summary, status bar, zoom/pan/grid/view toggles, GNS3-like project save/open (localStorage persistence), Admin dialogs (About).</td><td>R-09&ndash;R-13</td></tr>
-<tr><td><span class="tag plan">PLANNED</span></td><td><b>VPCS host console</b> (<code>public/js/ui/vpcs.js</code>): <code>Host-A></code> prompt and VPCS-style <code>ping/trace/show/show ip/show arp/clear/help/quit</code> output for devices other than Junos.</td><td>R-08</td></tr>
-<tr><td><span class="tag plan">PLANNED</span></td><td><b>Test suite</b> (<code>tests/run-tests.js</code>): engine + CLI-machine checks (config render, commit/rollback, OSPF/ARP/route outputs, ping scenarios, exact error strings).</td><td>R-14 (A10)</td></tr>
+<tr><td><span class="tag done">IMPLEMENTED</span></td><td><b>Junos CLI machine</b> (<code>public/js/junos/machine.js</code>): per-device runtime (committed config + candidate + revisions + commit log), session lifecycle (boot messages, <code>login:</code>, root shell <code>root@R1:~ #</code>, <code>cli</code>), operational-mode grammar with exact Junos <code>show/ping/traceroute/monitor/request/.../</code> outputs from Section 4 of the Requirements doc, config-mode grammar (<code>set/delete/.../commit/rollback</code>) with schema validation, completions (<code>?</code>/Tab), pipes, error strings and <code>---(more)&#8203;---</code> pagination semantics.</td><td>R-01&ndash;R-07, R-15, R-16</td></tr>
+<tr><td><span class="tag done">IMPLEMENTED</span></td><td><b>Terminal widget</b> (<code>public/js/ui/console.js</code>): black-on-white GNS3 telnet-style rendering, char-level editing (arrows, backspace, insertion), history, <code>?</code>/Tab behavior identical to Junos, pager interaction (space / b / q / ?), Ctrl+C abort.</td><td>R-04, R-10</td></tr>
+<tr><td><span class="tag done">IMPLEMENTED</span></td><td><b>GNS3-like shell</b> (<code>public/js/ui/app.js</code> + <code>public/css/app.css</code> + <code>public/index.html</code>): menu bar, GNS3 toolbar, dark topology canvas with draggable router/switch/PC icons, link lines + optional subnet labels, node context menus (Start/Stop/Reload/Console), console windows titled like <code>R1 - telnet://127.0.0.1:5000</code>, Console Manager, right dock Topology Summary & Servers Summary, status bar, zoom/pan/grid/view toggles, GNS3-like project save/open (localStorage persistence), Admin dialogs (About).</td><td>R-09&ndash;R-13</td></tr>
+<tr><td><span class="tag done">IMPLEMENTED</span></td><td><b>VPCS host console</b> (<code>public/js/ui/vpcs.js</code>): <code>Host-A></code> prompt and VPCS-style <code>ping/trace/show/show ip/show arp/clear/help/quit</code> output for devices other than Junos.</td><td>R-08</td></tr>
+<tr><td><span class="tag done">IMPLEMENTED</span></td><td><b>Test suite</b> (<code>tests/run-tests.js</code>): engine + CLI-machine checks (config render, commit/rollback, OSPF/ARP/route outputs, ping scenarios, exact error strings).</td><td>R-14 (A10)</td></tr>
 </table>
 
-<h1>5. How to run what exists today</h1>
-<pre>cd C:\Users\HP\jnciapracticelabs
+<h1>5. How to run the lab</h1>
+<pre>cd Desktop\jnciapracticelabs
 START-WINDOWS.bat         (or:  npm start  /  node server\server.js)
 # then open http://localhost:3000</pre>
-<p>The server and engine modules run today; the browser console experience arrives with the
-CLI machine + UI items listed in Section 4, built strictly to the exact-output references
-pinned in the Requirements document.</p>
+<p>The browser lab is complete: boot, consoles, commit workflow, routing, switching, security,
+VPCS hosts and all test probes run offline with no package installation.</p>
 
 <h1>6. Requirement traceability snapshot</h1>
 <table>
 <tr><th>ID (Needs doc)</th><th>State today</th></tr>
-<tr><td>R-01 / R-02 / R-03 (Junos-exact behavior and output)</td><td>Engine substrate complete (models, config DB, exact rendering primitives, runtime state); full CLI surface being built now in <code>machine.js</code>.</td></tr>
-<tr><td>R-04..R-07 (CLI behavior, config workflow, EX output, console flow)</td><td>Rendering/diff/compare layers ready; grammar + session machine in progress; SW1 EX-family tables derive already (VLANs, MAC table, STP).</td></tr>
-<tr><td>R-08 (VPCS hosts)</td><td>Planned (the general machine infrastructure is needed first).</td></tr>
-<tr><td>R-09..R-11 (GNS3 UI + lifecycle)</td><td>UI shell in progress; lifecycle actions will operate on the runtime registry.</td></tr>
+<tr><td>R-01 / R-02 / R-03 (Junos-exact behavior and output)</td><td><span class="tag done">IMPLEMENTED</span> across <code>machine.js</code>, <code>derive.js</code> and the configuration tree, with exact-output probes in <code>tests/</code>.</td></tr>
+<tr><td>R-04..R-07 (CLI behavior, config workflow, EX output, console flow)</td><td><span class="tag done">IMPLEMENTED</span>: session machine, config workflow, EX-family tables, terminal editing and paging.</td></tr>
+<tr><td>R-08 (VPCS hosts)</td><td><span class="tag done">IMPLEMENTED</span> in <code>public/js/ui/vpcs.js</code> with host ping/trace, ARP and addressing commands.</td></tr>
+<tr><td>R-09..R-11 (GNS3 UI + lifecycle)</td><td><span class="tag done">IMPLEMENTED</span>: workbench, console manager, node lifecycle and project persistence.</td></tr>
 <tr><td>R-12 (topology inventory)</td><td><span class="tag done">IMPLEMENTED</span> in <code>model.js</code>; canvas depiction follows with the UI.</td></tr>
-<tr><td>R-13 (persistence)</td><td>Design ready (runtime serialization format in engine); persistence wiring ships with <code>machine.js</code> project layer + UI project save.</td></tr>
+<tr><td>R-13 (persistence)</td><td><span class="tag done">IMPLEMENTED</span>: project save/open/import/export and localStorage snapshots.</td></tr>
 <tr><td>R-14 (offline, zero deps)</td><td><span class="tag done">IMPLEMENTED</span>.</td></tr>
-<tr><td>R-15 / R-16 (interpretability, administration commands)</td><td>Resolution engine ready (ping/traceroute); admin commands arrive with the CLI grammar.</td></tr>
+<tr><td>R-15 / R-16 (interpretability, administration commands)</td><td><span class="tag done">IMPLEMENTED</span>: ping/traceroute resolution plus operational and administrative command surface.</td></tr>
 </table>
 
 </body>

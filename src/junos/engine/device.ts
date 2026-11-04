@@ -43,6 +43,12 @@ function formatDuration(ms: number): string {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
+function isIPv4Address(value: string): boolean {
+  const parts = value.split('.');
+  if (parts.length !== 4) return false;
+  return parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255);
+}
+
 export class JunosDevice {
   readonly name: string;
   readonly profile: DeviceProfile;
@@ -347,15 +353,19 @@ export class JunosDevice {
 
     const pingCommand: CommandDefinition = {
       path: ['ping'],
-      modes: ['operational'],
+      modes: ['operational', 'shell'],
       help: 'Ping a host',
       args: [
-        { name: 'host', required: true, type: 'ipv4' },
+        { name: 'host', required: true },
         { name: 'count', required: false, type: 'number' },
       ],
       handler: (ctx) => {
         const target = ctx.args[0];
-        const count = ctx.args[1] === undefined ? 5 : Number(ctx.args[1]);
+        if (target.includes('/') || !isIPv4Address(target)) {
+          return [`ping: cannot resolve ${target}: Host name lookup failure`];
+        }
+        const rawCount = ctx.flags.c ?? ctx.flags.count ?? ctx.args[1];
+        const count = rawCount === undefined || rawCount === true ? 5 : Number(rawCount);
         if (!this.network) {
           return [
             `PING ${target} (${target}): 56 data bytes`,
@@ -370,15 +380,96 @@ export class JunosDevice {
 
     const tracerouteCommand: CommandDefinition = {
       path: ['traceroute'],
-      modes: ['operational'],
+      modes: ['operational', 'shell'],
       help: 'Trace a route to a host',
-      args: [{ name: 'host', required: true, type: 'ipv4' }],
+      args: [{ name: 'host', required: true }],
       handler: (ctx) => {
         const target = ctx.args[0];
+        if (target.includes('/') || !isIPv4Address(target)) {
+          return [`traceroute: cannot resolve ${target}: Host name lookup failure`];
+        }
         if (!this.network) {
           return ['traceroute: sendto: No route to host'];
         }
         return this.network.traceroute(this, target);
+      },
+    };
+
+    const startShellCommand: CommandDefinition = {
+      path: ['start', 'shell'],
+      modes: ['operational'],
+      help: 'Start the FreeBSD shell',
+      handler: (ctx) => {
+        ctx.session.setMode('shell');
+        return [];
+      },
+    };
+
+    const ifconfigCommand: CommandDefinition = {
+      path: ['ifconfig'],
+      modes: ['shell'],
+      help: 'Show shell interface configuration',
+      args: [{ name: 'interface', required: false }],
+      handler: (ctx) => {
+        this.refresh();
+        const wanted = ctx.args[0];
+        const found = wanted ? this.interfaces.find(wanted) : undefined;
+        if (wanted && !found) return [`ifconfig: interface ${wanted} does not exist`];
+        const list = found ? [found.intf] : this.interfaces.all();
+        const lines: string[] = [];
+        for (const intf of list) {
+          const flags = ['UP', 'BROADCAST', 'RUNNING', 'SIMPLEX', 'MULTICAST'];
+          lines.push(`${intf.name}: flags=3c03<${flags.join(',')}> mtu ${intf.mtu}`);
+          lines.push(`        ether ${intf.mac}`);
+          for (const unit of intf.units) {
+            for (const address of unit.addresses) {
+              lines.push(`        inet ${address.address}/${address.prefix}`);
+            }
+          }
+        }
+        return lines;
+      },
+    };
+
+    const netstatCommand: CommandDefinition = {
+      path: ['netstat'],
+      modes: ['shell'],
+      help: 'Show shell routing and socket information',
+      args: [{ name: 'option', required: false, variadic: true }],
+      handler: (ctx) => {
+        this.refresh();
+        const flags = Object.keys(ctx.flags).join('');
+        if (flags.includes('r')) {
+          const lines = [
+            'Routing tables',
+            '',
+            'Internet:',
+            'Destination        Gateway            Flags      Netif Expire',
+          ];
+          for (const route of this.rib.routes) {
+            const netif = (route.interfaceName ?? '-').split('.')[0];
+            lines.push(
+              `${route.destination.padEnd(19)}${(route.nextHop ?? netif).padEnd(19)}${'U'.padEnd(11)}${netif}`,
+            );
+          }
+          return lines;
+        }
+        if (flags.includes('i')) {
+          const lines = [
+            'Name    Mtu   Network       Address            Ipkts Ierrs    Opkts Oerrs  Coll',
+          ];
+          for (const intf of this.interfaces.all()) {
+            lines.push(
+              `${intf.name.padEnd(8)}${String(intf.mtu).padStart(6)}   <Link>        ${intf.mac.padEnd(19)} 0     0        0     0     0`,
+            );
+          }
+          return lines;
+        }
+        return [
+          'Active Internet connections',
+          'Proto Recv-Q Send-Q  Local Address          Foreign Address        (state)',
+          `tcp4       0      0  ${this.name.toLowerCase()}.ssh     *.*                    LISTEN`,
+        ];
       },
     };
 
@@ -429,6 +520,9 @@ export class JunosDevice {
       showForwardingTable,
       pingCommand,
       tracerouteCommand,
+      startShellCommand,
+      ifconfigCommand,
+      netstatCommand,
       showOspfNeighbor,
       showOspfInterface,
       showOspfDatabase,

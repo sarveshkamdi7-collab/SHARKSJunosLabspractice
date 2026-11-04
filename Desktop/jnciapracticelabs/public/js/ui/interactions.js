@@ -606,6 +606,27 @@
     });
   }
 
+  function primaryJunosConsoleNode() {
+    var nodes = (APP.getState().nodes || []).filter(function (n) { return n && n.junos; });
+    var primary = nodes.filter(function (n) { return n.name === 'R1' && n.status === 'running'; })[0] ||
+      nodes.filter(function (n) { return n.type === 'router' && n.status === 'running'; })[0] ||
+      nodes.filter(function (n) { return n.name === 'R1'; })[0] ||
+      nodes.filter(function (n) { return n.type === 'router'; })[0] ||
+      nodes[0] || null;
+    return primary;
+  }
+
+  function openPrimaryConsole() {
+    var node = primaryJunosConsoleNode();
+    if (!node || !APP.openConsoleById) return null;
+    var tab = APP.openConsoleById(node.id);
+    if (tab && tab.term && tab.term.focus) setTimeout(function () { tab.term.focus(); }, 50);
+    return tab;
+  }
+
+  APP.primaryJunosConsoleNode = primaryJunosConsoleNode;
+  APP.openPrimaryConsole = openPrimaryConsole;
+
   function applyPreset(key) {
     var preset = APP.PRESETS[key];
     if (!preset) return;
@@ -673,6 +694,7 @@
     }
     APP.rebuildWorld();
     APP.renderAll(true);
+    openPrimaryConsole();
     APP.scheduleSave();
     APP.toast(preset.title + ' preset loaded', 'success', 'check');
   }

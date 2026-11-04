@@ -86,6 +86,7 @@
     this.ip = '0.0.0.0';
     this.cidr = 0;
     this.gateway = '0.0.0.0';
+    this.arpCache = null;
 
     var sourceIp = options.ip;
     if (sourceIp) {
@@ -112,6 +113,7 @@
     this.cidr = 0;
     this.gateway = '0.0.0.0';
     this.mac = defaultMac(this.id);
+    this.arpCache = null;
   };
 
   VPCSEngine.prototype.showIp = function () {
@@ -125,12 +127,34 @@
     ];
   };
 
+  VPCSEngine.prototype.ensureArp = function () {
+    if (this.arpCache) return this.arpCache;
+    this.arpCache = {};
+    if (this.gateway !== '0.0.0.0') {
+      this.arpCache[this.gateway] = { mac: this.mac, iface: 'eth0' };
+    }
+    return this.arpCache;
+  };
+
   VPCSEngine.prototype.arpLines = function () {
     var lines = ['Address                  HWtype  HWaddress           Flags Mask            Iface'];
-    if (this.gateway !== '0.0.0.0') {
-      lines.push(this.gateway + '                ether   ' + this.mac + '   C     -               eth0');
-    }
+    var cache = this.ensureArp();
+    Object.keys(cache).forEach(function (address) {
+      var entry = cache[address];
+      lines.push(address + '                ether   ' + entry.mac + '   C     -               ' + entry.iface);
+    });
     return lines;
+  };
+
+  VPCSEngine.prototype.clearArp = function () {
+    this.arpCache = {};
+    return { lines: [] };
+  };
+
+  VPCSEngine.prototype.tracePlan = function (tokens) {
+    if (!tokens.length) return { error: 'trace: missing address' };
+    if (ipv4ToInt(tokens[0]) === null) return { error: 'trace: invalid address ' + tokens[0] };
+    return { trace: tokens[0] };
   };
 
   VPCSEngine.prototype.routeLines = function () {
@@ -148,6 +172,7 @@
       this.ip = parsed.ip;
       this.cidr = parsed.cidr;
       if (gw !== undefined) this.gateway = gw;
+      this.arpCache = null;
       return { lines: ['IP address configured: ' + this.addr() + (this.gateway !== '0.0.0.0' ? ' gateway ' + this.gateway : '')] };
     }
 
@@ -163,6 +188,7 @@
     this.ip = address;
     this.cidr = cidr;
     if (gateway !== undefined) this.gateway = gateway;
+    this.arpCache = null;
     return { lines: ['IP address configured: ' + this.addr() + (this.gateway !== '0.0.0.0' ? ' gateway ' + this.gateway : '')] };
   };
 
@@ -214,28 +240,27 @@
       return {
         lines: [
           'VPCS commands:',
-          '  show [ip|arp|route|mac]       Show host information',
           '  ip <address>/<cidr> [gateway] Configure the IPv4 address',
-          '  gateway <address>             Configure the default gateway',
-          '  ping <host> [-c count]        Ping a host',
-          '  arp                           Show the ARP table',
-          '  route                         Show the host routing table',
-          '  clear                         Clear the screen',
-          '  quit                          Close this console'
+          '  show ip                        Show host information',
+          '  ping <host> [-c count]         Ping a host',
+          '  trace <host>                   Trace the route to a host',
+          '  clear arp                      Clear the ARP cache',
+          '  help, ?                        Show this command list'
         ]
       };
     }
 
-    if (command === 'clear') return { clear: true };
+    if (command === 'clear') {
+      if (!rest.length) return { clear: true };
+      if (String(rest[0]).toLowerCase() === 'arp' && rest.length === 1) return this.clearArp();
+      return { error: command + ': command not found' };
+    }
     if (command === 'quit' || command === 'exit') return { quit: true, lines: ['Goodbye'] };
 
     if (command === 'show') {
       var sub = (rest[0] || 'ip').toLowerCase();
-      if (sub === 'ip' || sub === 'info') return { lines: this.showIp() };
-      if (sub === 'arp') return { lines: this.arpLines() };
-      if (sub === 'route') return { lines: this.routeLines() };
-      if (sub === 'mac') return { lines: ['MAC: ' + this.mac] };
-      return { error: 'show: unknown option ' + rest[0] };
+      if (sub === 'ip' && rest.length <= 1) return { lines: this.showIp() };
+      return { error: command + ': command not found' };
     }
 
     if (command === 'ip') {
@@ -243,24 +268,13 @@
       return this.setIp(rest);
     }
 
-    if (command === 'gateway' || command === 'gw') {
-      if (rest.length !== 1 || ipv4ToInt(rest[0]) === null) return { error: 'gateway: invalid address' };
-      this.gateway = rest[0];
-      return { lines: ['Gateway configured: ' + this.gateway] };
-    }
-
-    if (command === 'set' && rest.length === 2 && String(rest[0]).toLowerCase() === 'pcname') {
-      this.name = rest[1];
-      return { lines: [] };
-    }
-
     if (command === 'ping') return { ping: this.pingPlan(rest) };
+    if (command === 'trace' || command === 'traceroute') return this.tracePlan(rest);
 
-    if (command === 'arp') return { lines: this.arpLines() };
-    if (command === 'route') return { lines: this.routeLines() };
-
-    return { error: 'Invalid command: "' + raw + '". Type "?" or "help" for available commands.' };
+    return { error: command + ': command not found' };
   };
+
+  VPCSEngine.COMMANDS = ['ip', 'show ip', 'ping', 'trace', 'clear arp', 'help', '?'];
 
   VPCSEngine.prototype.pingLines = function (plan, sequence) {
     var line;
@@ -307,6 +321,7 @@
     parseCidr: parseCidr,
     networkOf: networkOf,
     defaultMac: defaultMac,
+    COMMANDS: VPCSEngine.COMMANDS,
     CRLF: CRLF
   };
 })(typeof window !== 'undefined' ? window : globalThis);

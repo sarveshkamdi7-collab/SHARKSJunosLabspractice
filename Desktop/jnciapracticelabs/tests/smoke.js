@@ -90,7 +90,7 @@ check('ipsec sa', has(t, 'Total active tunnels: 1'), t);
 t = showExact('show bfd session');
 check('bfd session', has(t, 'ge-0/0/0.0') && has(t, '10.0.12.2'), t);
 t = showExact('show bfd session detail');
-check('bfd session detail', has(t, 'Client: OSPF') && has(t, 'Multiplier 5'), t);
+check('bfd session detail', has(t, 'Client OSPF') && has(t, 'Multiplier 5'), t);
 
 t = showExact('show isis adjacency');
 check('isis adjacency', typeof t === 'string', t);

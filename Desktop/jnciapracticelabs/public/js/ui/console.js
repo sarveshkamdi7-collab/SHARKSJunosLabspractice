@@ -13,13 +13,44 @@
 
   function shellPrompt(sess, host) {
     var user = sess && sess.user ? sess.user : 'root';
-    return user + '@' + host + ':~ % ';
+    return user + '@' + host + ':~ ' + (user === 'root' ? '# ' : '% ');
   }
 
   function opPrompt(sess, host) {
     var user = sess && sess.user ? sess.user : 'user';
     var h = host || 'R1';
     return user + '@' + h + '> ';
+  }
+
+  var DeviceType = { JUNOS: 'junos', VPCS: 'vpcs' };
+
+  var DEVICE_PROFILES = {
+    junos: {
+      type: DeviceType.JUNOS,
+      label: 'JUNOS',
+      host: false,
+      prompt: { shell: '~ % ', operational: '> ', configuration: '# ' },
+      commands: ['configure', 'edit', 'run', 'set', 'delete', 'commit', 'rollback', 'show', 'ping', 'traceroute', 'clear', 'help', 'exit', 'quit']
+    },
+    vpcs: {
+      type: DeviceType.VPCS,
+      label: 'VPCS',
+      host: true,
+      prompt: { host: '> ' },
+      commands: ['ip', 'show ip', 'ping', 'trace', 'clear arp', 'help', '?']
+    }
+  };
+
+  function profileFor(node) {
+    return (node && node.junos === false) ? DEVICE_PROFILES[DeviceType.VPCS] : DEVICE_PROFILES[DeviceType.JUNOS];
+  }
+
+  function deviceTypeFor(node) {
+    return profileFor(node).type;
+  }
+
+  function commandsFor(node) {
+    return profileFor(node).commands.slice();
   }
 
   var HOST_OPTIONS = ['ping', 'trace', 'show', 'ip', 'clear', 'help', 'quit'];
@@ -36,7 +67,8 @@
     opts = opts || {};
     var node = opts.node || opts;
     var session = opts.session || null;
-    var isHost = node && node.junos === false;
+    var profile = profileFor(node);
+    var isHost = profile.type === DeviceType.VPCS;
     var input = '';
     var history = [];
     var hidx = history.length;
@@ -524,5 +556,21 @@
   }
 
   J.ui = J.ui || {};
-  J.ui.console = { createConsole: createConsole, shellPrompt: shellPrompt, opPrompt: opPrompt };
+  J.ui.console = {
+    createConsole: createConsole,
+    shellPrompt: shellPrompt,
+    opPrompt: opPrompt,
+    DeviceType: DeviceType,
+    DEVICE_PROFILES: DEVICE_PROFILES,
+    profileFor: profileFor,
+    deviceTypeFor: deviceTypeFor,
+    commandsFor: commandsFor
+  };
+  J.deviceProfiles = {
+    DeviceType: DeviceType,
+    profiles: DEVICE_PROFILES,
+    forNode: profileFor,
+    typeFor: deviceTypeFor,
+    commandsFor: commandsFor
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

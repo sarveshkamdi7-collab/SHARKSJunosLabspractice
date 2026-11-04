@@ -70,7 +70,7 @@ ok('diff adds the new value', descDiff.indexOf('+ description "FIDELITY";') >= 0
 const matched = text('show | compare | match FIDELITY');
 ok('match keeps only matching lines', matched.indexOf('FIDELITY') >= 0 && matched.indexOf('LINK TO R2') < 0, matched);
 const matchedCount = text('show | compare | match description | count');
-ok('chained pipes: match then count', matchedCount.trim() === '2', matchedCount);
+ok('chained pipes: match then count', matchedCount.trim() === 'Count: 2 lines', matchedCount);
 
 // ---------- commit / rollback ----------
 ok('commit check', text('commit check').indexOf('configuration check succeeds') >= 0);
@@ -151,11 +151,11 @@ ok('match filters lines', mi.length > 0 && mi.split('\n').every(l => l.indexOf('
 const ex = text('show interfaces terse | except lo');
 ok('except drops lines', ex.indexOf('lo0') < 0 && ex.length > 0, ex);
 const cnt = text('show interfaces terse | count');
-ok('count returns a number', /^\d+$/.test(cnt.trim()), cnt);
+ok('count returns N lines', /^Count: \d+ lines$/.test(cnt.trim()), cnt);
 const ds = text('show configuration | display set | match interfaces');
 ok('display set + match', ds.length > 0 && ds.split('\n').every(l => l.indexOf('set interfaces') === 0), ds);
 const dsc = text('show configuration | display set | count');
-ok('display set + count', /^\d+$/.test(dsc.trim()), dsc);
+ok('display set + count', /^Count: \d+ lines$/.test(dsc.trim()), dsc);
 
 // ---------- switch platform ----------
 const rtSW = J.machine.createDeviceRuntime('SW1');

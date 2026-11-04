@@ -6,6 +6,7 @@ export interface DeviceProfile {
   junosVersion: string;
   interfacePrefix: string;
   interfaceCount: number;
+  managementInterface?: string;
   physicalMtu: number;
   logicalMtu: number;
   macPrefix: string;
@@ -19,6 +20,7 @@ export const PROFILES: Record<ProfileName, DeviceProfile> = {
     junosVersion: '21.4R3.15',
     interfacePrefix: 'ge-0/0/',
     interfaceCount: 8,
+    managementInterface: 'fxp0',
     physicalMtu: 1514,
     logicalMtu: 1500,
     macPrefix: '00:05:86',

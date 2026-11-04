@@ -1,38 +1,38 @@
 # SharkLab Studio - Junos CLI Engine - Progress
 
 ## Setup
-- [ ] TypeScript/Vitest scaffolding
+- [x] TypeScript/Vitest scaffolding
 
 ## Phase 1 - Lexer, Prefix Engine, Modes & Pipeline
-- [ ] Tokenizer
-- [ ] Command registry + unambiguous prefix expansion
-- [ ] Junos error/ambiguity output
-- [ ] Pipes
-- [ ] Session state machine
-- [ ] parser tests (25+ assertions)
+- [x] Tokenizer
+- [x] Command registry + unambiguous prefix expansion
+- [x] Junos error/ambiguity output
+- [x] Pipes
+- [x] Session state machine
+- [x] parser tests (25+ assertions)
 
 ## Phase 2 - Configuration AST, Diff, Commit & Rollback
-- [ ] Hierarchical candidate/active trees
-- [ ] set/delete/edit/up/top/activate/deactivate
-- [ ] brace + display set renderers
-- [ ] show | compare diff
-- [ ] commit/commit check/commit confirmed/rollback 0-49
+- [x] Hierarchical candidate/active trees
+- [x] set/delete/edit/up/top/activate/deactivate
+- [x] brace + display set renderers
+- [x] show | compare diff
+- [x] commit/commit check/commit confirmed/rollback 0-49
 
 ## Phase 3 - Hardware Profiles, Interfaces, ARP
-- [ ] vSRX/vMX/EX profiles
-- [ ] interface terse/detail output
-- [ ] show version / uptime / arp
+- [x] vSRX/vMX/EX profiles
+- [x] interface terse/detail output
+- [x] show version / uptime / arp
 
 ## Phase 4 - RIB/FIB, Static Routes, Ping
-- [ ] direct/local/static routes
-- [ ] show route variants
-- [ ] ping/traceroute simulation
+- [x] direct/local/static routes
+- [x] show route variants
+- [x] ping/traceroute simulation
 
 ## Phase 5 - OSPF FSM
-- [ ] adjacency state machine + DR/BDR
-- [ ] mismatch handling
-- [ ] SPF route injection
-- [ ] OSPF commands
+- [x] adjacency state machine + DR/BDR
+- [x] mismatch handling
+- [x] SPF route injection
+- [x] OSPF commands
 
 ## Log
 ## Phase 1 - COMPLETE
@@ -68,3 +68,12 @@
 - show ospf neighbor / interface / database and clear ospf neighbor commands wired to JunosDevice.
 - Verification: npx vitest run src/junos/protocols/ospf.test.ts -> 14 tests passed.
 - Full suite: npx vitest run -> 113 tests passed (5 files). npx tsc --noEmit -> clean.
+
+## Phase 6 - COMPLETE
+- Operational-mode `run` rejection with caret, config-mode `run` delegation and mode restore.
+- Strict ping/traceroute target validation (CIDR and malformed hosts report `Host name lookup failure`).
+- Shell parity: root prompt, `start shell`, `cli`, `ping`, `traceroute`, `ifconfig`, `netstat`, binary inventory and descriptions.
+- vSRX management interface (`fxp0`) included in interface inventory alongside `lo0`.
+- Legacy probes updated to the Junos-accurate `Count: N lines` and `Client OSPF` output.
+- CLI audit suite added (5 tests); full suite: npx vitest run -> 118 tests passed (6 files). npx tsc --noEmit -> clean.
+- Desktop probes: engine 13/13, CLI fidelity, smoke, coverage 68/68, BGP 0 failures.
